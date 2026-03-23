@@ -1009,7 +1009,10 @@
       <button class="login-btn" id="lo_loginBtn" onclick="lo_login()" disabled>ログイン →</button>
       <p class="error-msg" id="lo_errorMsg">IDまたはパスワードが正しくありません</p>
     </div>
-    <div style="margin-top:24px;text-align:center">
+    <div style="margin-top:28px;text-align:center;display:flex;flex-direction:column;gap:10px">
+      <p style="font-size:14px">
+        <a href="#" onclick="showPage('register');return false;" style="color:#16a34a;font-weight:700;text-decoration:none">📝 新規会員登録はこちら →</a>
+      </p>
       <p class="admin-link">
         <a href="#" onclick="showPage('admin');return false;">管理者ページ</a>
       </p>
