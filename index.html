@@ -321,6 +321,8 @@
     #page-meal .food-del-btn { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #d1d5db; }
     #page-meal .food-del-btn:hover { background: #fee2e2; color: #ef4444; }
     #page-meal .food-empty { padding: 16px 4px; font-size: 12px; color: #d1d5db; text-align: center; }
+    #page-meal .food-photo { width: 52px; height: 52px; object-fit: cover; border-radius: 10px; flex-shrink: 0; cursor: pointer; }
+    #page-meal .food-ai-comment { margin-top: 4px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 3px 8px; font-size: 11px; color: #16a34a; }
     #page-meal .fab-wrap { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 50; }
     #page-meal .fab { display: flex; align-items: center; gap: 8px; background: #22C55E; color: white; font-weight: bold; padding: 14px 32px; border-radius: 50px; box-shadow: 0 8px 32px rgba(34,197,94,0.35); font-size: 15px; transition: all 0.2s; }
     #page-meal .fab:hover { background: #16a34a; transform: translateY(-2px); }
@@ -328,6 +330,162 @@
     #page-meal .radio-label input { display: none; }
     #page-meal .radio-label.checked { border-color: #22C55E; background: #f0fdf4; color: #15803d; font-weight: 600; }
     #page-meal .radio-group { display: flex; flex-wrap: wrap; gap: 6px; }
+    /* 食事区分 4ボタン */
+    #page-meal .meal-type-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    #page-meal .meal-type-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 4px; border-radius: 12px; border: 2px solid #e5e7eb; font-size: 11px; font-weight: 600; color: #6b7280; transition: all 0.2s; background: white; cursor: pointer; }
+    #page-meal .meal-type-btn:hover { border-color: #d1d5db; }
+    #page-meal .meal-type-btn.active { border-color: #22C55E; background: #f0fdf4; color: #16a34a; }
+    #page-meal .meal-type-btn .mt-icon { font-size: 22px; line-height: 1; }
+    /* 写真アップロードエリア */
+    #page-meal .photo-upload-area { width: 100%; height: 112px; border: 2px dashed #e5e7eb; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: #9ca3af; transition: all 0.2s; background: white; cursor: pointer; }
+    #page-meal .photo-upload-area:hover { border-color: #22C55E; color: #22C55E; }
+    #page-meal .photo-preview-wrap { position: relative; }
+    #page-meal .photo-preview-img { width: 100%; height: 176px; object-fit: cover; border-radius: 12px; display: block; }
+    #page-meal .photo-preview-clear { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; background: rgba(0,0,0,0.5); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; cursor: pointer; border: none; }
+    /* AIグラデーションボタン */
+    #page-meal .ai-analyze-grad { width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; background: linear-gradient(135deg, #22c55e, #10b981); color: white; font-weight: bold; padding: 12px; border-radius: 12px; font-size: 13px; transition: all 0.2s; border: none; cursor: pointer; }
+    #page-meal .ai-analyze-grad:hover { opacity: 0.9; }
+    #page-meal .ai-analyze-grad:disabled { opacity: 0.4; cursor: not-allowed; }
+    /* AI結果カード */
+    #page-meal .ai-result-card { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 12px; margin-bottom: 4px; }
+    #page-meal .ai-result-title { font-size: 11px; font-weight: bold; color: #16a34a; margin-bottom: 8px; }
+    #page-meal .ai-result-grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 8px; }
+    #page-meal .ai-result-item { text-align: center; background: white; border-radius: 8px; padding: 6px 2px; }
+    #page-meal .ai-result-val { font-size: 12px; font-weight: bold; }
+    #page-meal .ai-result-lbl { font-size: 9px; color: #9ca3af; }
+    #page-meal .ai-comment-text { font-size: 11px; color: #15803d; }
+
+    /* ===== MEAL PAGE - new components ===== */
+    /* Vitamin/mineral section */
+    #page-meal .vit-section { margin-top: 16px; padding-top: 12px; border-top: 1px solid #f3f4f6; }
+    #page-meal .vit-section-title { font-size: 12px; font-weight: 700; color: #6b7280; margin-bottom: 8px; }
+    #page-meal .vit-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    #page-meal .vit-item { background: #f9fafb; border-radius: 8px; padding: 8px; }
+    #page-meal .vit-item-label { font-size: 10px; color: #9ca3af; margin-bottom: 2px; }
+    #page-meal .vit-item-val { font-size: 13px; font-weight: 700; color: #374151; }
+    #page-meal .vit-item-goal { font-size: 10px; color: #9ca3af; }
+    #page-meal .vit-bar-wrap { width: 100%; height: 4px; background: #e5e7eb; border-radius: 4px; margin-top: 4px; overflow: hidden; }
+    #page-meal .vit-bar { height: 100%; border-radius: 4px; transition: width 0.5s; }
+
+    /* Date selector dropdown */
+    #page-meal .date-selector-wrap { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    #page-meal .date-selector-select { flex: 1; font-size: 13px; padding: 6px 10px; border: 1px solid #e5e7eb; border-radius: 8px; background: white; color: #374151; outline: none; }
+    #page-meal .date-cal-btn { width: 34px; height: 34px; border-radius: 8px; background: white; border: 1px solid #e5e7eb; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+    #page-meal .date-cal-btn:hover { background: #f3f4f6; }
+
+    /* Multiple photos */
+    #page-meal .multi-photo-upload-area { width: 100%; padding: 18px 12px; border: 2px dashed #e5e7eb; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: #9ca3af; transition: all 0.2s; background: white; cursor: pointer; }
+    #page-meal .multi-photo-upload-area:hover { border-color: #22C55E; color: #22C55E; }
+    #page-meal .multi-photo-scroll { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 8px; }
+    #page-meal .multi-photo-scroll::-webkit-scrollbar { height: 4px; }
+    #page-meal .multi-photo-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+    #page-meal .multi-photo-thumb-wrap { position: relative; flex-shrink: 0; }
+    #page-meal .multi-photo-thumb { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; display: block; }
+    #page-meal .multi-photo-del { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; background: #ef4444; color: white; border-radius: 50%; font-size: 11px; display: flex; align-items: center; justify-content: center; border: 2px solid white; }
+
+    /* AI card (purple) */
+    #page-meal .ai-card { background: linear-gradient(135deg, #faf5ff, #eef2ff); border: 1px solid #e9d5ff; border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+    #page-meal .ai-card-title { font-size: 13px; font-weight: 700; color: #7c3aed; margin-bottom: 8px; }
+    #page-meal .ai-textarea { width: 100%; border: 1px solid #d8b4fe; border-radius: 8px; padding: 8px 10px; font-size: 12px; resize: none; background: white; outline: none; color: #374151; }
+    #page-meal .ai-textarea:focus { border-color: #8b5cf6; }
+    #page-meal .ai-purple-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; font-weight: bold; padding: 11px; border-radius: 10px; font-size: 13px; transition: all 0.2s; border: none; cursor: pointer; margin-top: 8px; }
+    #page-meal .ai-purple-btn:hover { opacity: 0.9; }
+    #page-meal .ai-purple-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    #page-meal .ai-result-summary { margin-top: 8px; }
+    #page-meal .ai-result-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid #f3f4f6; font-size: 12px; }
+    #page-meal .ai-result-row-label { flex: 1; color: #6b7280; }
+    #page-meal .ai-result-row-input { width: 70px; border: 1px solid #e5e7eb; border-radius: 6px; padding: 2px 6px; font-size: 12px; text-align: right; }
+    #page-meal .ai-extra-nutrients { margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+    #page-meal .ai-extra-item { font-size: 11px; display: flex; align-items: center; gap: 4px; color: #6b7280; }
+    #page-meal .ai-extra-input { width: 55px; border: 1px solid #e5e7eb; border-radius: 4px; padding: 2px 4px; font-size: 11px; }
+
+    /* 3-tab section */
+    #page-meal .tab3-wrap { border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; margin-bottom: 12px; }
+    #page-meal .tab3-header { display: flex; background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
+    #page-meal .tab3-btn { flex: 1; padding: 9px 4px; font-size: 12px; font-weight: 600; color: #9ca3af; background: none; border: none; border-bottom: 2px solid transparent; transition: all 0.2s; }
+    #page-meal .tab3-btn.active { color: #22C55E; border-bottom-color: #22C55E; background: white; }
+    #page-meal .tab3-body { padding: 12px; }
+    #page-meal .tab3-panel { display: none; }
+    #page-meal .tab3-panel.active { display: block; }
+
+    /* Search results */
+    #page-meal .food-search-input { width: 100%; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 10px; font-size: 13px; outline: none; margin-bottom: 8px; }
+    #page-meal .food-search-input:focus { border-color: #22C55E; }
+    #page-meal .food-result-list { max-height: 200px; overflow-y: auto; }
+    #page-meal .food-result-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 4px; border-bottom: 1px solid #f3f4f6; }
+    #page-meal .food-result-name { font-size: 13px; color: #1f2937; font-weight: 500; }
+    #page-meal .food-result-cal { font-size: 11px; color: #9ca3af; }
+    #page-meal .food-result-add-btn { width: 28px; height: 28px; background: #f0fdf4; color: #22C55E; border-radius: 50%; font-size: 16px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 1px solid #bbf7d0; }
+    #page-meal .food-result-add-btn:hover { background: #22C55E; color: white; }
+    #page-meal .food-result-empty { text-align: center; color: #9ca3af; font-size: 12px; padding: 20px 0; }
+
+    /* Favorite foods */
+    #page-meal .fav-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 4px; border-bottom: 1px solid #f3f4f6; }
+    #page-meal .fav-item-name { font-size: 13px; color: #1f2937; font-weight: 500; }
+    #page-meal .fav-item-cal { font-size: 11px; color: #9ca3af; }
+    #page-meal .fav-add-btn { width: 28px; height: 28px; background: #f0fdf4; color: #22C55E; border-radius: 50%; font-size: 16px; display: flex; align-items: center; justify-content: center; border: 1px solid #bbf7d0; }
+    #page-meal .fav-add-btn:hover { background: #22C55E; color: white; }
+    #page-meal .fav-empty { text-align: center; color: #9ca3af; font-size: 12px; padding: 20px 0; }
+
+    /* Manual tab */
+    #page-meal .manual-form { display: grid; gap: 8px; }
+    #page-meal .manual-input { width: 100%; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 10px; font-size: 13px; outline: none; }
+    #page-meal .manual-input:focus { border-color: #22C55E; }
+    #page-meal .manual-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; }
+    #page-meal .manual-add-btn { width: 100%; margin-top: 8px; background: #22C55E; color: white; padding: 9px; border-radius: 8px; font-size: 13px; font-weight: bold; }
+    #page-meal .manual-add-btn:hover { background: #16a34a; }
+
+    /* Added item chips */
+    #page-meal .item-chips-wrap { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 0; min-height: 36px; }
+    #page-meal .item-chip { display: flex; align-items: center; gap: 4px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 20px; padding: 3px 8px 3px 10px; font-size: 12px; color: #15803d; }
+    #page-meal .item-chip-del { font-size: 12px; color: #9ca3af; background: none; border: none; cursor: pointer; padding: 0 2px; }
+    #page-meal .item-chip-del:hover { color: #ef4444; }
+
+    /* Modal footer buttons */
+    #page-meal .modal-footer { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid #f3f4f6; background: white; }
+    #page-meal .btn-cancel { flex: 1; padding: 11px; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 14px; font-weight: 600; color: #6b7280; background: white; }
+    #page-meal .btn-cancel:hover { background: #f9fafb; }
+    #page-meal .btn-record { flex: 2; padding: 11px; border-radius: 10px; font-size: 14px; font-weight: bold; color: white; background: #22C55E; }
+    #page-meal .btn-record:hover { background: #16a34a; }
+    #page-meal .btn-record:disabled { background: #d1d5db; cursor: not-allowed; }
+
+    /* Goal modal - activity buttons */
+    #page-meal .activity-btn-list { display: flex; flex-direction: column; gap: 6px; }
+    #page-meal .activity-btn { width: 100%; text-align: left; padding: 10px 14px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; font-weight: 500; color: #374151; background: white; transition: all 0.2s; }
+    #page-meal .activity-btn:hover { border-color: #22C55E; }
+    #page-meal .activity-btn.active { background: #22C55E; border-color: #22C55E; color: white; font-weight: bold; }
+
+    /* Goal type buttons */
+    #page-meal .goal-type-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    #page-meal .goal-type-btn { padding: 9px 4px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 12px; font-weight: 600; color: #6b7280; background: white; transition: all 0.2s; }
+    #page-meal .goal-type-btn:hover { border-color: #22C55E; }
+    #page-meal .goal-type-btn.active { background: #22C55E; border-color: #22C55E; color: white; }
+
+    /* PFC ratio card */
+    #page-meal .pfc-ratio-card { background: #f9fafb; border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+    #page-meal .pfc-ratio-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    #page-meal .pfc-ratio-title { font-size: 13px; font-weight: 700; color: #374151; }
+    #page-meal .pfc-total-badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+    #page-meal .pfc-total-badge.ok { background: #dcfce7; color: #16a34a; }
+    #page-meal .pfc-total-badge.ng { background: #fee2e2; color: #dc2626; }
+    #page-meal .pfc-presets { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px; }
+    #page-meal .pfc-preset-btn { font-size: 11px; padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 6px; background: white; color: #374151; }
+    #page-meal .pfc-preset-btn:hover { background: #f3f4f6; }
+    #page-meal .pfc-slider-row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+    #page-meal .pfc-slider-label { font-size: 12px; color: #374151; width: 80px; flex-shrink: 0; }
+    #page-meal .pfc-adj-btn { width: 24px; height: 24px; border: 1px solid #e5e7eb; border-radius: 6px; background: white; font-size: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    #page-meal .pfc-adj-btn:hover { background: #f3f4f6; }
+    #page-meal .pfc-val-display { min-width: 40px; text-align: center; font-size: 13px; font-weight: 700; color: #1f2937; flex-shrink: 0; }
+    #page-meal .pfc-slider { flex: 1; accent-color: #22C55E; }
+    #page-meal .pfc-color-bar { width: 100%; height: 8px; border-radius: 4px; margin-top: 8px; overflow: hidden; display: flex; }
+    #page-meal .pfc-color-seg { height: 100%; transition: width 0.3s; }
+    #page-meal .pfc-bar-labels { display: flex; justify-content: space-between; margin-top: 4px; font-size: 10px; color: #9ca3af; }
+    #page-meal .auto-cal-link { font-size: 12px; color: #22C55E; text-decoration: underline; cursor: pointer; margin-bottom: 8px; display: inline-block; }
+
+    /* Multiple photos in timeline */
+    #page-meal .multi-photo-row { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 4px; padding-bottom: 4px; }
+    #page-meal .multi-photo-row::-webkit-scrollbar { height: 4px; }
+    #page-meal .food-photo-multi { width: 52px; height: 52px; object-fit: cover; border-radius: 8px; flex-shrink: 0; cursor: pointer; }
 
     /* ===== BODY PAGE ===== */
     #page-body .main { max-width: 900px; margin: 0 auto; padding: 20px 16px 40px; }
@@ -630,6 +788,41 @@
     #page-admin .quick-link.purple:hover { background: #faf5ff; }
     #page-admin .quick-link.orange { border-color: #f97316; color: #ea580c; }
     #page-admin .quick-link.orange:hover { background: #fff7ed; }
+    /* === 食事記録管理 (amr) === */
+    .amr-tab { flex:1; text-align:center; padding:5px 4px; border-radius:6px; font-size:11px; font-weight:600; color:#6b7280; cursor:pointer; background:none; border:none; font-family:inherit; white-space:nowrap; }
+    .amr-tab.active { background:white; color:#111827; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
+    .amr-inner-card { background:white; border:1px solid #f0f0f0; border-radius:10px; padding:12px; margin-bottom:10px; }
+    .amr-mini-cal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+    .amr-mini-cal-title { font-size:13px; font-weight:700; color:#1f2937; }
+    .amr-mini-cal-nav { width:28px; height:28px; border-radius:50%; background:#f3f4f6; border:none; cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:center; color:#374151; }
+    .amr-mini-cal-nav:hover { background:#e5e7eb; }
+    .amr-cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+    .amr-cal-dow { text-align:center; font-size:9px; font-weight:600; padding:2px 0; }
+    .amr-cal-cell { position:relative; text-align:center; font-size:11px; padding:4px 2px; border-radius:6px; cursor:pointer; border:none; background:none; font-family:inherit; }
+    .amr-cal-cell:hover { background:#f3f4f6; }
+    .amr-cal-cell.today { background:#eff6ff; color:#2563eb; font-weight:700; }
+    .amr-cal-cell.selected { background:#22C55E; color:white; font-weight:700; }
+    .amr-cal-cell.has-record::after { content:''; position:absolute; bottom:2px; left:50%; transform:translateX(-50%); width:4px; height:4px; border-radius:50%; background:#22C55E; }
+    .amr-cal-cell.selected.has-record::after { background:white; }
+    .amr-bar-chart { display:flex; align-items:flex-end; gap:2px; height:100px; overflow-x:auto; padding:4px 0; }
+    .amr-bar-col { display:flex; flex-direction:column; align-items:center; gap:2px; flex-shrink:0; }
+    .amr-bar { width:16px; border-radius:3px 3px 0 0; min-height:3px; cursor:pointer; transition:opacity 0.15s; }
+    .amr-bar:hover { opacity:0.75; }
+    .amr-bar-lbl { font-size:8px; color:#9ca3af; white-space:nowrap; }
+    .amr-nutrition-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:12px; }
+    .amr-nut-box { border-radius:10px; padding:8px 4px; text-align:center; }
+    .amr-nut-val { font-size:16px; font-weight:900; }
+    .amr-nut-lbl { font-size:9px; color:#6b7280; margin-top:2px; }
+    .amr-nut-bar { height:4px; border-radius:2px; background:#e5e7eb; margin-top:4px; overflow:hidden; }
+    .amr-nut-bar-fill { height:100%; border-radius:2px; transition:width 0.4s; }
+    .amr-day-meal-section { background:white; border:1px solid #f0f0f0; border-radius:10px; overflow:hidden; margin-bottom:8px; }
+    .amr-day-meal-header { display:flex; align-items:center; gap:8px; padding:8px 12px; border-bottom:1px solid #f5f5f5; }
+    .amr-record-row { display:flex; align-items:start; gap:10px; padding:10px 12px; border-bottom:1px solid #f8f8f8; }
+    .amr-record-photo { width:48px; height:48px; object-fit:cover; border-radius:8px; flex-shrink:0; cursor:pointer; }
+    .amr-nut-chips { display:grid; grid-template-columns:repeat(4,1fr); gap:3px; margin-top:6px; }
+    .amr-nut-chip { text-align:center; background:#f9fafb; border-radius:6px; padding:3px 2px; }
+    .amr-stat-row { display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #f3f4f6; font-size:12px; }
+    @media (min-width:800px) { #amr_grid { grid-template-columns:1fr 2fr !important; } }
 
     /* ===== Shared Modal ===== */
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 300; align-items: flex-end; justify-content: center; }
@@ -1010,7 +1203,7 @@
     <p class="apikey-sub">
       Claude 3.5 Sonnetを使った高精度な食事写真AI解析に必要です。<br>
       キーは<strong>このデバイスのみ</strong>に保存されます（localStorage）。<br>
-      APIキーは <a href="https://console.anthropic.com/api-keys" target="_blank" style="color:#6366f1">console.anthropic.com</a> で取得できます。
+      APIキーは <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:#6366f1">console.anthropic.com/settings/keys</a> で取得できます。
     </p>
     <input class="apikey-input" id="apiKeyInput" type="password" placeholder="sk-..." autocomplete="off" />
     <div class="apikey-status unset" id="apiKeyStatus">未設定</div>
@@ -1039,7 +1232,11 @@
       <input class="name-input" id="lo_idInput" type="email" placeholder="メールアドレス" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" oninput="lo_updateLoginBtn()" />
       <div class="pass-wrap">
         <input class="name-input" id="lo_passInput" type="password" placeholder="パスワード" autocomplete="current-password" oninput="lo_updateLoginBtn()" style="width:100%;padding-right:44px" />
-        <button type="button" class="pass-vis-btn" id="lo_passVisBtn" onclick="lo_togglePassVis()">👁</button>
+        <button type="button" class="pass-vis-btn" id="lo_passVisBtn" onclick="lo_togglePassVis()">
+          <svg id="lo_eyeIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
       </div>
       <label class="remember-row">
         <input type="checkbox" id="lo_rememberCheck" />
@@ -1152,13 +1349,20 @@
     </div>
   </div>
   <div class="main">
+    <!-- Date selector dropdown -->
+    <div class="date-selector-wrap">
+      <select class="date-selector-select" id="ml_dateSelectorDropdown" onchange="ml_onDateSelectorChange(this.value)">
+        <option value="">日付を選択...</option>
+      </select>
+      <button class="date-cal-btn" onclick="ml_openDatePicker()" title="カレンダーで選択">📅</button>
+      <input type="date" id="ml_datePickerInput" style="display:none" onchange="ml_onDatePickerChange(this.value)" />
+    </div>
     <div class="card" id="ml_summaryCard">
       <div class="summary-header">
         <span class="summary-title">栄養サマリー</span>
         <div class="summary-meta">
           <span id="ml_goalDayBadge" class="goal-badge" style="display:none"></span>
-          <span class="goal-text" id="ml_goalCalText">目標: 2,000 kcal</span>
-          <button class="settings-btn" onclick="ml_openGoalModal()" title="目標設定">⚙</button>
+          <button class="settings-btn" onclick="ml_openGoalModal()" style="font-size:14px;font-weight:700;color:#22C55E;display:flex;align-items:center;gap:4px;padding:4px 8px;border:1px solid #22C55E;border-radius:8px;">⚙ 目標設定</button>
         </div>
       </div>
       <p class="calorie-label">カロリー</p>
@@ -1195,6 +1399,48 @@
           </div>
         </div>
       </div>
+      <!-- ビタミン・ミネラルセクション -->
+      <div class="vit-section">
+        <p class="vit-section-title">ビタミン・ミネラル</p>
+        <div class="vit-grid" id="ml_vitGrid">
+          <div class="vit-item">
+            <p class="vit-item-label">食物繊維</p>
+            <div class="vit-item-row"><span class="vit-item-val" id="ml_vitFiber">0.0</span><span class="vit-item-goal">g</span></div>
+            <div class="vit-bar-wrap"><div class="vit-bar" id="ml_vitFiberBar" style="width:0%;background:#22C55E"></div></div>
+            <p class="vit-item-goal">目標 21g</p>
+          </div>
+          <div class="vit-item">
+            <p class="vit-item-label">塩分</p>
+            <div class="vit-item-row"><span class="vit-item-val" id="ml_vitSalt">0.0</span><span class="vit-item-goal">g</span></div>
+            <div class="vit-bar-wrap"><div class="vit-bar" id="ml_vitSaltBar" style="width:0%;background:#F59E0B"></div></div>
+            <p class="vit-item-goal">目標 7.5g</p>
+          </div>
+          <div class="vit-item">
+            <p class="vit-item-label">VitC</p>
+            <div class="vit-item-row"><span class="vit-item-val" id="ml_vitC">0</span><span class="vit-item-goal">mg</span></div>
+            <div class="vit-bar-wrap"><div class="vit-bar" id="ml_vitCBar" style="width:0%;background:#6366F1"></div></div>
+            <p class="vit-item-goal">目標 100mg</p>
+          </div>
+          <div class="vit-item">
+            <p class="vit-item-label">カルシウム</p>
+            <div class="vit-item-row"><span class="vit-item-val" id="ml_vitCa">0</span><span class="vit-item-goal">mg</span></div>
+            <div class="vit-bar-wrap"><div class="vit-bar" id="ml_vitCaBar" style="width:0%;background:#EC4899"></div></div>
+            <p class="vit-item-goal">目標 650mg</p>
+          </div>
+          <div class="vit-item">
+            <p class="vit-item-label">鉄</p>
+            <div class="vit-item-row"><span class="vit-item-val" id="ml_vitFe">0.0</span><span class="vit-item-goal">mg</span></div>
+            <div class="vit-bar-wrap"><div class="vit-bar" id="ml_vitFeBar" style="width:0%;background:#EF4444"></div></div>
+            <p class="vit-item-goal">目標 7mg</p>
+          </div>
+          <div class="vit-item">
+            <p class="vit-item-label">VitD</p>
+            <div class="vit-item-row"><span class="vit-item-val" id="ml_vitD">0.0</span><span class="vit-item-goal">μg</span></div>
+            <div class="vit-bar-wrap"><div class="vit-bar" id="ml_vitDBar" style="width:0%;background:#8B5CF6"></div></div>
+            <p class="vit-item-goal">目標 15μg</p>
+          </div>
+        </div>
+      </div>
     </div>
     <div id="ml_mealTimeline"></div>
   </div>
@@ -1203,82 +1449,212 @@
   </div>
   <!-- Meal add modal -->
   <div class="modal-overlay" id="ml_addModal" onclick="ml_closeAddModal()">
-    <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal" onclick="event.stopPropagation()" style="display:flex;flex-direction:column;max-height:90vh">
       <div class="modal-header">
         <div><p class="modal-title">食事を記録する</p></div>
         <button class="modal-close" onclick="ml_closeAddModal()">✕</button>
       </div>
-      <div class="modal-body">
-        <!-- AI Photo Analysis -->
-        <button class="ai-photo-btn" onclick="ml_triggerPhotoUpload()">
-          <span class="ai-icon">📷</span>
-          写真でAI食事解析（gpt-4o-mini）
-        </button>
-        <input type="file" id="ml_photoInput" accept="image/*" capture="environment" style="display:none" onchange="ml_onPhotoSelected(event)" />
-        <div class="ai-preview-wrap">
-          <img class="ai-preview-img" id="ml_photoPreview" alt="food photo" />
-          <button class="ai-preview-clear" id="ml_photoClear" onclick="ml_clearPhoto()">✕</button>
+      <div class="modal-body" style="overflow-y:auto;flex:1">
+        <!-- 食事区分 4ボタン -->
+        <div class="form-group">
+          <label class="form-label">食事区分</label>
+          <div class="meal-type-grid">
+            <button type="button" id="ml_mt_breakfast" class="meal-type-btn" onclick="ml_setMealType('breakfast')"><span class="mt-icon">🌅</span>朝食</button>
+            <button type="button" id="ml_mt_lunch"     class="meal-type-btn active" onclick="ml_setMealType('lunch')"><span class="mt-icon">☀️</span>昼食</button>
+            <button type="button" id="ml_mt_dinner"    class="meal-type-btn" onclick="ml_setMealType('dinner')"><span class="mt-icon">🌙</span>夕食</button>
+            <button type="button" id="ml_mt_snack"     class="meal-type-btn" onclick="ml_setMealType('snack')"><span class="mt-icon">🍪</span>間食</button>
+          </div>
         </div>
-        <button class="ai-analyze-btn" id="ml_analyzeBtn" onclick="ml_analyzePhoto()">
-          <span>✨</span> AI解析する
-        </button>
-        <div class="ai-result-badge" id="ml_aiResultBadge">✅ AI解析完了 — 内容を確認・編集してください</div>
-        <div class="ai-divider">
-          <div class="ai-divider-line"></div>
-          <span class="ai-divider-text">または手動入力</span>
-          <div class="ai-divider-line"></div>
+        <!-- 日時 -->
+        <div class="form-group"><label class="form-label">日時</label><input class="form-input" id="ml_addDateTime" type="datetime-local" /></div>
+        <!-- 写真（複数選択可） -->
+        <div class="form-group">
+          <label class="form-label">写真（複数選択可）</label>
+          <div id="ml_multiPhotoUploadArea" class="multi-photo-upload-area" onclick="document.getElementById('ml_multiPhotoInput').click()">
+            <span style="font-size:28px">📷</span>
+            <span style="font-size:12px">フォルダから選択（複数可）</span>
+          </div>
+          <div id="ml_multiPhotoScroll" style="display:none">
+            <div class="multi-photo-scroll" id="ml_multiPhotoThumbRow"></div>
+          </div>
         </div>
-        <div class="form-group"><label class="form-label">会員名 *</label><input class="form-input" id="ml_addMemberName" list="ml_memberDatalist" placeholder="名前を入力または選択" /><datalist id="ml_memberDatalist"></datalist></div>
-        <div class="form-group"><label class="form-label">食事タイプ *</label><select class="form-select" id="ml_addMealType"><option value="breakfast">🌅 朝食</option><option value="lunch">☀️ 昼食</option><option value="dinner">🌙 夕食</option><option value="snack">🍪 間食</option></select></div>
-        <div class="form-group"><label class="form-label">日時 *</label><input class="form-input" id="ml_addDateTime" type="datetime-local" /></div>
-        <div class="form-group"><label class="form-label">食べたもの *</label><input class="form-input" id="ml_addFoodName" placeholder="例：鶏むね肉 100g" /></div>
-        <div class="form-grid">
-          <div class="form-group"><label class="form-label">カロリー (kcal)</label><input class="form-input" id="ml_addCalories" type="number" min="0" placeholder="200" /></div>
-          <div class="form-group"><label class="form-label">たんぱく質 (g)</label><input class="form-input" id="ml_addProtein" type="number" min="0" step="0.1" placeholder="20.0" /></div>
-          <div class="form-group"><label class="form-label">脂質 (g)</label><input class="form-input" id="ml_addFat" type="number" min="0" step="0.1" placeholder="5.0" /></div>
-          <div class="form-group"><label class="form-label">炭水化物 (g)</label><input class="form-input" id="ml_addCarbs" type="number" min="0" step="0.1" placeholder="30.0" /></div>
+        <input type="file" id="ml_multiPhotoInput" accept="image/*" multiple style="display:none" onchange="ml_addMultiPhoto(event)" />
+        <!-- AI栄養自動計算カード -->
+        <div class="ai-card">
+          <p class="ai-card-title">✨ AI栄養自動計算</p>
+          <textarea class="ai-textarea" id="ml_addFoodName" placeholder="食事内容を打ち込んでください（例：白ゴハン150g、鶏胸肉のグリル200g、サラダ）" rows="3"></textarea>
+          <button class="ai-purple-btn" id="ml_analyzeBtn" onclick="ml_analyzePhoto()" disabled>
+            ✨ AIで栄養素を自動計算
+          </button>
+          <!-- AI結果 -->
+          <div id="ml_aiResultCard" style="display:none">
+            <div class="ai-result-summary" id="ml_aiResultSummary"></div>
+            <div class="ai-extra-nutrients" id="ml_aiExtraNutrients">
+              <div class="ai-extra-item">食物繊維: <input class="ai-extra-input" id="ml_addFiber" type="number" min="0" step="0.1" placeholder="0" />g</div>
+              <div class="ai-extra-item">塩分: <input class="ai-extra-input" id="ml_addSalt" type="number" min="0" step="0.1" placeholder="0" />g</div>
+              <div class="ai-extra-item">VitC: <input class="ai-extra-input" id="ml_addVitC" type="number" min="0" step="0.1" placeholder="0" />mg</div>
+              <div class="ai-extra-item">VitD: <input class="ai-extra-input" id="ml_addVitD" type="number" min="0" step="0.1" placeholder="0" />μg</div>
+            </div>
+          </div>
         </div>
-        <button class="btn-submit" id="ml_addSubmitBtn" onclick="ml_saveRecord()" style="background:#22C55E">記録する</button>
+        <!-- 3-tab: 検索 / お気に入り / 手動 -->
+        <div class="tab3-wrap">
+          <div class="tab3-header">
+            <button class="tab3-btn active" id="ml_tab3_search" onclick="ml_setTab3('search')">🔍 検索</button>
+            <button class="tab3-btn" id="ml_tab3_fav" onclick="ml_setTab3('fav')">⭐ お気に入り</button>
+            <button class="tab3-btn" id="ml_tab3_manual" onclick="ml_setTab3('manual')">✏️ 手動</button>
+          </div>
+          <div class="tab3-body">
+            <!-- 検索タブ -->
+            <div class="tab3-panel active" id="ml_tab3panel_search">
+              <input class="food-search-input" id="ml_foodSearchInput" placeholder="食品名で検索（例：鶏胸肉、ご飯、バナナ）" oninput="ml_searchFoodDB(this.value)" />
+              <div class="food-result-list" id="ml_foodResultList">
+                <p class="food-result-empty">食品名を入力してください</p>
+              </div>
+            </div>
+            <!-- お気に入りタブ -->
+            <div class="tab3-panel" id="ml_tab3panel_fav">
+              <div id="ml_favList"><p class="fav-empty">お気に入りはまだありません</p></div>
+            </div>
+            <!-- 手動タブ -->
+            <div class="tab3-panel" id="ml_tab3panel_manual">
+              <div class="manual-form">
+                <input class="manual-input" id="ml_manualName" placeholder="食品名" />
+                <div class="manual-grid">
+                  <input class="manual-input" id="ml_manualAmount" type="number" min="0" placeholder="量(g)" />
+                  <input class="manual-input" id="ml_manualCal" type="number" min="0" placeholder="kcal" />
+                  <input class="manual-input" id="ml_manualP" type="number" min="0" step="0.1" placeholder="P(g)" />
+                  <input class="manual-input" id="ml_manualF" type="number" min="0" step="0.1" placeholder="F(g)" />
+                </div>
+                <input class="manual-input" id="ml_manualC" type="number" min="0" step="0.1" placeholder="炭水化物(g)" />
+                <button class="manual-add-btn" onclick="ml_addItemManual()">食品を追加</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- 追加済み食品チップ -->
+        <div>
+          <p class="form-label" style="margin-bottom:4px">追加済み食品</p>
+          <div class="item-chips-wrap" id="ml_itemChips"><span style="font-size:12px;color:#d1d5db">食品を追加してください</span></div>
+        </div>
+        <!-- hidden inputs for compat with existing save logic -->
+        <input type="hidden" id="ml_addCalories" />
+        <input type="hidden" id="ml_addProtein" />
+        <input type="hidden" id="ml_addFat" />
+        <input type="hidden" id="ml_addCarbs" />
+        <input type="hidden" id="ml_addMemberName" />
+        <datalist id="ml_memberDatalist"></datalist>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="ml_closeAddModal()">キャンセル</button>
+        <button class="btn-record" id="ml_addSubmitBtn" onclick="ml_saveRecord()">記録する (0品)</button>
       </div>
     </div>
   </div>
   <!-- Goal modal -->
   <div class="modal-overlay" id="ml_goalModal" onclick="ml_closeGoalModal()">
-    <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal" onclick="event.stopPropagation()" style="display:flex;flex-direction:column;max-height:92vh">
       <div class="modal-header">
-        <div><p class="modal-title">目標・カロリー設定</p><p class="modal-sub" id="ml_goalModalSubtitle"></p></div>
+        <div><p class="modal-title">目標・プロフィール設定</p><p class="modal-sub" id="ml_goalModalSubtitle"></p></div>
         <button class="modal-close" onclick="ml_closeGoalModal()">✕</button>
       </div>
-      <div class="modal-body">
-        <div class="form-grid" style="margin-bottom:8px">
-          <div class="form-group"><label class="form-label">身長 (cm)</label><input class="form-input" id="ml_gHeight" type="number" placeholder="170" /></div>
-          <div class="form-group"><label class="form-label">現在体重 (kg)</label><input class="form-input" id="ml_gCurWeight" type="number" step="0.1" placeholder="65.0" /></div>
+      <div class="modal-body" style="overflow-y:auto;flex:1">
+        <!-- 身長 -->
+        <div class="form-group"><label class="form-label">身長 (cm)</label><input class="form-input" id="ml_gHeight" type="number" placeholder="170" oninput="ml_calcAutoCalories()" /></div>
+        <!-- 体重 -->
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">現在の体重 (kg)</label><input class="form-input" id="ml_gCurWeight" type="number" step="0.1" placeholder="65.0" oninput="ml_calcAutoCalories()" /></div>
           <div class="form-group"><label class="form-label">目標体重 (kg)</label><input class="form-input" id="ml_gTargetWeight" type="number" step="0.1" placeholder="60.0" /></div>
         </div>
-        <div class="form-group">
-          <label class="form-label">目標タイプ</label>
-          <div class="radio-group" id="ml_goalTypeRadio">
-            <label class="radio-label" data-val="lose_weight"><input type="radio" name="ml_goalType" value="lose_weight"> 減量</label>
-            <label class="radio-label checked" data-val="maintain"><input type="radio" name="ml_goalType" value="maintain" checked> 維持</label>
-            <label class="radio-label" data-val="gain_muscle"><input type="radio" name="ml_goalType" value="gain_muscle"> 増量・筋肉増加</label>
-          </div>
-        </div>
-        <div class="form-group"><label class="form-label">活動レベル</label><select class="form-select" id="ml_gActivity"><option value="sedentary">座り仕事中心</option><option value="light">軽い運動（週１〜３回）</option><option value="moderate" selected>中程度の運動（週３〜５回）</option><option value="active">活発な運動（週６〜７回）</option><option value="very_active">非常に活発</option></select></div>
+        <!-- 目標期間 -->
         <div class="form-group">
           <label class="form-label">目標期間</label>
           <div class="form-grid">
-            <div><label class="form-label">開始日</label><input class="form-input" id="ml_gStartDate" type="date" /></div>
-            <div><label class="form-label">ゴール期限日</label><input class="form-input" id="ml_gEndDate" type="date" /></div>
+            <div><label class="form-label">開始日</label><input class="form-input" id="ml_gStartDate" type="date" onchange="ml_updateWeekCalc()" /></div>
+            <div><label class="form-label">ゴール期限日</label><input class="form-input" id="ml_gEndDate" type="date" onchange="ml_updateWeekCalc()" /></div>
           </div>
           <p id="ml_gWeekCalc" style="font-size:11px;color:#22C55E;font-weight:bold;margin-top:4px"></p>
         </div>
-        <div class="form-grid">
-          <div class="form-group"><label class="form-label">カロリー目標 (kcal)</label><input class="form-input" id="ml_gCalGoal" type="number" placeholder="2000" /></div>
-          <div class="form-group"><label class="form-label">たんぱく質目標 (g)</label><input class="form-input" id="ml_gProteinGoal" type="number" placeholder="80" /></div>
-          <div class="form-group"><label class="form-label">脂質目標 (g)</label><input class="form-input" id="ml_gFatGoal" type="number" placeholder="60" /></div>
-          <div class="form-group"><label class="form-label">炭水化物目標 (g)</label><input class="form-input" id="ml_gCarbsGoal" type="number" placeholder="250" /></div>
+        <!-- 活動レベル ボタンリスト -->
+        <div class="form-group">
+          <label class="form-label">活動レベル</label>
+          <div class="activity-btn-list">
+            <button type="button" class="activity-btn" id="ml_act_sedentary" data-val="sedentary" onclick="ml_setGoalActivity('sedentary')">ほぼ座り仕事</button>
+            <button type="button" class="activity-btn" id="ml_act_light" data-val="light" onclick="ml_setGoalActivity('light')">軽い運動（週1〜2回）</button>
+            <button type="button" class="activity-btn" id="ml_act_moderate" data-val="moderate" onclick="ml_setGoalActivity('moderate')">中程度（週3〜5回）</button>
+            <button type="button" class="activity-btn" id="ml_act_active" data-val="active" onclick="ml_setGoalActivity('active')">活発（週6〜7回）</button>
+            <button type="button" class="activity-btn" id="ml_act_very_active" data-val="very_active" onclick="ml_setGoalActivity('very_active')">非常に活発（1日2回以上）</button>
+          </div>
         </div>
-        <button class="btn-submit" onclick="ml_saveGoal()" style="background:#22C55E">保存する</button>
+        <!-- 目標タイプ -->
+        <div class="form-group">
+          <label class="form-label">目標</label>
+          <div class="goal-type-row">
+            <button type="button" class="goal-type-btn" id="ml_gt_lose_weight" onclick="ml_setGoalType('lose_weight')">体重を減らす</button>
+            <button type="button" class="goal-type-btn active" id="ml_gt_maintain" onclick="ml_setGoalType('maintain')">体重を維持する</button>
+            <button type="button" class="goal-type-btn" id="ml_gt_gain_muscle" onclick="ml_setGoalType('gain_muscle')">筋肉をつける</button>
+          </div>
+        </div>
+        <!-- PFC比率設定カード -->
+        <div class="pfc-ratio-card">
+          <div class="pfc-ratio-header">
+            <span class="pfc-ratio-title">🥩 PFC比率設定</span>
+            <span class="pfc-total-badge" id="ml_pfcTotalBadge">合計 100%</span>
+          </div>
+          <div class="pfc-presets">
+            <button class="pfc-preset-btn" onclick="ml_applyPfcPreset(25,20,55)">標準</button>
+            <button class="pfc-preset-btn" onclick="ml_applyPfcPreset(30,25,45)">減量重視</button>
+            <button class="pfc-preset-btn" onclick="ml_applyPfcPreset(35,25,40)">筋肉重視</button>
+            <button class="pfc-preset-btn" onclick="ml_applyPfcPreset(20,70,10)">ケトジェニック</button>
+          </div>
+          <!-- P slider -->
+          <div class="pfc-slider-row">
+            <span class="pfc-slider-label">🥩 たんぱく質</span>
+            <button class="pfc-adj-btn" onclick="ml_setPfcP(ml_pfcP-1)">−</button>
+            <span class="pfc-val-display" id="ml_pfcPVal">25%</span>
+            <button class="pfc-adj-btn" onclick="ml_setPfcP(ml_pfcP+1)">＋</button>
+            <input type="range" class="pfc-slider" id="ml_pfcPSlider" min="5" max="80" value="25" oninput="ml_setPfcP(parseInt(this.value))" />
+          </div>
+          <!-- F slider -->
+          <div class="pfc-slider-row">
+            <span class="pfc-slider-label">🧈 脂質</span>
+            <button class="pfc-adj-btn" onclick="ml_setPfcF(ml_pfcF-1)">−</button>
+            <span class="pfc-val-display" id="ml_pfcFVal">20%</span>
+            <button class="pfc-adj-btn" onclick="ml_setPfcF(ml_pfcF+1)">＋</button>
+            <input type="range" class="pfc-slider" id="ml_pfcFSlider" min="5" max="80" value="20" oninput="ml_setPfcF(parseInt(this.value))" />
+          </div>
+          <!-- C slider -->
+          <div class="pfc-slider-row">
+            <span class="pfc-slider-label">🍚 炭水化物</span>
+            <button class="pfc-adj-btn" onclick="ml_setPfcC(ml_pfcC-1)">−</button>
+            <span class="pfc-val-display" id="ml_pfcCVal">55%</span>
+            <button class="pfc-adj-btn" onclick="ml_setPfcC(ml_pfcC+1)">＋</button>
+            <input type="range" class="pfc-slider" id="ml_pfcCSlider" min="5" max="80" value="55" oninput="ml_setPfcC(parseInt(this.value))" />
+          </div>
+          <!-- Color bar -->
+          <div class="pfc-color-bar" id="ml_pfcColorBar">
+            <div class="pfc-color-seg" id="ml_pfcBarP" style="width:25%;background:#3B82F6"></div>
+            <div class="pfc-color-seg" id="ml_pfcBarF" style="width:20%;background:#F59E0B"></div>
+            <div class="pfc-color-seg" id="ml_pfcBarC" style="width:55%;background:#10B981"></div>
+          </div>
+          <div class="pfc-bar-labels" id="ml_pfcBarLabels">
+            <span id="ml_pfcLabelP">タンパク 25%</span>
+            <span id="ml_pfcLabelF">脂質 20%</span>
+            <span id="ml_pfcLabelC">炭水化物 55%</span>
+          </div>
+        </div>
+        <!-- 自動計算に戻す -->
+        <a class="auto-cal-link" onclick="ml_calcAutoCalories()">自動計算に戻す</a>
+        <!-- カロリー目標 -->
+        <div class="form-group"><label class="form-label">カロリー目標 (kcal)</label><input class="form-input" id="ml_gCalGoal" type="number" placeholder="2000" oninput="ml_updatePfcBar()" /></div>
+        <!-- hidden PFC goal fields (auto-calculated from slider) -->
+        <input type="hidden" id="ml_gProteinGoal" />
+        <input type="hidden" id="ml_gFatGoal" />
+        <input type="hidden" id="ml_gCarbsGoal" />
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="ml_closeGoalModal()">キャンセル</button>
+        <button class="btn-record" onclick="ml_saveGoal()">保存する</button>
       </div>
     </div>
   </div>
@@ -1654,6 +2030,49 @@
       <div class="card-header"><p class="card-title">🕐 最近のアクティビティ</p></div>
       <div class="activity-list" id="ad_activityList">
         <div style="padding:12px 0;text-align:center;color:#9ca3af;font-size:12px">記録がありません</div>
+      </div>
+    </div>
+    <!-- ===== 食事記録管理 ===== -->
+    <div class="card">
+      <div class="card-header"><p class="card-title">🍽 食事記録管理</p><span style="font-size:11px;color:#6b7280">会員の食事記録・カロリー推移・目標設定を管理</span></div>
+      <div style="padding:12px 16px 16px">
+        <label style="font-size:11px;font-weight:700;color:#6b7280;display:block;margin-bottom:6px">会員を選択</label>
+        <div style="position:relative;display:inline-block" id="amr_memberWrap">
+          <button onclick="amr_toggleDropdown()" style="display:flex;align-items:center;gap:8px;border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;font-size:13px;background:white;color:#1a1a1a;min-width:240px;cursor:pointer">
+            <span style="color:#9ca3af">🔍</span>
+            <span id="amr_memberBtnText" style="flex:1;text-align:left;color:#9ca3af">会員を選択してください</span>
+            <span id="amr_memberClear" style="display:none;color:#9ca3af;padding:2px" onclick="amr_clearMember(event)">✕</span>
+            <span style="color:#9ca3af;font-size:11px">▼</span>
+          </button>
+          <div id="amr_dropdown" style="display:none;position:absolute;left:0;top:100%;margin-top:4px;width:280px;background:white;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:200">
+            <div style="display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid #f0f0f0">
+              <span style="color:#9ca3af">🔍</span>
+              <input id="amr_memberSearch" type="text" placeholder="名前で検索..." oninput="amr_filterMembers()" style="flex:1;font-size:13px;border:none;outline:none;background:transparent;color:#1a1a1a" />
+            </div>
+            <div id="amr_memberList" style="max-height:200px;overflow-y:auto;padding:4px 0"></div>
+          </div>
+        </div>
+        <div id="amr_noMember" style="padding:40px;text-align:center;color:#9ca3af;font-size:13px">
+          <div style="font-size:36px;margin-bottom:12px;opacity:0.2">🍽</div>会員を選択すると食事記録が表示されます
+        </div>
+        <div id="amr_content" style="display:none">
+          <div id="amr_grid" style="display:grid;grid-template-columns:1fr;gap:12px;margin-top:12px">
+            <!-- 左カラム -->
+            <div id="amr_leftCol">
+              <div style="display:flex;gap:2px;background:#f3f4f6;padding:3px;border-radius:8px;margin-bottom:10px">
+                <button id="amr_tab_calendar" class="amr-tab active" onclick="amr_setTab('calendar')">📅 カレンダー</button>
+                <button id="amr_tab_chart"    class="amr-tab"        onclick="amr_setTab('chart')">📊 グラフ</button>
+                <button id="amr_tab_goals"    class="amr-tab"        onclick="amr_setTab('goals')">⚙ 目標設定</button>
+              </div>
+              <div id="amr_calPanel"   class="amr-inner-card"></div>
+              <div id="amr_chartPanel" class="amr-inner-card" style="display:none"></div>
+              <div id="amr_goalsPanel" class="amr-inner-card" style="display:none"></div>
+              <div id="amr_statsPanel" class="amr-inner-card"></div>
+            </div>
+            <!-- 右カラム -->
+            <div id="amr_rightCol"></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -2160,7 +2579,7 @@ function showPage(id) {
   document.getElementById('bgGlow').style.display = id === 'login' ? 'block' : 'none';
   document.getElementById('bgGrid').style.display = id === 'login' ? 'block' : 'none';
   const nav = document.getElementById('mainNav');
-  nav.style.display = id === 'login' ? 'none' : 'flex';
+  nav.style.display = (id === 'login' || id === 'register') ? 'none' : 'flex';
   const adminBadge = document.getElementById('adminBadge');
   adminBadge.style.display = (id === 'admin' || id === 'members' || id === 'calendar' || id === 'schedule' || id === 'staff' || id === 'shift') ? 'inline' : 'none';
   document.documentElement.style.setProperty('--page-color', PAGE_COLORS[id] || '#22c55e');
@@ -2204,12 +2623,15 @@ async function lo_hashPassword(password) {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+const LO_EYE_OPEN = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const LO_EYE_OFF  = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+
 // パスワード表示切り替え
 function lo_togglePassVis() {
   const input = document.getElementById('lo_passInput');
   const btn = document.getElementById('lo_passVisBtn');
-  if (input.type === 'password') { input.type = 'text'; btn.textContent = '🙈'; }
-  else { input.type = 'password'; btn.textContent = '👁'; }
+  if (input.type === 'password') { input.type = 'text'; btn.innerHTML = LO_EYE_OFF; }
+  else { input.type = 'password'; btn.innerHTML = LO_EYE_OPEN; }
 }
 
 function lo_updateLoginBtn() {
@@ -2261,7 +2683,7 @@ function lo_init() {
   errEl.classList.remove('show');
   const passInput = document.getElementById('lo_passInput');
   passInput.type = 'password';
-  document.getElementById('lo_passVisBtn').textContent = '👁';
+  document.getElementById('lo_passVisBtn').innerHTML = LO_EYE_OPEN;
 
   // 登録直後のメール引き継ぎ
   const prefillEmail = localStorage.getItem('lo_prefillEmail');
@@ -2403,6 +2825,12 @@ const ML_MEAL_TYPES = [
 ];
 let ml_selectedDate = new Date();
 let ml_selectedMember = null;
+let ml_items = [];
+let ml_multiPhotos = [];
+let ml_activeGoalType = 'maintain';
+let ml_activeActivity = 'moderate';
+let ml_pfcP = 25, ml_pfcF = 20, ml_pfcC = 55;
+let ml_activeTab3 = 'search';
 
 function ml_toLocalDT(d) {
   const Y=d.getFullYear(), M=String(d.getMonth()+1).padStart(2,'0'), D=String(d.getDate()).padStart(2,'0');
@@ -2463,36 +2891,76 @@ function ml_selectMember(name) {
   ml_render();
 }
 function ml_clearMember(e) { e.stopPropagation(); ml_selectMember(null); }
+let ml_activeMealType = 'lunch';
+function ml_setMealType(type) {
+  ml_activeMealType = type;
+  ['breakfast','lunch','dinner','snack'].forEach(t => {
+    const btn = document.getElementById('ml_mt_' + t);
+    if (btn) btn.classList.toggle('active', t === type);
+  });
+}
 function ml_openAddModal() {
   document.getElementById('ml_addMemberName').value = ml_selectedMember ?? '';
-  document.getElementById('ml_addMealType').value = 'lunch';
+  ml_setMealType('lunch');
   document.getElementById('ml_addDateTime').value = ml_toLocalDT(ml_selectedDate);
   document.getElementById('ml_addFoodName').value = '';
   document.getElementById('ml_addCalories').value = '';
   document.getElementById('ml_addProtein').value = '';
   document.getElementById('ml_addFat').value = '';
   document.getElementById('ml_addCarbs').value = '';
+  document.getElementById('ml_aiResultCard').style.display = 'none';
   ml_updateMemberDatalist();
-  // Reset AI photo state
-  ml_clearPhoto();
+  // reset multi-photos
+  ml_multiPhotos = [];
+  ml_renderMultiPhotos();
+  // reset items
+  ml_items = [];
+  ml_renderItems();
+  ml_updateRecordBtn();
+  // reset tabs
+  ml_setTab3('search');
+  document.getElementById('ml_foodSearchInput').value = '';
+  document.getElementById('ml_foodResultList').innerHTML = '<p class="food-result-empty">食品名を入力してください</p>';
+  ml_renderFavorites();
+  // reset extra nutrients
+  ['ml_addFiber','ml_addSalt','ml_addVitC','ml_addVitD'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  ml_updateAnalyzeBtn();
   document.getElementById('ml_addModal').classList.add('open');
 }
 function ml_closeAddModal() { document.getElementById('ml_addModal').classList.remove('open'); }
-function ml_openAddModalForType(type) { ml_openAddModal(); document.getElementById('ml_addMealType').value = type; }
+function ml_openAddModalForType(type) { ml_openAddModal(); ml_setMealType(type); }
 function ml_saveRecord() {
-  const memberName = document.getElementById('ml_addMemberName').value.trim();
-  const foodName = document.getElementById('ml_addFoodName').value.trim();
+  const memberName = ml_selectedMember || '';
   const mealDate = document.getElementById('ml_addDateTime').value;
-  if (!memberName) { showToast('会員名を入力してください', 'error'); return; }
-  if (!foodName) { showToast('食べたものを入力してください', 'error'); return; }
   if (!mealDate) { showToast('日時を選択してください', 'error'); return; }
-  ml_addMemberIfNew(memberName);
-  const rec = { id: genId(), memberName, mealDate, mealType: document.getElementById('ml_addMealType').value, foodName,
-    caloriesKcal: parseInt(document.getElementById('ml_addCalories').value)||0,
-    proteinG: parseFloat(document.getElementById('ml_addProtein').value)||0,
-    fatG: parseFloat(document.getElementById('ml_addFat').value)||0,
-    carbsG: parseFloat(document.getElementById('ml_addCarbs').value)||0 };
+  if (ml_items.length === 0) { showToast('食品を1品以上追加してください', 'error'); return; }
+  const foodName = ml_items.map(i => i.name).join('、');
+  const totalCal = ml_items.reduce((s,i) => s + (i.kcal||0), 0);
+  const totalP = ml_items.reduce((s,i) => s + (i.p||0), 0);
+  const totalF = ml_items.reduce((s,i) => s + (i.f||0), 0);
+  const totalC = ml_items.reduce((s,i) => s + (i.c||0), 0);
+  const rec = {
+    id: genId(), memberName: memberName || '未設定', mealDate,
+    mealType: ml_activeMealType, foodName,
+    caloriesKcal: totalCal,
+    proteinG: parseFloat(totalP.toFixed(1)),
+    fatG: parseFloat(totalF.toFixed(1)),
+    carbsG: parseFloat(totalC.toFixed(1)),
+    fiberG: parseFloat((parseFloat(document.getElementById('ml_addFiber')?.value)||0).toFixed(1)),
+    saltG: parseFloat((parseFloat(document.getElementById('ml_addSalt')?.value)||0).toFixed(1)),
+    vitCMg: parseFloat((parseFloat(document.getElementById('ml_addVitC')?.value)||0).toFixed(1)),
+    vitDUg: parseFloat((parseFloat(document.getElementById('ml_addVitD')?.value)||0).toFixed(1)),
+    photos: ml_multiPhotos.length > 0 ? [...ml_multiPhotos] : null,
+    photoBase64: ml_multiPhotos[0] || null,
+    items: [...ml_items],
+    aiComment: null
+  };
+  if (memberName) ml_addMemberIfNew(memberName);
   const records = getData('mealRecords_v1', []); records.push(rec); setData('mealRecords_v1', records);
+  ml_multiPhotos = [];
+  ml_items = [];
   ml_closeAddModal(); showToast('食事を記録しました', 'success'); ml_render();
 }
 function ml_deleteRecord(id) {
@@ -2507,15 +2975,25 @@ function ml_openGoalModal() {
   document.getElementById('ml_gCurWeight').value = g.curWeight ?? '';
   document.getElementById('ml_gTargetWeight').value = g.targetWeight ?? '';
   document.getElementById('ml_gCalGoal').value = g.cal ?? 2000;
-  document.getElementById('ml_gProteinGoal').value = g.protein ?? 80;
-  document.getElementById('ml_gFatGoal').value = g.fat ?? 60;
-  document.getElementById('ml_gCarbsGoal').value = g.carbs ?? 250;
   document.getElementById('ml_gStartDate').value = g.startDate ?? '';
   document.getElementById('ml_gEndDate').value = g.endDate ?? '';
-  document.getElementById('ml_gActivity').value = g.activity ?? 'moderate';
-  document.querySelectorAll('#ml_goalTypeRadio .radio-label').forEach(el => {
-    el.classList.toggle('checked', el.dataset.val === (g.goalType || 'maintain'));
+  // activity buttons
+  ml_activeActivity = g.activity ?? 'moderate';
+  ['sedentary','light','moderate','active','very_active'].forEach(v => {
+    const btn = document.getElementById('ml_act_' + v);
+    if (btn) btn.classList.toggle('active', v === ml_activeActivity);
   });
+  // goal type buttons
+  ml_activeGoalType = g.goalType ?? 'maintain';
+  ['lose_weight','maintain','gain_muscle'].forEach(v => {
+    const btn = document.getElementById('ml_gt_' + v);
+    if (btn) btn.classList.toggle('active', v === ml_activeGoalType);
+  });
+  // PFC sliders
+  ml_pfcP = g.pfcP ?? 25;
+  ml_pfcF = g.pfcF ?? 20;
+  ml_pfcC = g.pfcC ?? 55;
+  ml_updatePfcBar();
   ml_updateWeekCalc();
   document.getElementById('ml_goalModal').classList.add('open');
 }
@@ -2523,17 +3001,23 @@ function ml_closeGoalModal() { document.getElementById('ml_goalModal').classList
 function ml_saveGoal() {
   const name = ml_selectedMember;
   if (!name) { showToast('会員を選択してください', 'error'); return; }
+  const calGoal = parseInt(document.getElementById('ml_gCalGoal').value) || 2000;
+  // derive PFC grams from ratio + calGoal
+  const proteinG = Math.round((ml_pfcP / 100) * calGoal / 4);
+  const fatG = Math.round((ml_pfcF / 100) * calGoal / 9);
+  const carbsG = Math.round((ml_pfcC / 100) * calGoal / 4);
   const goals = getGoals();
   goals[name] = {
-    cal: parseInt(document.getElementById('ml_gCalGoal').value)||2000,
-    protein: parseInt(document.getElementById('ml_gProteinGoal').value)||80,
-    fat: parseInt(document.getElementById('ml_gFatGoal').value)||60,
-    carbs: parseInt(document.getElementById('ml_gCarbsGoal').value)||250,
+    cal: calGoal,
+    protein: proteinG,
+    fat: fatG,
+    carbs: carbsG,
+    pfcP: ml_pfcP, pfcF: ml_pfcF, pfcC: ml_pfcC,
     height: parseFloat(document.getElementById('ml_gHeight').value)||null,
     curWeight: parseFloat(document.getElementById('ml_gCurWeight').value)||null,
     targetWeight: parseFloat(document.getElementById('ml_gTargetWeight').value)||null,
-    goalType: document.querySelector('#ml_goalTypeRadio input:checked')?.value || 'maintain',
-    activity: document.getElementById('ml_gActivity').value,
+    goalType: ml_activeGoalType,
+    activity: ml_activeActivity,
     startDate: document.getElementById('ml_gStartDate').value || null,
     endDate: document.getElementById('ml_gEndDate').value || null,
   };
@@ -2546,11 +3030,8 @@ function ml_updateWeekCalc() {
   if (s && e) { const diff = (new Date(e) - new Date(s)) / (7*24*3600*1000); if (diff > 0) { el.textContent = `✔ ${Math.round(diff)}週間（${s} 〜 ${e}）`; return; } }
   el.textContent = '';
 }
-document.getElementById('ml_gStartDate').addEventListener('change', ml_updateWeekCalc);
-document.getElementById('ml_gEndDate').addEventListener('change', ml_updateWeekCalc);
-document.querySelectorAll('#ml_goalTypeRadio .radio-label').forEach(el => {
-  el.addEventListener('click', () => { document.querySelectorAll('#ml_goalTypeRadio .radio-label').forEach(x => x.classList.remove('checked')); el.classList.add('checked'); });
-});
+// 食事内容textareaの入力でAIボタンの有効/無効を更新
+document.getElementById('ml_addFoodName').addEventListener('input', ml_updateAnalyzeBtn);
 function ml_setNutrientBar(id, val, goal, color) {
   const el = document.getElementById(id); if (!el) return;
   el.style.width = Math.min((val/goal)*100, 100) + '%';
@@ -2606,7 +3087,6 @@ function ml_render() {
   } else { goalBadge.style.display = 'none'; }
   document.getElementById('ml_totalCalNum').textContent = totalCal.toLocaleString();
   document.getElementById('ml_totalCalGoal').textContent = `/ ${goal.cal.toLocaleString()} kcal`;
-  document.getElementById('ml_goalCalText').textContent = `目標: ${goal.cal.toLocaleString()} kcal`;
   document.getElementById('ml_totalPNum').textContent = totalP.toFixed(1);
   document.getElementById('ml_goalPText').textContent = `/ ${goal.protein}g`;
   document.getElementById('ml_totalFNum').textContent = totalF.toFixed(1);
@@ -2621,6 +3101,25 @@ function ml_render() {
   ml_setNutrientBar('ml_fatBar', totalF, goal.fat, '#F59E0B');
   ml_setNutrientBar('ml_carbBar', totalC, goal.carbs, '#10B981');
   ml_renderPFCDonut(totalP, totalF, totalC);
+  // vitamins
+  const totalFiber = dayRecords.reduce((s,r)=>s+(r.fiberG||0),0);
+  const totalSalt = dayRecords.reduce((s,r)=>s+(r.saltG||0),0);
+  const totalVitC = dayRecords.reduce((s,r)=>s+(r.vitCMg||0),0);
+  const totalVitD = dayRecords.reduce((s,r)=>s+(r.vitDUg||0),0);
+  function setVit(id, barId, val, goal) {
+    const el = document.getElementById(id); if (el) el.textContent = val.toFixed(1);
+    const bar = document.getElementById(barId); if (bar) bar.style.width = Math.min((val/goal)*100,100)+'%';
+  }
+  setVit('ml_vitFiber','ml_vitFiberBar',totalFiber,21);
+  setVit('ml_vitSalt','ml_vitSaltBar',totalSalt,7.5);
+  const vitCEl = document.getElementById('ml_vitC'); if (vitCEl) vitCEl.textContent = totalVitC.toFixed(0);
+  const vitCBarEl = document.getElementById('ml_vitCBar'); if (vitCBarEl) vitCBarEl.style.width = Math.min((totalVitC/100)*100,100)+'%';
+  const vitDEl = document.getElementById('ml_vitD'); if (vitDEl) vitDEl.textContent = totalVitD.toFixed(1);
+  const vitDBarEl = document.getElementById('ml_vitDBar'); if (vitDBarEl) vitDBarEl.style.width = Math.min((totalVitD/15)*100,100)+'%';
+
+  // update date selector dropdown
+  ml_renderDateSelector();
+
   const timeline = document.getElementById('ml_mealTimeline');
   timeline.innerHTML = ML_MEAL_TYPES.map(mt => {
     const recs = dayRecords.filter(r => r.mealType === mt.key);
@@ -2633,11 +3132,23 @@ function ml_render() {
       </div>
       <div class="food-list">
         ${recs.length === 0 ? `<p class="food-empty">記録なし</p>` :
-          recs.map(r => `<div class="food-item">
-            <div class="food-info"><p class="food-name">${escHtml(r.foodName)}</p><p class="food-macros">P ${r.proteinG.toFixed(1)}g  F ${r.fatG.toFixed(1)}g  C ${r.carbsG.toFixed(1)}g</p></div>
-            <span class="food-cal-badge" style="background:${mt.color}20;color:${mt.color}">${r.caloriesKcal} kcal</span>
-            <button class="food-del-btn" onclick="ml_deleteRecord('${r.id}')">🗑</button>
-          </div>`).join('')}
+          recs.map(r => {
+            const photos = r.photos && r.photos.length > 0 ? r.photos : (r.photoBase64 ? [r.photoBase64] : []);
+            const chips = r.items && r.items.length > 0 ? r.items.map(it => `<span class="item-chip">${escHtml(it.name)}</span>`).join('') : '';
+            return `<div class="food-item" style="align-items:flex-start;flex-direction:column;gap:6px">
+              ${photos.length > 0 ? `<div class="multi-photo-row">${photos.map(p=>`<img src="${p}" class="food-photo-multi" onclick="window.open(this.src,'_blank')" />`).join('')}</div>` : ''}
+              <div class="food-info" style="flex:1;min-width:0;width:100%">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:4px">
+                  <p class="food-name">${escHtml(r.foodName)}</p>
+                  <span class="food-cal-badge" style="background:${mt.color}20;color:${mt.color};flex-shrink:0">${r.caloriesKcal} kcal</span>
+                  <button class="food-del-btn" onclick="ml_deleteRecord('${r.id}')">🗑</button>
+                </div>
+                <p class="food-macros">P ${r.proteinG.toFixed(1)}g  F ${r.fatG.toFixed(1)}g  C ${r.carbsG.toFixed(1)}g</p>
+                ${chips ? `<div class="item-chips-wrap" style="padding:4px 0">${chips}</div>` : ''}
+                ${r.aiComment ? `<div class="food-ai-comment">✨ ${escHtml(r.aiComment)}</div>` : ''}
+              </div>
+            </div>`;
+          }).join('')}
       </div>
     </div>`;
   }).join('');
@@ -3353,6 +3864,378 @@ function ad_init() {
   ad_render();
   // Google連携UI更新
   setTimeout(gcal_updateAuthUI, 100);
+  // 食事記録管理リセット
+  amr_reset();
+}
+
+// ========================================================
+// 食事記録管理 (amr_*) — AdminMealRecords相当
+// ========================================================
+let amr_selectedMember = null;
+let amr_selectedDate   = new Date();
+let amr_activeTab      = 'calendar';
+let amr_calYear        = new Date().getFullYear();
+let amr_calMonth       = new Date().getMonth();
+
+function amr_reset() {
+  amr_selectedMember = null;
+  amr_selectedDate   = new Date();
+  amr_activeTab      = 'calendar';
+  amr_calYear        = new Date().getFullYear();
+  amr_calMonth       = new Date().getMonth();
+  const textEl = document.getElementById('amr_memberBtnText');
+  if (textEl) { textEl.textContent = '会員を選択してください'; textEl.style.color = '#9ca3af'; }
+  const clearEl = document.getElementById('amr_memberClear');
+  if (clearEl) clearEl.style.display = 'none';
+  const content = document.getElementById('amr_content');
+  const noMember = document.getElementById('amr_noMember');
+  if (content) content.style.display = 'none';
+  if (noMember) noMember.style.display = 'block';
+}
+
+function amr_toggleDropdown() {
+  const dd = document.getElementById('amr_dropdown');
+  const isOpen = dd.style.display !== 'none';
+  if (isOpen) { dd.style.display = 'none'; return; }
+  dd.style.display = 'block';
+  amr_filterMembers();
+  setTimeout(() => document.getElementById('amr_memberSearch')?.focus(), 50);
+}
+
+function amr_closeDropdown() {
+  document.getElementById('amr_dropdown').style.display = 'none';
+}
+
+document.addEventListener('mousedown', function(e) {
+  const wrap = document.getElementById('amr_memberWrap');
+  if (wrap && !wrap.contains(e.target)) amr_closeDropdown();
+});
+
+function amr_filterMembers() {
+  const q = (document.getElementById('amr_memberSearch')?.value || '').toLowerCase();
+  const members = getMemberNames();
+  const filtered = q ? members.filter(m => m.toLowerCase().includes(q)) : members;
+  const ul = document.getElementById('amr_memberList');
+  if (!ul) return;
+  ul.innerHTML = filtered.length === 0
+    ? '<p style="padding:12px;font-size:12px;color:#9ca3af;text-align:center">見つかりません</p>'
+    : filtered.map(m => `<button onclick="amr_selectMember('${escHtml(m).replace(/'/g,"\\'")}')" style="display:block;width:100%;text-align:left;padding:8px 14px;font-size:13px;color:#374151;background:none;border:none;cursor:pointer;font-family:inherit" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'">${escHtml(m)}</button>`).join('');
+}
+
+function amr_selectMember(name) {
+  amr_selectedMember = name;
+  const textEl = document.getElementById('amr_memberBtnText');
+  textEl.textContent = name; textEl.style.color = '#1a1a1a';
+  document.getElementById('amr_memberClear').style.display = 'inline';
+  amr_closeDropdown();
+  document.getElementById('amr_memberSearch').value = '';
+  document.getElementById('amr_noMember').style.display = 'none';
+  document.getElementById('amr_content').style.display = 'block';
+  // 最新記録日に移動
+  const records = getData('mealRecords_v1', []).filter(r => r.memberName === name);
+  if (records.length > 0) {
+    const latest = records.reduce((a,b) => new Date(a.mealDate) > new Date(b.mealDate) ? a : b);
+    amr_selectedDate = new Date(latest.mealDate);
+  } else {
+    amr_selectedDate = new Date();
+  }
+  amr_calYear = amr_selectedDate.getFullYear();
+  amr_calMonth = amr_selectedDate.getMonth();
+  amr_setTab(amr_activeTab);
+  amr_renderRight();
+}
+
+function amr_clearMember(e) {
+  e.stopPropagation();
+  amr_reset();
+}
+
+function amr_setTab(tab) {
+  amr_activeTab = tab;
+  ['calendar','chart','goals'].forEach(t => {
+    const btn = document.getElementById('amr_tab_' + t);
+    if (btn) btn.classList.toggle('active', t === tab);
+    const panel = document.getElementById('amr_' + t + 'Panel');
+    if (panel) panel.style.display = t === tab ? 'block' : 'none';
+  });
+  if (tab === 'calendar') amr_renderCalendar();
+  else if (tab === 'chart') amr_renderChart();
+  else if (tab === 'goals') amr_renderGoals();
+  if (tab !== 'goals') amr_renderStats();
+  else document.getElementById('amr_statsPanel').style.display = 'none';
+}
+
+function amr_getRecordDates() {
+  const records = getData('mealRecords_v1', []).filter(r => r.memberName === amr_selectedMember);
+  return new Set(records.map(r => toDateStr(new Date(r.mealDate))));
+}
+
+function amr_renderCalendar() {
+  const panel = document.getElementById('amr_calPanel');
+  if (!panel) return;
+  const recordSet = amr_getRecordDates();
+  const firstDay = new Date(amr_calYear, amr_calMonth, 1).getDay();
+  const daysInMonth = new Date(amr_calYear, amr_calMonth+1, 0).getDate();
+  const today = toDateStr(new Date());
+  const selectedStr = toDateStr(amr_selectedDate);
+  const cells = [];
+  for (let i=0; i<firstDay; i++) cells.push(null);
+  for (let d=1; d<=daysInMonth; d++) cells.push(d);
+  const dows = ['日','月','火','水','木','金','土'];
+  panel.innerHTML = `
+    <div class="amr-mini-cal-header">
+      <button class="amr-mini-cal-nav" onclick="amr_prevCalMonth()">◀</button>
+      <span class="amr-mini-cal-title">${amr_calYear}年${amr_calMonth+1}月</span>
+      <button class="amr-mini-cal-nav" onclick="amr_nextCalMonth()">▶</button>
+    </div>
+    <div class="amr-cal-grid">
+      ${dows.map((d,i) => `<div class="amr-cal-dow" style="color:${i===0?'#f87171':i===6?'#60a5fa':'#9ca3af'}">${d}</div>`).join('')}
+      ${cells.map((day, idx) => {
+        if (!day) return '<div></div>';
+        const dateStr = `${amr_calYear}-${String(amr_calMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        const hasRec = recordSet.has(dateStr);
+        const isToday = dateStr === today;
+        const isSel = dateStr === selectedStr;
+        const dow = idx % 7;
+        let cls = 'amr-cal-cell';
+        if (isSel) cls += ' selected'; else if (isToday) cls += ' today';
+        if (hasRec) cls += ' has-record';
+        const col = dow===0?'#f87171':dow===6?'#60a5fa':'';
+        const style = col && !isSel ? `color:${col}` : '';
+        return `<button class="${cls}" style="${style}" onclick="amr_selectDate('${dateStr}')">${day}</button>`;
+      }).join('')}
+    </div>`;
+}
+
+function amr_prevCalMonth() {
+  if (amr_calMonth === 0) { amr_calYear--; amr_calMonth = 11; } else amr_calMonth--;
+  amr_renderCalendar();
+}
+function amr_nextCalMonth() {
+  if (amr_calMonth === 11) { amr_calYear++; amr_calMonth = 0; } else amr_calMonth++;
+  amr_renderCalendar();
+}
+function amr_selectDate(dateStr) {
+  amr_selectedDate = new Date(dateStr + 'T00:00:00');
+  amr_renderCalendar();
+  amr_renderRight();
+}
+
+function amr_renderChart() {
+  const panel = document.getElementById('amr_chartPanel');
+  if (!panel) return;
+  const records = getData('mealRecords_v1', []).filter(r => r.memberName === amr_selectedMember);
+  const goal = getMemberGoal(amr_selectedMember);
+  const goalCal = goal.cal || 2000;
+  // 日別集計（直近30日）
+  const map = {};
+  records.forEach(r => { const d = toDateStr(new Date(r.mealDate)); map[d] = (map[d]||0) + (r.caloriesKcal||0); });
+  const daily = Object.entries(map).sort(([a],[b]) => a.localeCompare(b)).slice(-30);
+  const maxKcal = Math.max(...daily.map(([,v]) => v), goalCal, 1000);
+  const bars = daily.map(([date, kcal]) => {
+    const d = new Date(date + 'T00:00:00');
+    const lbl = `${d.getMonth()+1}/${d.getDate()}`;
+    const pct = (kcal / maxKcal) * 90;
+    const isOver = kcal > goalCal;
+    const bg = isOver ? 'linear-gradient(0deg,#ef4444,#f59e0b)' : 'linear-gradient(0deg,#3b82f6,#60a5fa)';
+    return `<div class="amr-bar-col">
+      <div class="amr-bar" style="height:${Math.max(pct,3)}px;background:${bg}" title="${lbl}: ${kcal.toLocaleString()} kcal" onclick="amr_selectDate('${date}')"></div>
+      <span class="amr-bar-lbl">${lbl}</span>
+    </div>`;
+  }).join('');
+  const goalPct = (goalCal / maxKcal) * 90;
+  panel.innerHTML = `
+    <p style="font-size:11px;font-weight:700;color:#374151;margin-bottom:6px">日別カロリー推移（直近30日）</p>
+    <div style="position:relative">
+      ${goalCal>0?`<div style="position:absolute;left:0;right:0;border-top:2px dashed #f97316;opacity:0.6;bottom:${goalPct+14}px;pointer-events:none"></div>`:''}
+      <div class="amr-bar-chart">${bars || '<p style="font-size:12px;color:#9ca3af;padding:20px">記録がありません</p>'}</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:#9ca3af;margin-top:4px">
+      <span style="color:#f97316">目標: ${goalCal>0?goalCal.toLocaleString():'未設定'} kcal</span>
+      <span>最大: ${maxKcal.toLocaleString()} kcal</span>
+    </div>`;
+}
+
+function amr_renderGoals() {
+  const panel = document.getElementById('amr_goalsPanel');
+  if (!panel) return;
+  const goal = getMemberGoal(amr_selectedMember);
+  panel.innerHTML = `
+    <p style="font-size:11px;font-weight:700;color:#374151;margin-bottom:10px">⚙ 目標・カロリー設定</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      ${[
+        {label:'身長 (cm)',id:'amr_gHeight',val:goal.height||'',ph:'170'},
+        {label:'現在体重 (kg)',id:'amr_gCurWeight',val:goal.curWeight||'',ph:'65.0'},
+        {label:'目標体重 (kg)',id:'amr_gTargetWeight',val:goal.targetWeight||'',ph:'60.0'},
+        {label:'カロリー目標 (kcal)',id:'amr_gCal',val:goal.cal||2000,ph:'2000'},
+        {label:'たんぱく質目標 (g)',id:'amr_gProtein',val:goal.protein||80,ph:'80'},
+        {label:'脂質目標 (g)',id:'amr_gFat',val:goal.fat||60,ph:'60'},
+        {label:'炭水化物目標 (g)',id:'amr_gCarbs',val:goal.carbs||250,ph:'250'},
+      ].map(f=>`<div><label style="font-size:10px;color:#6b7280;display:block;margin-bottom:2px">${f.label}</label>
+        <input id="${f.id}" type="number" value="${f.val}" placeholder="${f.ph}" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:6px 8px;font-size:12px;outline:none;box-sizing:border-box" /></div>`).join('')}
+    </div>
+    <div style="margin-bottom:8px">
+      <label style="font-size:10px;color:#6b7280;display:block;margin-bottom:2px">目標タイプ</label>
+      <select id="amr_gGoalType" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:6px 8px;font-size:12px;outline:none">
+        <option value="lose_weight" ${(goal.goalType||'maintain')==='lose_weight'?'selected':''}>減量</option>
+        <option value="maintain"    ${(goal.goalType||'maintain')==='maintain'   ?'selected':''}>維持</option>
+        <option value="gain_muscle" ${(goal.goalType||'maintain')==='gain_muscle'?'selected':''}>増量・筋肉増加</option>
+      </select>
+    </div>
+    <div style="margin-bottom:10px">
+      <label style="font-size:10px;color:#6b7280;display:block;margin-bottom:2px">活動レベル</label>
+      <select id="amr_gActivity" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:6px 8px;font-size:12px;outline:none">
+        <option value="sedentary" ${(goal.activity||'moderate')==='sedentary'?'selected':''}>座り仕事中心</option>
+        <option value="light"     ${(goal.activity||'moderate')==='light'    ?'selected':''}>軽い運動（週1〜3回）</option>
+        <option value="moderate"  ${(goal.activity||'moderate')==='moderate' ?'selected':''}>中程度の運動（週3〜5回）</option>
+        <option value="active"    ${(goal.activity||'moderate')==='active'   ?'selected':''}>活発な運動（週6〜7回）</option>
+        <option value="very_active" ${(goal.activity||'moderate')==='very_active'?'selected':''}>非常に活発</option>
+      </select>
+    </div>
+    <button onclick="amr_saveGoals()" style="width:100%;display:flex;align-items:center;justify-content:center;gap:6px;background:#22c55e;color:white;font-weight:700;padding:10px;border-radius:10px;border:none;cursor:pointer;font-size:13px;font-family:inherit">
+      💾 目標を保存
+    </button>`;
+  document.getElementById('amr_statsPanel').style.display = 'none';
+}
+
+function amr_saveGoals() {
+  const goals = getGoals();
+  goals[amr_selectedMember] = {
+    height: parseFloat(document.getElementById('amr_gHeight').value)||null,
+    curWeight: parseFloat(document.getElementById('amr_gCurWeight').value)||null,
+    targetWeight: parseFloat(document.getElementById('amr_gTargetWeight').value)||null,
+    cal: parseInt(document.getElementById('amr_gCal').value)||2000,
+    protein: parseInt(document.getElementById('amr_gProtein').value)||80,
+    fat: parseInt(document.getElementById('amr_gFat').value)||60,
+    carbs: parseInt(document.getElementById('amr_gCarbs').value)||250,
+    goalType: document.getElementById('amr_gGoalType').value,
+    activity: document.getElementById('amr_gActivity').value,
+  };
+  saveGoals(goals);
+  showToast('目標を保存しました', 'success');
+}
+
+function amr_renderStats() {
+  const panel = document.getElementById('amr_statsPanel');
+  if (!panel) return;
+  panel.style.display = 'block';
+  const records = getData('mealRecords_v1', []).filter(r => r.memberName === amr_selectedMember);
+  const recordDates = new Set(records.map(r => toDateStr(new Date(r.mealDate))));
+  const goal = getMemberGoal(amr_selectedMember);
+  const avgCal = recordDates.size > 0
+    ? Math.round(records.reduce((s,r) => s+(r.caloriesKcal||0),0) / recordDates.size)
+    : 0;
+  panel.innerHTML = `
+    <p style="font-size:11px;font-weight:700;color:#374151;margin-bottom:8px">記録統計</p>
+    <div class="amr-stat-row"><span style="color:#6b7280">総記録日数</span><span style="font-weight:700">${recordDates.size} 日</span></div>
+    <div class="amr-stat-row"><span style="color:#6b7280">総記録件数</span><span style="font-weight:700">${records.length} 件</span></div>
+    ${avgCal>0?`<div class="amr-stat-row"><span style="color:#6b7280">平均カロリー/日</span><span style="font-weight:700;color:#ea580c">${avgCal.toLocaleString()} kcal</span></div>`:''}
+    ${goal.cal?`<div class="amr-stat-row"><span style="color:#6b7280">目標カロリー</span><span style="font-weight:700;color:#2563eb">${goal.cal.toLocaleString()} kcal</span></div>`:''}`;
+}
+
+function amr_renderRight() {
+  const col = document.getElementById('amr_rightCol');
+  if (!col) return;
+  const dateStr = toDateStr(amr_selectedDate);
+  const allRecords = getData('mealRecords_v1', []).filter(r => r.memberName === amr_selectedMember);
+  const dayRecords = allRecords.filter(r => toDateStr(new Date(r.mealDate)) === dateStr);
+  const goal = getMemberGoal(amr_selectedMember);
+  const days=['日','月','火','水','木','金','土'];
+  const d = amr_selectedDate;
+  const today = toDateStr(new Date());
+  const label = dateStr===today ? `今日 ${d.getMonth()+1}/${d.getDate()}（${days[d.getDay()]}）` : `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}（${days[d.getDay()]}）`;
+  const MEAL_TYPES = [
+    {key:'breakfast',label:'朝食',icon:'🌅',color:'#F59E0B'},
+    {key:'lunch',    label:'昼食',icon:'☀️', color:'#10B981'},
+    {key:'dinner',   label:'夕食',icon:'🌙', color:'#6366F1'},
+    {key:'snack',    label:'間食',icon:'🍪', color:'#EC4899'},
+  ];
+  const totalCal = dayRecords.reduce((s,r)=>s+(r.caloriesKcal||0),0);
+  const totalP   = dayRecords.reduce((s,r)=>s+(r.proteinG||0),0);
+  const totalF   = dayRecords.reduce((s,r)=>s+(r.fatG||0),0);
+  const totalC   = dayRecords.reduce((s,r)=>s+(r.carbsG||0),0);
+  const gCal=goal.cal||0, gP=goal.protein||0, gF=goal.fat||0, gC=goal.carbs||0;
+  const nutBoxes = [
+    {label:'カロリー',val:totalCal,goal:gCal,fmt:v=>v.toLocaleString(),unit:'kcal',color:'#ea580c',bg:'#fff7ed'},
+    {label:'タンパク質',val:totalP,goal:gP,fmt:v=>v.toFixed(1),unit:'g',color:'#2563eb',bg:'#eff6ff'},
+    {label:'脂質',val:totalF,goal:gF,fmt:v=>v.toFixed(1),unit:'g',color:'#ca8a04',bg:'#fefce8'},
+    {label:'炭水化物',val:totalC,goal:gC,fmt:v=>v.toFixed(1),unit:'g',color:'#16a34a',bg:'#f0fdf4'},
+  ];
+  const nutHtml = dayRecords.length>0 ? `
+    <div style="background:white;border:1px solid #f0f0f0;border-radius:10px;padding:12px;margin-bottom:8px">
+      <p style="font-size:11px;font-weight:700;color:#374151;margin-bottom:8px">栄養サマリー</p>
+      <div class="amr-nutrition-grid">
+        ${nutBoxes.map(n=>{
+          const pct=n.goal>0?Math.min((n.val/n.goal)*100,100):0;
+          const isOver=n.goal>0&&n.val>n.goal;
+          return `<div class="amr-nut-box" style="background:${n.bg}">
+            <div class="amr-nut-val" style="color:${n.color}">${n.fmt(n.val)}</div>
+            <div class="amr-nut-lbl">${n.unit}</div>
+            ${n.goal>0?`<div class="amr-nut-bar"><div class="amr-nut-bar-fill" style="width:${pct}%;background:${isOver?'#ef4444':n.color}"></div></div>`:''}
+            <div class="amr-nut-lbl">${n.label}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>` : '';
+  const mealsHtml = dayRecords.length===0
+    ? `<div style="padding:40px;text-align:center;color:#9ca3af;background:white;border:1px solid #f0f0f0;border-radius:10px">
+        <div style="font-size:28px;opacity:0.3;margin-bottom:8px">🍽</div>
+        <p style="font-size:13px">この日の記録はありません</p>
+      </div>`
+    : MEAL_TYPES.map(mt=>{
+        const recs = dayRecords.filter(r=>r.mealType===mt.key);
+        if (!recs.length) return '';
+        const mealCal = recs.reduce((s,r)=>s+(r.caloriesKcal||0),0);
+        return `<div class="amr-day-meal-section">
+          <div class="amr-day-meal-header" style="border-left:3px solid ${mt.color}">
+            <span style="font-size:16px">${mt.icon}</span>
+            <span style="font-weight:700;font-size:13px">${mt.label}</span>
+            <span style="font-size:11px;color:#9ca3af">${recs.length}品</span>
+            ${mealCal>0?`<span style="margin-left:auto;font-size:13px;font-weight:700;color:${mt.color}">${mealCal.toLocaleString()} kcal</span>`:''}
+          </div>
+          ${recs.map(r=>`<div class="amr-record-row">
+            ${r.photoUrl?`<img class="amr-record-photo" src="${escHtml(r.photoUrl)}" onclick="window.open('${escHtml(r.photoUrl)}','_blank')" />`:''}
+            <div style="flex:1;min-width:0">
+              <p style="font-size:13px;font-weight:600;color:#1f2937;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(r.foodName||'食事記録')}</p>
+              <div class="amr-nut-chips">
+                ${[
+                  {label:'kcal',val:r.caloriesKcal?r.caloriesKcal.toLocaleString():'—',color:'#ea580c'},
+                  {label:'P(g)',val:r.proteinG?Number(r.proteinG).toFixed(1):'—',color:'#2563eb'},
+                  {label:'F(g)',val:r.fatG?Number(r.fatG).toFixed(1):'—',color:'#ca8a04'},
+                  {label:'C(g)',val:r.carbsG?Number(r.carbsG).toFixed(1):'—',color:'#16a34a'},
+                ].map(n=>`<div class="amr-nut-chip"><p style="font-size:11px;font-weight:700;color:${n.color}">${n.val}</p><p style="font-size:9px;color:#9ca3af">${n.label}</p></div>`).join('')}
+              </div>
+              ${r.aiComment?`<div style="margin-top:6px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:4px 8px"><p style="font-size:11px;color:#15803d">✨ ${escHtml(r.aiComment)}</p></div>`:''}
+            </div>
+          </div>`).join('')}
+        </div>`;
+      }).join('');
+
+  col.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;background:white;border:1px solid #f0f0f0;border-radius:10px;padding:8px 12px;margin-bottom:8px">
+      <button onclick="amr_prevDay()" style="width:32px;height:32px;border-radius:50%;background:#f3f4f6;border:none;cursor:pointer;font-size:14px">◀</button>
+      <button onclick="amr_goToday()" style="font-size:13px;font-weight:700;color:#1f2937;background:none;border:none;cursor:pointer">${label}</button>
+      <button onclick="amr_nextDay()" style="width:32px;height:32px;border-radius:50%;background:#f3f4f6;border:none;cursor:pointer;font-size:14px">▶</button>
+    </div>
+    ${nutHtml}${mealsHtml}`;
+}
+
+function amr_prevDay() {
+  const d = new Date(amr_selectedDate); d.setDate(d.getDate()-1); amr_selectedDate=d;
+  if (amr_activeTab==='calendar') amr_renderCalendar();
+  amr_renderRight();
+}
+function amr_nextDay() {
+  const d = new Date(amr_selectedDate); d.setDate(d.getDate()+1); amr_selectedDate=d;
+  if (amr_activeTab==='calendar') amr_renderCalendar();
+  amr_renderRight();
+}
+function amr_goToday() {
+  amr_selectedDate = new Date();
+  amr_calYear = amr_selectedDate.getFullYear();
+  amr_calMonth = amr_selectedDate.getMonth();
+  if (amr_activeTab==='calendar') amr_renderCalendar();
+  amr_renderRight();
 }
 
 // ========================================================
@@ -4085,44 +4968,307 @@ function updateApiKeyStatus() {
 // ========================================================
 // ML: AI FOOD PHOTO ANALYSIS
 // ========================================================
-let ml_photoBase64 = null;
+let ml_photoBase64 = null; // kept for compat
 
 function ml_triggerPhotoUpload() {
-  const key = localStorage.getItem('anthropic_api_key');
-  if (!key) {
-    if (confirm('OpenAI APIキーが設定されていません。設定しますか？')) {
-      openApiKeyModal();
-    }
-    return;
-  }
-  document.getElementById('ml_photoInput').click();
+  document.getElementById('ml_multiPhotoInput') && document.getElementById('ml_multiPhotoInput').click();
 }
 
 function ml_onPhotoSelected(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    ml_photoBase64 = e.target.result; // data:image/...;base64,...
-    const preview = document.getElementById('ml_photoPreview');
-    preview.src = ml_photoBase64;
-    preview.classList.add('show');
-    document.getElementById('ml_photoClear').classList.add('show');
-    document.getElementById('ml_analyzeBtn').classList.add('show');
-    document.getElementById('ml_aiResultBadge').classList.remove('show');
-  };
-  reader.readAsDataURL(file);
+  ml_addMultiPhoto(event);
 }
 
 function ml_clearPhoto() {
-  ml_photoBase64 = null;
-  const preview = document.getElementById('ml_photoPreview');
-  preview.src = '';
-  preview.classList.remove('show');
-  document.getElementById('ml_photoClear').classList.remove('show');
-  document.getElementById('ml_analyzeBtn').classList.remove('show');
-  document.getElementById('ml_aiResultBadge').classList.remove('show');
-  document.getElementById('ml_photoInput').value = '';
+  ml_multiPhotos = [];
+  ml_renderMultiPhotos();
+}
+
+function ml_updateAnalyzeBtn() {
+  const hasPhoto = ml_multiPhotos.length > 0;
+  const hasDesc = (document.getElementById('ml_addFoodName')?.value || '').trim().length > 0;
+  const btn = document.getElementById('ml_analyzeBtn');
+  if (btn) btn.disabled = !(hasPhoto || hasDesc);
+}
+
+// Multiple photo handling
+function ml_addMultiPhoto(event) {
+  const files = Array.from(event.target.files || []);
+  if (!files.length) return;
+  let loaded = 0;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      ml_multiPhotos.push(e.target.result);
+      loaded++;
+      if (loaded === files.length) {
+        ml_renderMultiPhotos();
+        ml_updateAnalyzeBtn();
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+  event.target.value = '';
+}
+
+function ml_removeMultiPhoto(idx) {
+  ml_multiPhotos.splice(idx, 1);
+  ml_renderMultiPhotos();
+  ml_updateAnalyzeBtn();
+}
+
+function ml_renderMultiPhotos() {
+  const area = document.getElementById('ml_multiPhotoUploadArea');
+  const scroll = document.getElementById('ml_multiPhotoScroll');
+  const thumbRow = document.getElementById('ml_multiPhotoThumbRow');
+  if (!area || !scroll || !thumbRow) return;
+  if (ml_multiPhotos.length === 0) {
+    area.style.display = 'flex';
+    scroll.style.display = 'none';
+    thumbRow.innerHTML = '';
+  } else {
+    area.style.display = 'none';
+    scroll.style.display = 'block';
+    thumbRow.innerHTML = ml_multiPhotos.map((src, idx) =>
+      `<div class="multi-photo-thumb-wrap">
+        <img src="${src}" class="multi-photo-thumb" onclick="window.open(this.src,'_blank')" />
+        <button class="multi-photo-del" onclick="ml_removeMultiPhoto(${idx})">✕</button>
+      </div>`
+    ).join('') + `<div class="multi-photo-thumb-wrap" style="display:flex;align-items:center;justify-content:center;width:72px;height:72px;border:2px dashed #e5e7eb;border-radius:8px;cursor:pointer;color:#9ca3af;font-size:24px" onclick="document.getElementById('ml_multiPhotoInput').click()">＋</div>`;
+  }
+}
+
+// Items (food entries)
+function ml_setTab3(tab) {
+  ml_activeTab3 = tab;
+  ['search','fav','manual'].forEach(t => {
+    const btn = document.getElementById('ml_tab3_' + t);
+    const panel = document.getElementById('ml_tab3panel_' + t);
+    if (btn) btn.classList.toggle('active', t === tab);
+    if (panel) panel.classList.toggle('active', t === tab);
+  });
+  if (tab === 'fav') ml_renderFavorites();
+}
+
+function ml_searchFoodDB(q) {
+  const list = document.getElementById('ml_foodResultList');
+  if (!list) return;
+  if (!q || q.trim().length === 0) {
+    list.innerHTML = '<p class="food-result-empty">食品名を入力してください</p>';
+    return;
+  }
+  const lq = q.trim().toLowerCase();
+  const results = Object.entries(FOOD_DB).filter(([k]) => k.toLowerCase().includes(lq)).slice(0, 20);
+  if (results.length === 0) {
+    list.innerHTML = '<p class="food-result-empty">見つかりません</p>';
+    return;
+  }
+  const favs = getData('favoriteFoods_v1', []);
+  list.innerHTML = results.map(([name, d]) => {
+    const isFav = favs.some(f => f.name === name);
+    return `<div class="food-result-item">
+      <div>
+        <p class="food-result-name">${escHtml(name)}</p>
+        <p class="food-result-cal">${d.kcal}kcal / P${d.p}g F${d.f}g C${d.c}g</p>
+      </div>
+      <div style="display:flex;gap:4px;align-items:center">
+        <button style="font-size:16px;background:none;border:none;cursor:pointer;color:${isFav?'#F59E0B':'#d1d5db'}" onclick="ml_toggleFavorite({name:'${name.replace(/'/g,"\\'")}',kcal:${d.kcal},p:${d.p},f:${d.f},c:${d.c}});ml_searchFoodDB(document.getElementById('ml_foodSearchInput').value)" title="${isFav?'お気に入りから削除':'お気に入りに追加'}">⭐</button>
+        <button class="food-result-add-btn" onclick="ml_addItemFromDB('${name.replace(/'/g,"\\'")}',${d.kcal},${d.p},${d.f},${d.c})">＋</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function ml_addItemFromDB(name, kcal, p, f, c) {
+  ml_items.push({ id: genId(), name, kcal, p, f, c });
+  ml_renderItems();
+  ml_updateRecordBtn();
+  showToast(name + ' を追加しました', 'success');
+}
+
+function ml_addItemManual() {
+  const name = (document.getElementById('ml_manualName')?.value || '').trim();
+  if (!name) { showToast('食品名を入力してください', 'error'); return; }
+  const kcal = parseInt(document.getElementById('ml_manualCal')?.value) || 0;
+  const p = parseFloat(document.getElementById('ml_manualP')?.value) || 0;
+  const f = parseFloat(document.getElementById('ml_manualF')?.value) || 0;
+  const c = parseFloat(document.getElementById('ml_manualC')?.value) || 0;
+  ml_items.push({ id: genId(), name, kcal, p, f, c });
+  ml_renderItems();
+  ml_updateRecordBtn();
+  ['ml_manualName','ml_manualAmount','ml_manualCal','ml_manualP','ml_manualF','ml_manualC'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  showToast(name + ' を追加しました', 'success');
+}
+
+function ml_removeItem(id) {
+  ml_items = ml_items.filter(i => i.id !== id);
+  ml_renderItems();
+  ml_updateRecordBtn();
+}
+
+function ml_renderItems() {
+  const wrap = document.getElementById('ml_itemChips');
+  if (!wrap) return;
+  if (ml_items.length === 0) {
+    wrap.innerHTML = '<span style="font-size:12px;color:#d1d5db">食品を追加してください</span>';
+    return;
+  }
+  wrap.innerHTML = ml_items.map(item =>
+    `<span class="item-chip">${escHtml(item.name)} <span style="color:#9ca3af;font-size:10px">${item.kcal}kcal</span><button class="item-chip-del" onclick="ml_removeItem('${item.id}')">✕</button></span>`
+  ).join('');
+}
+
+function ml_updateRecordBtn() {
+  const btn = document.getElementById('ml_addSubmitBtn');
+  if (btn) btn.textContent = `記録する (${ml_items.length}品)`;
+}
+
+function ml_toggleFavorite(food) {
+  let favs = getData('favoriteFoods_v1', []);
+  const idx = favs.findIndex(f => f.name === food.name);
+  if (idx >= 0) { favs.splice(idx, 1); showToast('お気に入りから削除しました'); }
+  else { favs.push(food); showToast('お気に入りに追加しました', 'success'); }
+  setData('favoriteFoods_v1', favs);
+}
+
+function ml_renderFavorites() {
+  const list = document.getElementById('ml_favList');
+  if (!list) return;
+  const favs = getData('favoriteFoods_v1', []);
+  if (favs.length === 0) { list.innerHTML = '<p class="fav-empty">お気に入りはまだありません</p>'; return; }
+  list.innerHTML = favs.map(f =>
+    `<div class="fav-item">
+      <div>
+        <p class="fav-item-name">${escHtml(f.name)}</p>
+        <p class="fav-item-cal">${f.kcal}kcal / P${f.p}g F${f.f}g C${f.c}g</p>
+      </div>
+      <div style="display:flex;gap:4px;align-items:center">
+        <button style="font-size:14px;background:none;border:none;cursor:pointer;color:#F59E0B" onclick="ml_toggleFavorite({name:'${f.name.replace(/'/g,"\\'")}',kcal:${f.kcal},p:${f.p},f:${f.f},c:${f.c}});ml_renderFavorites()" title="削除">⭐</button>
+        <button class="fav-add-btn" onclick="ml_addItemFromDB('${f.name.replace(/'/g,"\\'")}',${f.kcal},${f.p},${f.f},${f.c})">＋</button>
+      </div>
+    </div>`
+  ).join('');
+}
+
+// Goal modal new functions
+function ml_setGoalActivity(level) {
+  ml_activeActivity = level;
+  ['sedentary','light','moderate','active','very_active'].forEach(v => {
+    const btn = document.getElementById('ml_act_' + v);
+    if (btn) btn.classList.toggle('active', v === level);
+  });
+  ml_calcAutoCalories();
+}
+
+function ml_setGoalType(type) {
+  ml_activeGoalType = type;
+  ['lose_weight','maintain','gain_muscle'].forEach(v => {
+    const btn = document.getElementById('ml_gt_' + v);
+    if (btn) btn.classList.toggle('active', v === type);
+  });
+  ml_calcAutoCalories();
+}
+
+function ml_setPfcP(v) {
+  ml_pfcP = Math.max(5, Math.min(80, v));
+  ml_updatePfcBar();
+}
+function ml_setPfcF(v) {
+  ml_pfcF = Math.max(5, Math.min(80, v));
+  ml_updatePfcBar();
+}
+function ml_setPfcC(v) {
+  ml_pfcC = Math.max(5, Math.min(80, v));
+  ml_updatePfcBar();
+}
+
+function ml_applyPfcPreset(p, f, c) {
+  ml_pfcP = p; ml_pfcF = f; ml_pfcC = c;
+  ml_updatePfcBar();
+}
+
+function ml_updatePfcBar() {
+  const total = ml_pfcP + ml_pfcF + ml_pfcC;
+  // update sliders
+  ['P','F','C'].forEach(k => {
+    const slider = document.getElementById('ml_pfc' + k + 'Slider');
+    if (slider) slider.value = (k === 'P' ? ml_pfcP : k === 'F' ? ml_pfcF : ml_pfcC);
+    const val = document.getElementById('ml_pfc' + k + 'Val');
+    if (val) val.textContent = (k === 'P' ? ml_pfcP : k === 'F' ? ml_pfcF : ml_pfcC) + '%';
+  });
+  // total badge
+  const badge = document.getElementById('ml_pfcTotalBadge');
+  if (badge) {
+    badge.textContent = '合計 ' + total + '%';
+    badge.className = 'pfc-total-badge ' + (total === 100 ? 'ok' : 'ng');
+  }
+  // color bar
+  const barP = document.getElementById('ml_pfcBarP');
+  const barF = document.getElementById('ml_pfcBarF');
+  const barC = document.getElementById('ml_pfcBarC');
+  if (barP) barP.style.width = ml_pfcP + '%';
+  if (barF) barF.style.width = ml_pfcF + '%';
+  if (barC) barC.style.width = ml_pfcC + '%';
+  // labels (with gram estimates if calGoal available)
+  const calGoal = parseInt(document.getElementById('ml_gCalGoal')?.value) || 2000;
+  const pG = Math.round((ml_pfcP/100) * calGoal / 4);
+  const fG = Math.round((ml_pfcF/100) * calGoal / 9);
+  const cG = Math.round((ml_pfcC/100) * calGoal / 4);
+  const lP = document.getElementById('ml_pfcLabelP');
+  const lF = document.getElementById('ml_pfcLabelF');
+  const lC = document.getElementById('ml_pfcLabelC');
+  if (lP) lP.textContent = 'タンパク ' + ml_pfcP + '% (' + pG + 'g)';
+  if (lF) lF.textContent = '脂質 ' + ml_pfcF + '% (' + fG + 'g)';
+  if (lC) lC.textContent = '炭水化物 ' + ml_pfcC + '% (' + cG + 'g)';
+}
+
+function ml_calcAutoCalories() {
+  const height = parseFloat(document.getElementById('ml_gHeight')?.value) || 0;
+  const weight = parseFloat(document.getElementById('ml_gCurWeight')?.value) || 0;
+  if (!height || !weight) return;
+  // BMR (Mifflin-St Jeor, assuming male for simplicity)
+  const bmr = 10 * weight + 6.25 * height - 5 * 30 + 5;
+  const activityMult = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725, very_active: 1.9 };
+  const mult = activityMult[ml_activeActivity] || 1.55;
+  let tdee = Math.round(bmr * mult);
+  if (ml_activeGoalType === 'lose_weight') tdee = Math.round(tdee * 0.8);
+  else if (ml_activeGoalType === 'gain_muscle') tdee = Math.round(tdee * 1.1);
+  const calEl = document.getElementById('ml_gCalGoal');
+  if (calEl) { calEl.value = tdee; ml_updatePfcBar(); }
+}
+
+// Date selector in summary
+function ml_renderDateSelector() {
+  const sel = document.getElementById('ml_dateSelectorDropdown');
+  if (!sel) return;
+  const dates = Array.from(ml_getRecordDates()).sort().reverse();
+  const today = toDateStr(new Date());
+  const cur = toDateStr(ml_selectedDate);
+  const allDates = dates.includes(cur) ? dates : [cur, ...dates];
+  sel.innerHTML = allDates.map((d, i) => {
+    const label = d === today ? d + '（最新）' : d;
+    return `<option value="${d}" ${d === cur ? 'selected' : ''}>${label}</option>`;
+  }).join('');
+}
+
+function ml_onDateSelectorChange(val) {
+  if (!val) return;
+  ml_selectedDate = new Date(val + 'T12:00:00');
+  ml_render();
+}
+
+function ml_openDatePicker() {
+  const inp = document.getElementById('ml_datePickerInput');
+  if (!inp) return;
+  inp.value = toDateStr(ml_selectedDate);
+  inp.click();
+}
+
+function ml_onDatePickerChange(val) {
+  if (!val) return;
+  ml_selectedDate = new Date(val + 'T12:00:00');
+  ml_render();
 }
 
 // ========================================================
@@ -4646,56 +5792,71 @@ async function ml_compressImage(base64, maxSize = 512) {
 
 async function ml_analyzePhoto() {
   const apiKey = localStorage.getItem('anthropic_api_key');
-  if (!apiKey) { showToast('APIキーが設定されていません 🤖', 'error'); return; }
-  if (!ml_photoBase64) { showToast('写真を選択してください', 'error'); return; }
+  if (!apiKey) { showToast('APIキーが設定されていません 🤖', 'error'); openApiKeyModal(); return; }
+  const descInput = (document.getElementById('ml_addFoodName')?.value || '').trim();
+  const hasPhoto = ml_multiPhotos.length > 0;
+  const hasDesc = descInput.length > 0;
+  // set compat var for use below
+  ml_photoBase64 = ml_multiPhotos[0] || null;
+  if (!hasPhoto && !hasDesc) { showToast('写真か食事内容を入力してください', 'error'); return; }
 
   const btn = document.getElementById('ml_analyzeBtn');
   btn.disabled = true;
-  btn.innerHTML = '<span>⏳</span> AI解析中 (Haiku)...';
+  btn.innerHTML = '<div style="width:16px;height:16px;border:2px solid white;border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite;display:inline-block;margin-right:6px"></div>AI解析中...';
 
   try {
-    // ① 画像を圧縮（通信量・コスト削減）
-    const compressed = await ml_compressImage(ml_photoBase64);
-    const base64Data = compressed.split(',')[1];
+    let dishName, weightG;
 
-    // ② Step1: 画像 → 料理名＋重量のみ取得（max_tokens: 60、安い）
-    const step1Res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-3-5-haiku-20241022',
-        max_tokens: 60,
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: { type: 'base64', media_type: 'image/jpeg', data: base64Data }
-            },
-            { type: 'text', text: '料理名と重量のみJSON: {"dish":"日本語料理名","weight_g":数値} 食品なければdishは"不明"' }
-          ]
-        }]
-      })
-    });
+    if (hasPhoto) {
+      // ① 画像を圧縮（通信量・コスト削減）
+      const compressed = await ml_compressImage(ml_photoBase64);
+      const base64Data = compressed.split(',')[1];
 
-    if (!step1Res.ok) {
-      const err = await step1Res.json().catch(() => ({}));
-      throw new Error(err.error?.message || ('HTTP ' + step1Res.status));
+      // ② Step1: 画像 → 料理名＋重量のみ取得（max_tokens: 60、安い）
+      const step1Res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-3-5-haiku-20241022',
+          max_tokens: 60,
+          messages: [{
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                source: { type: 'base64', media_type: 'image/jpeg', data: base64Data }
+              },
+              { type: 'text', text: '料理名と重量のみJSON: {"dish":"日本語料理名","weight_g":数値} 食品なければdishは"不明"' }
+            ]
+          }]
+        })
+      });
+
+      if (!step1Res.ok) {
+        const err = await step1Res.json().catch(() => ({}));
+        throw new Error(err.error?.message || ('HTTP ' + step1Res.status));
+      }
+
+      const step1Data = await step1Res.json();
+      const step1Text = step1Data.content?.[0]?.text || '';
+      const step1Match = step1Text.match(/\{[\s\S]*?\}/);
+      if (!step1Match) throw new Error('AI応答の解析に失敗しました');
+      const step1Result = JSON.parse(step1Match[0]);
+
+      dishName = step1Result.dish || '不明';
+      weightG  = step1Result.weight_g || 100;
+      // 画像から不明な場合はテキスト説明を使用
+      if (dishName === '不明' && hasDesc) { dishName = descInput; weightG = 100; }
+    } else {
+      // テキストのみの場合: 説明文をそのまま使用
+      dishName = descInput;
+      weightG = 100;
     }
-
-    const step1Data = await step1Res.json();
-    const step1Text = step1Data.content?.[0]?.text || '';
-    const step1Match = step1Text.match(/\{[\s\S]*?\}/);
-    if (!step1Match) throw new Error('AI応答の解析に失敗しました');
-    const step1Result = JSON.parse(step1Match[0]);
-
-    const dishName = step1Result.dish || '不明';
-    const weightG  = step1Result.weight_g || 100;
 
     // ③ DBルックアップ（ヒットすれば追加API呼び出し不要）
     const dbMatch = foodDbLookup(dishName);
@@ -4749,16 +5910,27 @@ async function ml_analyzePhoto() {
 
     // フォームに反映
     if (dishName && dishName !== '不明') {
-      document.getElementById('ml_addFoodName').value = dishName;
+      const el = document.getElementById('ml_addFoodName');
+      if (el && !el.value) el.value = dishName;
     }
     document.getElementById('ml_addCalories').value = kcal;
     document.getElementById('ml_addProtein').value = protein;
     document.getElementById('ml_addFat').value = fat;
     document.getElementById('ml_addCarbs').value = carbs;
 
-    const badge = document.getElementById('ml_aiResultBadge');
-    badge.textContent = source + ' — 内容を確認・編集してください';
-    badge.classList.add('show');
+    // AI結果サマリー（編集可能行）
+    const summaryEl = document.getElementById('ml_aiResultSummary');
+    if (summaryEl) {
+      summaryEl.innerHTML = `
+        <div class="ai-result-row"><span class="ai-result-row-label">カロリー (kcal)</span><input class="ai-result-row-input" id="ml_aiKcal" type="number" value="${kcal}" /></div>
+        <div class="ai-result-row"><span class="ai-result-row-label">たんぱく質 (g)</span><input class="ai-result-row-input" id="ml_aiProtein" type="number" step="0.1" value="${protein}" /></div>
+        <div class="ai-result-row"><span class="ai-result-row-label">脂質 (g)</span><input class="ai-result-row-input" id="ml_aiFat" type="number" step="0.1" value="${fat}" /></div>
+        <div class="ai-result-row"><span class="ai-result-row-label">炭水化物 (g)</span><input class="ai-result-row-input" id="ml_aiCarbs" type="number" step="0.1" value="${carbs}" /></div>
+        <div style="margin-top:8px">
+          <button style="font-size:12px;color:#7c3aed;background:none;border:none;cursor:pointer;text-decoration:underline" onclick="ml_addItemFromAI()">＋ この内容を食品リストに追加</button>
+        </div>`;
+    }
+    document.getElementById('ml_aiResultCard').style.display = 'block';
     showToast('解析完了！数値を確認してください ✨', 'success');
 
   } catch (err) {
@@ -4774,8 +5946,21 @@ async function ml_analyzePhoto() {
     showToast(msg, 'error');
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '<span>✨</span> AI解析する';
+    btn.innerHTML = '✨ AIで栄養素を自動計算';
+    ml_updateAnalyzeBtn();
   }
+}
+
+function ml_addItemFromAI() {
+  const name = (document.getElementById('ml_addFoodName')?.value || '').trim() || 'AI解析食品';
+  const kcal = parseInt(document.getElementById('ml_aiKcal')?.value) || parseInt(document.getElementById('ml_addCalories')?.value) || 0;
+  const p = parseFloat(document.getElementById('ml_aiProtein')?.value) || parseFloat(document.getElementById('ml_addProtein')?.value) || 0;
+  const f = parseFloat(document.getElementById('ml_aiFat')?.value) || parseFloat(document.getElementById('ml_addFat')?.value) || 0;
+  const c = parseFloat(document.getElementById('ml_aiCarbs')?.value) || parseFloat(document.getElementById('ml_addCarbs')?.value) || 0;
+  ml_items.push({ id: genId(), name, kcal, p, f, c });
+  ml_renderItems();
+  ml_updateRecordBtn();
+  showToast(name + ' を食品リストに追加しました', 'success');
 }
 </script>
 </body>
