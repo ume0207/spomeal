@@ -2216,7 +2216,10 @@ function lo_updateLoginBtn() {
   const id = document.getElementById('lo_idInput').value.trim();
   const pass = document.getElementById('lo_passInput').value;
   document.getElementById('lo_loginBtn').disabled = !(id && pass);
-  document.getElementById('lo_errorMsg').classList.remove('show');
+  // ユーザーが入力し直したらエラーを消す
+  const errEl = document.getElementById('lo_errorMsg');
+  errEl.style.display = 'none';
+  errEl.classList.remove('show');
 }
 
 async function lo_login() {
@@ -2232,9 +2235,12 @@ async function lo_login() {
   // メールアドレスは大文字小文字を区別しない
   const member = members.find(m => (m.loginId||'').toLowerCase() === loginId && m.password === hashed);
   if (!member) {
-    document.getElementById('lo_errorMsg').textContent = 'ログインに失敗しました。メールアドレスまたはパスワードが正しくありません';
-    document.getElementById('lo_errorMsg').classList.add('show');
-    document.getElementById('lo_passInput').value = ''; lo_updateLoginBtn(); return;
+    const errEl = document.getElementById('lo_errorMsg');
+    errEl.textContent = 'ログインに失敗しました。メールアドレスまたはパスワードが正しくありません';
+    errEl.style.display = 'block';
+    document.getElementById('lo_passInput').value = '';
+    document.getElementById('lo_loginBtn').disabled = true;
+    return;
   }
   // 記憶する設定を保存
   if (remember) {
@@ -2250,7 +2256,9 @@ async function lo_login() {
 }
 
 function lo_init() {
-  document.getElementById('lo_errorMsg').classList.remove('show');
+  const errEl = document.getElementById('lo_errorMsg');
+  errEl.style.display = 'none';
+  errEl.classList.remove('show');
   const passInput = document.getElementById('lo_passInput');
   passInput.type = 'password';
   document.getElementById('lo_passVisBtn').textContent = '👁';
