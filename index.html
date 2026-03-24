@@ -119,11 +119,11 @@
     }
     /* タグライン */
     #page-login .lo-tagline {
-      font-size: clamp(13px, 3vw, 15px); font-weight: 800; letter-spacing: 0.08em;
+      font-size: clamp(13px, 3vw, 15px); font-weight: 700; letter-spacing: 0.05em;
       color: #374151; text-align: center; margin: 20px 0 32px;
-      animation: fadeUp 0.7s ease 0.12s both;
+      line-height: 2.1; animation: fadeUp 0.7s ease 0.12s both;
     }
-    #page-login .lo-tagline .em { color: #16a34a; }
+    #page-login .lo-tagline .em { color: #16a34a; font-weight: 800; }
     /* カード */
     #page-login .lo-card {
       width: 100%; max-width: 380px; animation: fadeUp 0.7s ease 0.22s both;
@@ -1029,13 +1029,17 @@
   <div class="lo-slash"></div>
   <div class="lo-page">
     <div class="logo-wrap">
-      <div class="logo-badge">⚡ SPORTS MEAL</div>
+      <div class="logo-badge">管理栄養士監修</div>
       <div class="logo-main">スポミル</div>
       <div class="logo-sub">sports meal</div>
     </div>
-    <p class="lo-tagline"><span class="em">勝つ体</span>は、食事から。</p>
+    <p class="lo-tagline">
+      <span class="em">スポーツ選手</span>に特化した<br>
+      管理栄養士監修の<br>
+      <span class="em">体改革</span>食事アプリ
+    </p>
     <div class="lo-card">
-      <p class="card-title">— LOGIN —</p>
+      <p class="card-title">ログイン</p>
       <input class="name-input" id="lo_idInput" type="text" placeholder="ログインID" autocomplete="username" oninput="lo_updateLoginBtn()" />
       <div class="pass-wrap">
         <input class="name-input" id="lo_passInput" type="password" placeholder="パスワード" autocomplete="current-password" oninput="lo_updateLoginBtn()" style="width:100%;padding-right:44px" />
