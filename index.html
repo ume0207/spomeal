@@ -1944,9 +1944,8 @@
         <div style="border-top:1px solid #f3f4f6;padding-top:14px;margin-top:4px">
           <p style="font-size:11px;font-weight:700;color:#9ca3af;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:10px">🔑 ログイン情報</p>
           <div class="form-group">
-            <label class="form-label">ログインID（メールアドレス）</label>
-            <input class="form-input" id="mb_fLoginId" type="email" placeholder="example@email.com" autocomplete="off" />
-          </div>
+            <label class="form-label">ログインID <span style="font-size:10px;color:#9ca3af">（空白の場合は上のメールアドレスを使用）</span></label>
+            <input class="form-input" id="mb_fLoginId" type="email" placeholder="空白＝メールアドレスと同じ" autocomplete="off" /></div>
           <div class="form-group">
             <label class="form-label">パスワードリセット <span style="font-size:10px;color:#9ca3af">（変更する場合のみ入力）</span></label>
             <input class="form-input" id="mb_fNewPass" type="password" placeholder="新しいパスワード（6文字以上）" autocomplete="new-password" />
@@ -2531,6 +2530,12 @@ function getMembers() {
   if (raw.length > 0 && typeof raw[0] === 'string') {
     const m = raw.map((n,i) => ({ id:'migrated_'+i, name:n, nameKana:'', status:'active', createdAt: new Date().toISOString() }));
     setData('members_v1', m); return m;
+  }
+  // loginIdが未設定でemailがある会員は自動補完して保存
+  const needsFix = raw.some(m => !m.loginId && m.email);
+  if (needsFix) {
+    const fixed = raw.map(m => (!m.loginId && m.email) ? { ...m, loginId: m.email.toLowerCase() } : m);
+    setData('members_v1', fixed); return fixed;
   }
   return raw;
 }
@@ -3712,7 +3717,8 @@ function mb_openEditModal(id) {
   document.getElementById('mb_fStatus').value = m.status || 'active';
   document.getElementById('mb_fNotes').value = m.notes || '';
   document.getElementById('mb_teamName').value = m.teamName || '';
-  document.getElementById('mb_fLoginId').value = m.loginId || '';
+  // loginIdが未設定の場合はemailを補完（既存会員の救済）
+  document.getElementById('mb_fLoginId').value = m.loginId || m.email || '';
   document.getElementById('mb_fNewPass').value = '';
   document.getElementById('mb_editModal').classList.add('open');
 }
@@ -3726,18 +3732,20 @@ async function mb_saveMember() {
   const name    = document.getElementById('mb_fName').value.trim();
   const phone   = document.getElementById('mb_fPhone').value.trim();
   const address = document.getElementById('mb_fAddress').value.trim();
-  const loginId = document.getElementById('mb_fLoginId').value.trim();
+  const emailVal = document.getElementById('mb_fEmail').value.trim().toLowerCase();
+  // ログインIDが空の場合はメールアドレスを自動使用
+  const loginId = (document.getElementById('mb_fLoginId').value.trim() || emailVal).toLowerCase();
   const newPass = document.getElementById('mb_fNewPass').value;
   if (!name || !phone || !address) { showToast('氏名・電話番号・住所は必須です', 'error'); return; }
   if (newPass && newPass.length < 6) { showToast('パスワードは6文字以上で設定してください', 'error'); return; }
   const members = getMembers();
-  // ログインID重複チェック（自分以外）
-  if (loginId && members.some(m => m.loginId === loginId && m.id !== mb_editingId)) {
+  // ログインID重複チェック（自分以外・大文字小文字区別なし）
+  if (loginId && members.some(m => (m.loginId||'').toLowerCase() === loginId && m.id !== mb_editingId)) {
     showToast('このメールアドレスはすでに使用されています', 'error'); return;
   }
   const baseFields = {
     name, nameKana: document.getElementById('mb_fKana').value.trim(), phone,
-    email: document.getElementById('mb_fEmail').value.trim(), address,
+    email: emailVal, address,
     lineId: document.getElementById('mb_fLineId').value.trim(),
     birthDate: document.getElementById('mb_fBirthDate').value,
     gender: document.getElementById('mb_fGender').value,
