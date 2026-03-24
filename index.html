@@ -1029,14 +1029,14 @@
   <div class="lo-slash"></div>
   <div class="lo-page">
     <div class="logo-wrap">
-      <div class="logo-badge" onclick="showPage('admin')" style="cursor:pointer">🍽 管理栄養士監修</div>
+      <div class="logo-badge" onclick="showPage('admin')" style="cursor:pointer">管理栄養士監修</div>
       <div class="logo-main">スポミル</div>
       <div class="logo-sub">sports meal</div>
     </div>
     <p class="lo-tagline"><span class="em">勝つ体</span>は、食事から。</p>
     <div class="lo-card">
       <p class="card-title">— LOGIN —</p>
-      <input class="name-input" id="lo_idInput" type="text" placeholder="ログインID" autocomplete="username" oninput="lo_updateLoginBtn()" />
+      <input class="name-input" id="lo_idInput" type="email" placeholder="メールアドレス" autocomplete="email" oninput="lo_updateLoginBtn()" />
       <div class="pass-wrap">
         <input class="name-input" id="lo_passInput" type="password" placeholder="パスワード" autocomplete="current-password" oninput="lo_updateLoginBtn()" style="width:100%;padding-right:44px" />
         <button type="button" class="pass-vis-btn" id="lo_passVisBtn" onclick="lo_togglePassVis()">👁</button>
@@ -1568,8 +1568,8 @@
         <div style="border-top:1px solid #f3f4f6;padding-top:14px;margin-top:4px">
           <p style="font-size:11px;font-weight:700;color:#9ca3af;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:10px">🔑 ログイン情報</p>
           <div class="form-group">
-            <label class="form-label">ログインID</label>
-            <input class="form-input" id="mb_fLoginId" placeholder="例：yamada_taro" autocomplete="off" />
+            <label class="form-label">ログインID（メールアドレス）</label>
+            <input class="form-input" id="mb_fLoginId" type="email" placeholder="example@email.com" autocomplete="off" />
           </div>
           <div class="form-group">
             <label class="form-label">パスワードリセット <span style="font-size:10px;color:#9ca3af">（変更する場合のみ入力）</span></label>
@@ -1738,9 +1738,9 @@
     <div class="reg-section-label">🔑 ログイン情報</div>
 
     <div class="reg-group">
-      <label class="reg-label">ログインID<span class="reg-required">*</span></label>
-      <input class="reg-input" id="rg_loginId" placeholder="例：yamada_taro（英数字）" autocomplete="off" />
-      <p style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:4px">ログイン時に使うIDです（後から管理者が変更できます）</p>
+      <p style="font-size:11px;color:rgba(74,222,128,0.8);margin-bottom:10px;background:rgba(34,197,94,0.1);border-radius:8px;padding:8px 12px;">
+        📧 上記のメールアドレスがログインIDになります
+      </p>
     </div>
 
     <div class="reg-grid">
@@ -2253,6 +2253,18 @@ function lo_init() {
   const passInput = document.getElementById('lo_passInput');
   passInput.type = 'password';
   document.getElementById('lo_passVisBtn').textContent = '👁';
+
+  // 登録直後のメール引き継ぎ
+  const prefillEmail = localStorage.getItem('lo_prefillEmail');
+  if (prefillEmail) {
+    document.getElementById('lo_idInput').value = prefillEmail;
+    localStorage.removeItem('lo_prefillEmail');
+    passInput.value = '';
+    document.getElementById('lo_rememberCheck').checked = false;
+    lo_updateLoginBtn();
+    return;
+  }
+
   const savedId = localStorage.getItem('lo_savedId');
   const savedPass = localStorage.getItem('lo_savedPass');
   if (savedId) {
@@ -3201,7 +3213,7 @@ async function mb_saveMember() {
   const members = getMembers();
   // ログインID重複チェック（自分以外）
   if (loginId && members.some(m => m.loginId === loginId && m.id !== mb_editingId)) {
-    showToast('このログインIDはすでに使用されています', 'error'); return;
+    showToast('このメールアドレスはすでに使用されています', 'error'); return;
   }
   const baseFields = {
     name, nameKana: document.getElementById('mb_fKana').value.trim(), phone,
@@ -3222,7 +3234,7 @@ async function mb_saveMember() {
     members[idx] = { ...members[idx], ...baseFields };
     saveMembers(members); showToast('会員情報を更新しました', 'success');
   } else {
-    if (!loginId) { showToast('ログインIDを入力してください', 'error'); return; }
+    if (!loginId) { showToast('メールアドレスを入力してください', 'error'); return; }
     if (!newPass)  { showToast('パスワードを入力してください', 'error'); return; }
     const newMember = { id: genId(), createdAt: new Date().toISOString(), ...baseFields };
     members.push(newMember); saveMembers(members); showToast('会員を登録しました', 'success');
@@ -3954,7 +3966,7 @@ function sh_goToToday() { sh_year=new Date().getFullYear(); sh_month=new Date().
 // ========================================================
 function rg_init() {
   // Reset form
-  ['rg_name','rg_nameKana','rg_birthDate','rg_phone','rg_email','rg_address','rg_lineId','rg_teamName','rg_notes','rg_loginId','rg_password','rg_passwordConfirm'].forEach(id => {
+  ['rg_name','rg_nameKana','rg_birthDate','rg_phone','rg_email','rg_address','rg_lineId','rg_teamName','rg_notes','rg_password','rg_passwordConfirm'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -3967,25 +3979,26 @@ function rg_init() {
 async function rg_submit() {
   const name     = document.getElementById('rg_name').value.trim();
   const teamName = document.getElementById('rg_teamName').value.trim();
-  const loginId  = document.getElementById('rg_loginId').value.trim();
+  const email    = document.getElementById('rg_email').value.trim();
   const password = document.getElementById('rg_password').value;
   const passwordConfirm = document.getElementById('rg_passwordConfirm').value;
 
   if (!name)    { showToast('氏名を入力してください', 'error'); return; }
   if (!teamName){ showToast('所属チーム名を入力してください', 'error'); return; }
-  if (!loginId) { showToast('ログインIDを入力してください', 'error'); return; }
+  if (!email)   { showToast('メールアドレスを入力してください', 'error'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('メールアドレスの形式が正しくありません', 'error'); return; }
   if (!password || password.length < 6) { showToast('パスワードは6文字以上で設定してください', 'error'); return; }
   if (password !== passwordConfirm) { showToast('パスワードが一致しません', 'error'); return; }
 
   const existing = getMembers();
-  if (existing.some(m => m.name === name))    { showToast('同じ名前の会員がすでに登録されています', 'error'); return; }
-  if (existing.some(m => m.loginId === loginId)) { showToast('このログインIDはすでに使用されています', 'error'); return; }
+  if (existing.some(m => m.name === name))      { showToast('同じ名前の会員がすでに登録されています', 'error'); return; }
+  if (existing.some(m => m.loginId === email))  { showToast('このメールアドレスはすでに登録されています', 'error'); return; }
 
   const hashedPassword = await lo_hashPassword(password);
 
   const newMember = {
     id: genId(),
-    loginId,
+    loginId: email,   // メールアドレスをログインIDとして使用
     password: hashedPassword,
     name,
     nameKana: document.getElementById('rg_nameKana').value.trim(),
@@ -3993,7 +4006,7 @@ async function rg_submit() {
     gender: document.getElementById('rg_gender').value,
     teamName,
     phone: document.getElementById('rg_phone').value.trim(),
-    email: document.getElementById('rg_email').value.trim(),
+    email,
     address: document.getElementById('rg_address').value.trim(),
     lineId: document.getElementById('rg_lineId').value.trim(),
     notes: document.getElementById('rg_notes').value.trim(),
@@ -4005,10 +4018,16 @@ async function rg_submit() {
   members.push(newMember);
   saveMembers(members);
 
+  // 登録後ログインページにメールを引き継ぐ
+  localStorage.setItem('lo_prefillEmail', email);
+
   document.getElementById('rg_successMsg').innerHTML =
-    `<strong style="color:#4ade80">${escHtml(name)}</strong> さんの登録が完了しました。<br>ログインID：<strong style="color:#4ade80">${escHtml(loginId)}</strong><br>ログインページからお入りください。`;
+    `<strong style="color:#4ade80">${escHtml(name)}</strong> さんの登録が完了しました。<br>ログインID：<strong style="color:#4ade80">${escHtml(email)}</strong><br>このメールアドレスでログインしてください。`;
   document.getElementById('rg_formCard').style.display = 'none';
   document.getElementById('rg_successCard').style.display = 'block';
+
+  // 2秒後にログインページへ自動遷移（メール入力済み）
+  setTimeout(() => showPage('login'), 2000);
 }
 
 // ===== APP STARTUP =====
