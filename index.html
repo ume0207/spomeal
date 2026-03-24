@@ -38,19 +38,40 @@
 
     /* ===== Shared Nav ===== */
     .page-nav {
-      display: flex; align-items: center; gap: 2px; background: white;
-      border-bottom: 1px solid #e5e7eb; padding: 6px 12px;
+      display: flex; align-items: flex-end; gap: 4px;
+      background: var(--page-color);
+      padding: 6px 8px 0;
       position: sticky; top: 0; z-index: 100; overflow-x: auto;
+      scrollbar-width: none;
     }
     .page-nav::-webkit-scrollbar { display: none; }
-    .nav-home { font-weight: 900; color: #22c55e; font-size: 14px; padding: 4px 10px; white-space: nowrap; flex-shrink: 0; }
-    .nav-badge { font-size: 10px; font-weight: 700; background: #dbeafe; color: #1d4ed8; padding: 2px 8px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; }
-    .page-nav a { font-size: 12px; padding: 5px 10px; border-radius: 20px; color: #6b7280; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
-    .page-nav a.active { background: var(--page-color); color: white; }
-    .page-nav a:hover:not(.active):not(.nav-home) { background: #f3f4f6; }
-    .nav-spacer { flex: 1; }
-    .nav-logout { font-size: 11px; padding: 4px 10px; border-radius: 20px; color: #9ca3af; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
-    .nav-logout:hover { background: #f3f4f6; color: #6b7280; }
+    /* 戻るボタン */
+    .back-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; min-width: 32px; border-radius: 50%;
+      background: rgba(255,255,255,0.25); color: white; flex-shrink: 0;
+      margin-right: 4px; margin-bottom: 6px;
+    }
+    .back-btn:hover { background: rgba(255,255,255,0.38); }
+    .nav-badge { font-size: 10px; font-weight: 700; background: rgba(255,255,255,0.25); color: white; padding: 2px 8px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; margin-right: 4px; margin-bottom: 6px; }
+    /* アイコン＋テキストのナビアイテム */
+    .page-nav a {
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      padding: 8px 10px 6px; color: rgba(255,255,255,0.85); font-weight: 600;
+      white-space: nowrap; flex-shrink: 0; text-decoration: none; min-width: 52px;
+      transition: background 0.12s;
+    }
+    .page-nav a .nav-icon { font-size: 18px; line-height: 1.2; }
+    .page-nav a .nav-label { font-size: 9px; font-weight: 700; }
+    .page-nav a.active {
+      background: white; color: var(--page-color);
+      border-radius: 10px 10px 0 0;
+      padding-top: 10px;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.10);
+    }
+    .page-nav a.active .nav-label { color: var(--page-color); }
+    .page-nav a:hover:not(.active) { background: rgba(255,255,255,0.18); border-radius: 8px 8px 0 0; }
+    .nav-spacer { flex: 1; min-width: 4px; }
 
     /* ===== Toast ===== */
     .toast {
@@ -188,12 +209,27 @@
     /* ===== DASHBOARD ===== */
     #page-dashboard .top-header {
       background: linear-gradient(135deg, #16a34a 0%, #22c55e 60%, #4ade80 100%);
-      color: white; padding: 20px 16px 24px;
+      color: white; padding: 16px 16px 20px;
     }
-    #page-dashboard .header-greeting { font-size: 13px; opacity: 0.85; margin-bottom: 4px; }
-    #page-dashboard .header-name { font-size: 22px; font-weight: 900; margin-bottom: 2px; }
-    #page-dashboard .header-date { font-size: 12px; opacity: 0.75; }
-    #page-dashboard .header-goal-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+    /* Welcome ヘッダー行 */
+    #page-dashboard .da-header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    #page-dashboard .da-user-info { display: flex; align-items: center; gap: 12px; }
+    #page-dashboard .da-avatar {
+      width: 48px; height: 48px; border-radius: 14px;
+      background: rgba(255,255,255,0.25); display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    #page-dashboard .da-welcome { font-size: 11px; opacity: 0.85; font-weight: 500; margin-bottom: 2px; }
+    #page-dashboard .da-name { font-size: 19px; font-weight: 900; line-height: 1.2; }
+    #page-dashboard .da-logout-btn {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,0.22); color: white;
+      border: 1.5px solid rgba(255,255,255,0.4);
+      border-radius: 24px; padding: 8px 14px; font-size: 12px; font-weight: 700;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    #page-dashboard .da-logout-btn:hover { background: rgba(255,255,255,0.35); }
+    #page-dashboard .header-goal-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
     #page-dashboard .goal-chip { background: rgba(255,255,255,0.2); border-radius: 20px; padding: 4px 12px; font-size: 11px; font-weight: 600; }
     #page-dashboard .main { max-width: 640px; margin: 0 auto; padding: 16px 12px 40px; }
     #page-dashboard .card { background: white; border: 1px solid #f0f0f0; border-radius: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin-bottom: 12px; }
@@ -256,7 +292,7 @@
     #page-dashboard .empty { padding: 16px 0; text-align: center; color: #9ca3af; font-size: 12px; }
 
     /* ===== MEAL PAGE ===== */
-    #page-meal .top-header { background: #22C55E; color: white; padding: 10px 16px; position: sticky; top: 49px; z-index: 90; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+    #page-meal .top-header { background: #22C55E; color: white; padding: 10px 16px; position: sticky; top: 56px; z-index: 90; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
     #page-meal .header-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     #page-meal .member-select-wrap { min-width: 0; max-width: 140px; position: relative; }
     #page-meal .member-btn { display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; padding: 4px 8px; font-size: 12px; max-width: 130px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 130px; }
@@ -540,10 +576,10 @@
     #page-body .btn-submit:hover { background: #b91c1c; }
 
     /* ===== TRAINING PAGE ===== */
-    #page-training .top-header { background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 60%, #a78bfa 100%); color: white; padding: 12px 16px; position: sticky; top: 49px; z-index: 90; }
+    #page-training .top-header { background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 60%, #a78bfa 100%); color: white; padding: 12px 16px; position: sticky; top: 56px; z-index: 90; }
     #page-training .header-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     #page-training .member-select-wrap { min-width: 0; max-width: 150px; position: relative; }
-    #page-training .member-btn { display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; padding: 5px 10px; font-size: 12px; width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #page-training .member-btn { display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; padding: 5px 10px; font-size: 12px; max-width: 130px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     #page-training .member-btn:hover { background: rgba(255,255,255,0.3); }
     #page-training .member-dropdown { display: none; position: absolute; left: 0; top: 100%; margin-top: 4px; width: 220px; background: white; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 200; }
     #page-training .member-dropdown.open { display: block; }
@@ -604,7 +640,7 @@
     #page-training .form-grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
 
     /* ===== SUPPLEMENT PAGE ===== */
-    #page-supplement .top-header { background: linear-gradient(135deg, #c2410c 0%, #f97316 60%, #fb923c 100%); color: white; padding: 16px 16px 18px; position: sticky; top: 49px; z-index: 90; }
+    #page-supplement .top-header { background: linear-gradient(135deg, #c2410c 0%, #f97316 60%, #fb923c 100%); color: white; padding: 16px 16px 18px; position: sticky; top: 56px; z-index: 90; }
     #page-supplement .header-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     #page-supplement .member-select-wrap { position: relative; }
     #page-supplement .member-btn { display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; padding: 5px 10px; font-size: 12px; width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -853,7 +889,7 @@
     /* ===== PAGE-RESERVE ===== */
     #page-reserve .top-header {
       background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 60%, #38bdf8 100%);
-      color: white; padding: 16px; position: sticky; top: 49px; z-index: 90;
+      color: white; padding: 16px; position: sticky; top: 56px; z-index: 90;
     }
     #page-reserve .header-row { display: flex; align-items: center; justify-content: space-between; }
     #page-reserve .header-title { font-size: 16px; font-weight: 800; }
@@ -1180,17 +1216,32 @@
 
 <!-- Shared navigation -->
 <nav id="mainNav" class="page-nav" style="display:none">
-  <a href="#" class="nav-home" onclick="showPage('login');return false;">スポミル</a>
+  <button id="backBtn" class="back-btn" onclick="goBack()" style="display:none" title="戻る">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  </button>
   <span id="adminBadge" class="nav-badge" style="display:none">管理者</span>
-  <a href="#" data-page="dashboard" onclick="showPage('dashboard');return false;">🏠 ホーム</a>
-  <a href="#" data-page="meal" onclick="showPage('meal');return false;">🍽 食事</a>
-  <a href="#" data-page="body" onclick="showPage('body');return false;">📊 体組成</a>
-  <a href="#" data-page="training" onclick="showPage('training');return false;">💪 トレーニング</a>
-  <a href="#" data-page="supplement" onclick="showPage('supplement');return false;">💊 サプリ</a>
-  <a href="#" data-page="reserve" onclick="showPage('reserve');return false;">📅 予約</a>
+  <a href="#" data-page="dashboard" onclick="showPage('dashboard');return false;">
+    <span class="nav-icon">🏠</span><span class="nav-label">ホーム</span>
+  </a>
+  <a href="#" data-page="meal" onclick="showPage('meal');return false;">
+    <span class="nav-icon">🍽</span><span class="nav-label">食事</span>
+  </a>
+  <a href="#" data-page="body" onclick="showPage('body');return false;">
+    <span class="nav-icon">📊</span><span class="nav-label">体組成</span>
+  </a>
+  <a href="#" data-page="training" onclick="showPage('training');return false;">
+    <span class="nav-icon">💪</span><span class="nav-label">トレーニング</span>
+  </a>
+  <a href="#" data-page="supplement" onclick="showPage('supplement');return false;">
+    <span class="nav-icon">💊</span><span class="nav-label">サプリ</span>
+  </a>
+  <a href="#" data-page="reserve" onclick="showPage('reserve');return false;">
+    <span class="nav-icon">📅</span><span class="nav-label">予約</span>
+  </a>
   <div class="nav-spacer"></div>
-  <a href="#" data-page="members" onclick="showPage('members');return false;" style="font-size:11px;color:#9ca3af">👥 管理者</a>
-  <button class="nav-logout" onclick="logout()">ログアウト</button>
+  <a href="#" data-page="members" id="adminNavLink" onclick="showPage('members');return false;" style="display:none">
+    <span class="nav-icon">👥</span><span class="nav-label">管理者</span>
+  </a>
 </nav>
 
 <!-- Shared toast -->
@@ -1255,9 +1306,21 @@
 <!-- ===== PAGE: DASHBOARD ===== -->
 <div id="page-dashboard" class="spa-page" style="display:none">
   <div class="top-header">
-    <p class="header-greeting">こんにちは 👋</p>
-    <p class="header-name" id="da_headerName">—</p>
-    <p class="header-date" id="da_headerDate">—</p>
+    <div class="da-header-row">
+      <div class="da-user-info">
+        <div class="da-avatar">
+          <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <div>
+          <p class="da-welcome">Welcome</p>
+          <p class="da-name" id="da_headerName">— 様</p>
+        </div>
+      </div>
+      <button class="da-logout-btn" onclick="logout()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        ログアウト
+      </button>
+    </div>
     <div class="header-goal-row">
       <span class="goal-chip" id="da_goalChip">目標：設定なし</span>
       <span class="goal-chip" id="da_daysChip" style="display:none"></span>
@@ -1317,7 +1380,7 @@
 <div id="page-meal" class="spa-page" style="display:none">
   <div class="top-header">
     <div class="header-row">
-      <div class="member-select-wrap">
+      <div class="member-select-wrap" id="ml_memberSelectWrap">
         <button class="member-btn" id="ml_memberBtn" onclick="ml_toggleMemberDropdown()">
           <span id="ml_memberBtnText" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">全会員</span>
           <span id="ml_memberBtnClear" style="display:none;font-size:14px;flex-shrink:0" onclick="ml_clearMember(event)">✕</span>
@@ -1333,14 +1396,11 @@
       </div>
       <div class="date-nav">
         <div class="date-nav-row">
-          <button class="nav-btn" onclick="ml_jumpToPrevRecordDay()" title="前の記録日">◄◄</button>
           <button class="nav-btn" onclick="ml_prevDay()">◄</button>
           <button class="date-label-btn" id="ml_dateLabelBtn" onclick="ml_goToToday()"></button>
           <button class="nav-btn" onclick="ml_nextDay()">▶</button>
-          <button class="nav-btn" onclick="ml_jumpToNextRecordDay()" title="次の記録日">▶▶</button>
         </div>
         <span id="ml_recordBadge" class="record-badge" style="display:none">✓ 記録あり</span>
-        <span id="ml_navHint" class="hint-text" style="display:none">「◄◄」「▶▶」で記録のある日に移動</span>
       </div>
       <div style="width:110px;display:flex;justify-content:flex-end;gap:4px">
         <button onclick="openApiKeyModal()" style="font-size:16px;color:rgba(255,255,255,0.8);padding:4px;" title="AI設定">🤖</button>
@@ -1667,7 +1727,7 @@
       <div class="page-title-row"><span class="activity-icon">📊</span><h1 class="page-title">体組成データ管理</h1></div>
       <button class="btn-primary" onclick="bd_openAddModal()"><span>＋</span> データ記録</button>
     </div>
-    <div class="card member-select-card">
+    <div class="card member-select-card" id="bd_memberSelectCard">
       <label class="member-select-label">会員を選択</label>
       <div class="member-select-wrap">
         <button class="member-select-btn" id="bd_memberSelectBtn" onclick="bd_toggleMemberDropdown()">
@@ -1746,9 +1806,9 @@
 <div id="page-training" class="spa-page" style="display:none">
   <div class="top-header">
     <div class="header-row">
-      <div class="member-select-wrap">
+      <div class="member-select-wrap" id="tr_memberSelectWrap">
         <button class="member-btn" id="tr_memberBtn" onclick="tr_toggleMemberDropdown()">
-          <span id="tr_memberBtnText" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">会員を選択</span>
+          <span id="tr_memberBtnText" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">全会員</span>
           <span id="tr_memberBtnClear" style="display:none;font-size:14px;flex-shrink:0" onclick="tr_clearMember(event)">✕</span>
           <span style="font-size:10px;flex-shrink:0">▼</span>
         </button>
@@ -1768,7 +1828,6 @@
         </div>
         <span id="tr_summaryBadge" class="summary-badge" style="display:none"></span>
       </div>
-      <div style="width:100px"></div>
     </div>
   </div>
   <div class="main">
@@ -1793,10 +1852,10 @@
         <div class="form-group">
           <label class="form-label">カテゴリ</label>
           <div class="radio-group" id="tr_catRadio">
-            <label class="radio-label checked" data-val="strength"><input type="radio" name="tr_cat" value="strength" checked> 💪 筋トレ</label>
-            <label class="radio-label" data-val="cardio"><input type="radio" name="tr_cat" value="cardio"> 🏃 有酸素</label>
-            <label class="radio-label" data-val="stretch"><input type="radio" name="tr_cat" value="stretch"> 🧘 ストレッチ</label>
-            <label class="radio-label" data-val="team"><input type="radio" name="tr_cat" value="team"> 🤝 チーム練習</label>
+            <label class="radio-label checked" data-val="strength"><input type="radio" name="tr_cat" value="strength" checked> 筋トレ</label>
+            <label class="radio-label" data-val="cardio"><input type="radio" name="tr_cat" value="cardio"> 有酸素</label>
+            <label class="radio-label" data-val="stretch"><input type="radio" name="tr_cat" value="stretch"> ストレッチ</label>
+            <label class="radio-label" data-val="team"><input type="radio" name="tr_cat" value="team"> チーム練習</label>
           </div>
         </div>
         <div class="form-group" id="tr_strengthFields">
@@ -1825,7 +1884,7 @@
         <p style="font-size:13px;opacity:0.85;margin-bottom:2px">サプリメント管理</p>
         <p style="font-size:11px;opacity:0.7" id="sp_headerDate">—</p>
       </div>
-      <div class="member-select-wrap">
+      <div class="member-select-wrap" id="sp_memberSelectWrap">
         <button class="member-btn" id="sp_memberBtn" onclick="sp_toggleMemberDropdown()">
           <span id="sp_memberBtnText" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">会員を選択</span>
           <span id="sp_memberBtnClear" style="display:none;font-size:14px;flex-shrink:0" onclick="sp_clearMember(event)">✕</span>
@@ -2560,9 +2619,12 @@ function logout() {
   localStorage.removeItem('currentUser'); localStorage.removeItem('selectedMember');
   showPage('login');
 }
+// 管理者モード判定（currentUserが未設定＝ロゴバッジから入った管理者）
+function isAdminMode() { return !localStorage.getItem('currentUser'); }
 
 // ===== ROUTER =====
 let currentPage = 'login';
+let _prevPage = 'dashboard'; // 戻るボタン用
 const PAGE_COLORS = {
   login: '#22c55e', dashboard: '#22c55e', meal: '#22C55E',
   body: '#dc2626', training: '#7c3aed', supplement: '#f97316',
@@ -2576,17 +2638,31 @@ const PAGE_COLORS = {
   shift: '#4f46e5'
 };
 
+// 戻るボタン処理
+function goBack() { showPage(_prevPage || 'dashboard'); }
+
 function showPage(id) {
   document.querySelectorAll('.spa-page').forEach(p => p.style.display = 'none');
   const pg = document.getElementById('page-' + id);
   if (pg) pg.style.display = 'block';
+  // 前のページを保存（ログイン・登録は除く）
+  if (currentPage !== 'login' && currentPage !== 'register' && currentPage !== id) {
+    _prevPage = currentPage;
+  }
   currentPage = id;
   document.getElementById('bgGlow').style.display = id === 'login' ? 'block' : 'none';
   document.getElementById('bgGrid').style.display = id === 'login' ? 'block' : 'none';
   const nav = document.getElementById('mainNav');
   nav.style.display = (id === 'login' || id === 'register') ? 'none' : 'flex';
+  // 戻るボタン：ダッシュボード以外で表示
+  const backBtn = document.getElementById('backBtn');
+  if (backBtn) backBtn.style.display = (id !== 'dashboard' && id !== 'login' && id !== 'register') ? 'flex' : 'none';
+  // 管理者バッジ・リンク
   const adminBadge = document.getElementById('adminBadge');
-  adminBadge.style.display = (id === 'admin' || id === 'members' || id === 'calendar' || id === 'schedule' || id === 'staff' || id === 'shift') ? 'inline' : 'none';
+  const adminNavLink = document.getElementById('adminNavLink');
+  const isAdmin = isAdminMode();
+  adminBadge.style.display = (isAdmin && (id === 'admin' || id === 'members' || id === 'calendar' || id === 'schedule' || id === 'staff' || id === 'shift')) ? 'inline' : 'none';
+  if (adminNavLink) adminNavLink.style.display = isAdmin ? 'flex' : 'none';
   document.documentElement.style.setProperty('--page-color', PAGE_COLORS[id] || '#22c55e');
   document.querySelectorAll('#mainNav a[data-page]').forEach(a => {
     a.classList.toggle('active', a.dataset.page === id);
@@ -2738,8 +2814,9 @@ function da_init() {
   const todayStr = toDateStr(today);
   const days = ['日','月','火','水','木','金','土'];
   const dateLabel = `${today.getFullYear()}年${today.getMonth()+1}月${today.getDate()}日（${days[today.getDay()]}）`;
-  document.getElementById('da_headerName').textContent = user ? `${user} 選手` : 'ゲスト';
-  document.getElementById('da_headerDate').textContent = dateLabel;
+  document.getElementById('da_headerName').textContent = user ? `${user} 様` : 'ゲスト';
+  const dateEl = document.getElementById('da_headerDate');
+  if (dateEl) dateEl.textContent = dateLabel;
 
   const goal = getMemberGoal(user);
   const goalLabels = { lose_weight: '減量中', maintain: '維持', gain_muscle: '増量・筋肥大' };
@@ -3161,6 +3238,9 @@ function ml_render() {
 function ml_init() {
   ml_selectedDate = new Date();
   const _currentUser = localStorage.getItem('currentUser');
+  // 一般会員ログイン時は会員選択UIを非表示にして自分のデータのみ表示
+  const wrap = document.getElementById('ml_memberSelectWrap');
+  if (wrap) wrap.style.display = isAdminMode() ? '' : 'none';
   const _autoSelect = localStorage.getItem('selectedMember') || _currentUser;
   if (_autoSelect) { localStorage.removeItem('selectedMember'); ml_selectMember(_autoSelect); }
   else { ml_selectedMember = null; ml_render(); }
@@ -3321,6 +3401,9 @@ function bd_updateMemberDatalist() {
 }
 function bd_init() {
   const _currentUser = localStorage.getItem('currentUser');
+  // 一般会員ログイン時は会員選択カードを非表示
+  const card = document.getElementById('bd_memberSelectCard');
+  if (card) card.style.display = isAdminMode() ? '' : 'none';
   const _autoSelect = localStorage.getItem('selectedMember') || _currentUser;
   if (_autoSelect) { localStorage.removeItem('selectedMember'); bd_selectMember(_autoSelect); }
   else { bd_selectedMember = null; bd_render(); }
@@ -3329,10 +3412,10 @@ function bd_init() {
 
 // ===== TRAINING (tr_) =====
 const TR_CATS = [
-  { key:'strength', label:'筋トレ', icon:'💪', color:'#7c3aed', bg:'#ede9fe' },
-  { key:'cardio',   label:'有酸素', icon:'🏃', color:'#db2777', bg:'#fce7f3' },
-  { key:'stretch',  label:'ストレッチ', icon:'🧘', color:'#059669', bg:'#d1fae5' },
-  { key:'team',     label:'チーム練習', icon:'🤝', color:'#2563eb', bg:'#dbeafe' },
+  { key:'strength', label:'筋トレ', icon:'', color:'#7c3aed', bg:'#ede9fe' },
+  { key:'cardio',   label:'有酸素', icon:'', color:'#db2777', bg:'#fce7f3' },
+  { key:'stretch',  label:'ストレッチ', icon:'', color:'#059669', bg:'#d1fae5' },
+  { key:'team',     label:'チーム練習', icon:'', color:'#2563eb', bg:'#dbeafe' },
 ];
 const TR_INTENSITIES = { light:'軽め', medium:'普通', heavy:'きつい', max:'最大強度' };
 const TR_INT_CLASS = { light:'i-light', medium:'i-medium', heavy:'i-heavy', max:'i-max' };
@@ -3391,7 +3474,7 @@ function tr_render() {
     const recs = all.filter(r => r.category === cat.key);
     return `<div class="card" style="margin-bottom:12px">
       <div class="section-header">
-        <p class="card-title">${cat.icon} ${cat.label}</p>
+        <p class="card-title">${cat.icon ? cat.icon + ' ' : ''}${cat.label}</p>
         ${recs.length ? `<span style="font-size:12px;font-weight:600;color:${cat.color}">${recs.reduce((s,r)=>s+(r.durationMin||0),0)}分</span>` : ''}
         <button class="card-add-btn" style="color:${cat.color};background:${cat.bg}" onclick="tr_openAddModalForCat('${cat.key}')">＋</button>
       </div>
@@ -3474,6 +3557,9 @@ function tr_deleteRecord(id) {
 function tr_init() {
   tr_selectedDate = new Date();
   tr_currentUser = localStorage.getItem('currentUser') || '';
+  // 一般会員ログイン時は会員選択UIを非表示
+  const wrap = document.getElementById('tr_memberSelectWrap');
+  if (wrap) wrap.style.display = isAdminMode() ? '' : 'none';
   const _autoSelect = localStorage.getItem('selectedMember') || tr_currentUser;
   if (_autoSelect) { localStorage.removeItem('selectedMember'); tr_selectMemberInit(_autoSelect); }
   else { tr_selectedMember = null; tr_render(); }
@@ -3612,6 +3698,9 @@ function sp_init() {
   sp_currentUser = localStorage.getItem('currentUser') || '';
   const days = ['日','月','火','水','木','金','土'];
   document.getElementById('sp_headerDate').textContent = `${sp_today.getFullYear()}年${sp_today.getMonth()+1}月${sp_today.getDate()}日（${days[sp_today.getDay()]}）`;
+  // 一般会員ログイン時は会員選択UIを非表示
+  const wrap = document.getElementById('sp_memberSelectWrap');
+  if (wrap) wrap.style.display = isAdminMode() ? '' : 'none';
   const _autoSelect = localStorage.getItem('selectedMember') || sp_currentUser;
   if (_autoSelect) { localStorage.removeItem('selectedMember'); sp_selectMemberInit(_autoSelect); }
   else { sp_selectedMember = null; sp_render(); }
@@ -3640,8 +3729,14 @@ function mb_render() {
   document.querySelector('#mb_statusTabs [data-status="inactive"]').textContent = `非アクティブ (${inactiveCount})`;
   const q = document.getElementById('mb_searchInput').value.trim().toLowerCase();
   let filtered = sorted;
-  if (mb_statusFilter !== 'all') filtered = filtered.filter(m => m.status === mb_statusFilter);
-  if (q) filtered = filtered.filter(m => String(m.memberNo).includes(q) || (m.name||'').toLowerCase().includes(q) || (m.nameKana||'').toLowerCase().includes(q) || (m.phone||'').includes(q) || (m.email||'').toLowerCase().includes(q));
+  // 一般会員ログイン時は自分のデータのみ表示
+  if (!isAdminMode()) {
+    const me = localStorage.getItem('currentUser') || '';
+    filtered = filtered.filter(m => m.name === me);
+  } else {
+    if (mb_statusFilter !== 'all') filtered = filtered.filter(m => m.status === mb_statusFilter);
+    if (q) filtered = filtered.filter(m => String(m.memberNo).includes(q) || (m.name||'').toLowerCase().includes(q) || (m.nameKana||'').toLowerCase().includes(q) || (m.phone||'').includes(q) || (m.email||'').toLowerCase().includes(q));
+  }
   const list = document.getElementById('mb_memberList');
   if (filtered.length === 0) {
     list.innerHTML = `<div class="empty-state">${!q && mb_statusFilter === 'all' ? '<p style="margin-bottom:12px">会員が登録されていません</p><button class="btn-primary" style="margin:0 auto" onclick="mb_openAddModal()">最初の会員を登録する</button>' : '該当する会員が見つかりません'}</div>`;
@@ -3792,6 +3887,12 @@ function mb_init() {
   mb_editingId = null; mb_detailId = null;
   document.querySelectorAll('#mb_statusTabs .tab-btn').forEach(el => el.classList.toggle('active', el.dataset.status === 'all'));
   document.getElementById('mb_searchInput').value = '';
+  // 一般会員ログイン時は検索・フィルター・管理ボタンを非表示
+  const isAdmin = isAdminMode();
+  const filterRow = document.querySelector('#page-members .filter-row');
+  const headerBtns = document.querySelector('#page-members .header-btns');
+  if (filterRow) filterRow.style.display = isAdmin ? '' : 'none';
+  if (headerBtns) headerBtns.style.display = isAdmin ? '' : 'none';
   mb_render();
 }
 
