@@ -169,7 +169,7 @@
     }
     #page-login .login-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(34,197,94,0.45); }
     #page-login .login-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: none; }
-    #page-login .error-msg { font-size: 12px; color: #dc2626; text-align: center; margin-top: 10px; display: none; }
+    #page-login .error-msg { font-size: 11px; color: #dc2626; text-align: center; margin-top: 10px; display: none; line-height: 1.5; padding: 6px 10px; background: rgba(220,38,38,0.06); border-radius: 6px; }
     #page-login .error-msg.show { display: block; }
     #page-login .lo-links { margin-top: 28px; display: flex; flex-direction: column; align-items: center; gap: 10px; animation: fadeUp 0.7s ease 0.32s both; }
     #page-login .lo-reg-link {
@@ -1036,7 +1036,7 @@
     <p class="lo-tagline"><span class="em">勝つ体</span>は、食事から。</p>
     <div class="lo-card">
       <p class="card-title">— LOGIN —</p>
-      <input class="name-input" id="lo_idInput" type="email" placeholder="メールアドレス" autocomplete="email" oninput="lo_updateLoginBtn()" />
+      <input class="name-input" id="lo_idInput" type="email" placeholder="メールアドレス" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" oninput="lo_updateLoginBtn()" />
       <div class="pass-wrap">
         <input class="name-input" id="lo_passInput" type="password" placeholder="パスワード" autocomplete="current-password" oninput="lo_updateLoginBtn()" style="width:100%;padding-right:44px" />
         <button type="button" class="pass-vis-btn" id="lo_passVisBtn" onclick="lo_togglePassVis()">👁</button>
@@ -1714,7 +1714,7 @@
       </div>
       <div class="reg-group">
         <label class="reg-label">メールアドレス</label>
-        <input class="reg-input" id="rg_email" type="email" placeholder="example@mail.com" />
+        <input class="reg-input" id="rg_email" type="email" placeholder="example@mail.com" autocapitalize="none" autocorrect="off" spellcheck="false" />
       </div>
     </div>
 
@@ -2220,18 +2220,19 @@ function lo_updateLoginBtn() {
 }
 
 async function lo_login() {
-  const loginId = document.getElementById('lo_idInput').value.trim();
+  const loginId = document.getElementById('lo_idInput').value.trim().toLowerCase(); // 小文字統一
   const password = document.getElementById('lo_passInput').value;
   const remember = document.getElementById('lo_rememberCheck').checked;
   if (!loginId || !password) {
-    document.getElementById('lo_errorMsg').textContent = 'IDとパスワードを入力してください';
+    document.getElementById('lo_errorMsg').textContent = 'メールアドレスとパスワードを入力してください';
     document.getElementById('lo_errorMsg').classList.add('show'); return;
   }
   const hashed = await lo_hashPassword(password);
   const members = getMembers();
-  const member = members.find(m => m.loginId === loginId && m.password === hashed);
+  // メールアドレスは大文字小文字を区別しない
+  const member = members.find(m => (m.loginId||'').toLowerCase() === loginId && m.password === hashed);
   if (!member) {
-    document.getElementById('lo_errorMsg').textContent = 'IDまたはパスワードが正しくありません';
+    document.getElementById('lo_errorMsg').textContent = 'ログインに失敗しました。メールアドレスまたはパスワードが正しくありません';
     document.getElementById('lo_errorMsg').classList.add('show');
     document.getElementById('lo_passInput').value = ''; lo_updateLoginBtn(); return;
   }
@@ -3992,13 +3993,15 @@ async function rg_submit() {
 
   const existing = getMembers();
   if (existing.some(m => m.name === name))      { showToast('同じ名前の会員がすでに登録されています', 'error'); return; }
-  if (existing.some(m => m.loginId === email))  { showToast('このメールアドレスはすでに登録されています', 'error'); return; }
+  const emailLower = email.toLowerCase(); // 小文字統一
+  if (existing.some(m => (m.loginId||'').toLowerCase() === emailLower)) { showToast('このメールアドレスはすでに登録されています', 'error'); return; }
 
   const hashedPassword = await lo_hashPassword(password);
 
   const newMember = {
     id: genId(),
-    loginId: email,   // メールアドレスをログインIDとして使用
+    loginId: emailLower, // 小文字で保存
+    email: emailLower,
     password: hashedPassword,
     name,
     nameKana: document.getElementById('rg_nameKana').value.trim(),
