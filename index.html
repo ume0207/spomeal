@@ -65,85 +65,124 @@
 
     /* ===== LOGIN PAGE ===== */
     #page-login {
-      background: linear-gradient(160deg, #f0fdf4 0%, #dcfce7 40%, #ecfdf5 70%, #f0f9ff 100%);
-      color: #111827; min-height: 100vh; overflow-x: hidden;
+      background: #ffffff;
+      color: #111827; min-height: 100vh; overflow: hidden; position: relative;
     }
-    /* 装飾サークル */
-    #page-login::before {
-      content: ''; position: fixed; top: -120px; right: -120px;
-      width: 400px; height: 400px; border-radius: 50%;
-      background: radial-gradient(circle, rgba(34,197,94,0.18) 0%, transparent 70%);
-      pointer-events: none;
+    /* 右上の大きなグリーン装飾ブロック */
+    #page-login .lo-bg-block {
+      position: fixed; top: -80px; right: -80px;
+      width: 55vw; max-width: 420px; height: 55vw; max-height: 420px;
+      background: linear-gradient(145deg, #4ade80, #22c55e, #16a34a);
+      border-radius: 50%; opacity: 0.12;
+      pointer-events: none; z-index: 0;
     }
-    #page-login::after {
-      content: ''; position: fixed; bottom: -100px; left: -100px;
-      width: 350px; height: 350px; border-radius: 50%;
-      background: radial-gradient(circle, rgba(14,165,233,0.14) 0%, transparent 70%);
-      pointer-events: none;
+    #page-login .lo-bg-block2 {
+      position: fixed; bottom: -60px; left: -60px;
+      width: 35vw; max-width: 280px; height: 35vw; max-height: 280px;
+      background: linear-gradient(145deg, #86efac, #4ade80);
+      border-radius: 50%; opacity: 0.10;
+      pointer-events: none; z-index: 0;
+    }
+    /* 斜めアクセントライン */
+    #page-login .lo-slash {
+      position: fixed; top: 0; right: 0; width: 100vw; height: 100vh;
+      pointer-events: none; z-index: 0; overflow: hidden;
+    }
+    #page-login .lo-slash::before {
+      content: '';
+      position: absolute; top: 0; right: -30%;
+      width: 70%; height: 100%;
+      background: linear-gradient(135deg, transparent 45%, rgba(34,197,94,0.05) 45%, rgba(34,197,94,0.05) 55%, transparent 55%);
     }
     #page-login .lo-page {
       position: relative; z-index: 1; min-height: 100vh;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      padding: 40px 20px;
+      padding: 48px 20px 60px;
     }
-    #page-login .logo-wrap { text-align: center; margin-bottom: 40px; animation: fadeUp 0.7s ease both; }
+    /* ロゴエリア */
+    #page-login .logo-wrap { text-align: center; margin-bottom: 10px; animation: fadeUp 0.7s ease both; }
     #page-login .logo-badge {
       display: inline-block;
-      background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-      color: white; font-size: 10px; font-weight: 800; letter-spacing: 0.15em;
-      padding: 3px 10px; border-radius: 4px; margin-bottom: 14px; text-transform: uppercase;
-      box-shadow: 0 2px 8px rgba(34,197,94,0.35);
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: white; font-size: 9px; font-weight: 800; letter-spacing: 0.22em;
+      padding: 4px 12px; border-radius: 3px; margin-bottom: 16px; text-transform: uppercase;
+      box-shadow: 0 2px 10px rgba(34,197,94,0.35);
     }
     #page-login .logo-main {
-      font-size: clamp(52px, 12vw, 82px); font-weight: 900; letter-spacing: -0.02em; line-height: 1;
-      background: linear-gradient(135deg, #15803d 0%, #16a34a 50%, #22c55e 100%);
+      font-size: clamp(56px, 14vw, 90px); font-weight: 900; letter-spacing: -0.03em; line-height: 1;
+      background: linear-gradient(135deg, #15803d 0%, #22c55e 60%, #4ade80 100%);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
     }
     #page-login .logo-sub {
-      font-size: clamp(13px, 3vw, 17px); font-weight: 400; letter-spacing: 0.35em;
-      color: #6b7280; text-transform: lowercase; margin-top: 6px;
+      font-size: clamp(10px, 2vw, 13px); font-weight: 400; letter-spacing: 0.5em;
+      color: #9ca3af; text-transform: lowercase; margin-top: 8px;
     }
-    #page-login .tagline-wrap { text-align: center; margin-bottom: 44px; animation: fadeUp 0.7s ease 0.15s both; }
-    #page-login .tagline-line { font-size: clamp(13px, 3.5vw, 16px); font-weight: 600; color: #374151; letter-spacing: 0.04em; line-height: 2.1; }
-    #page-login .tagline-line .em { color: #16a34a; font-weight: 800; }
+    /* タグライン */
+    #page-login .lo-tagline {
+      font-size: clamp(13px, 3vw, 15px); font-weight: 800; letter-spacing: 0.08em;
+      color: #374151; text-align: center; margin: 20px 0 32px;
+      animation: fadeUp 0.7s ease 0.12s both;
+    }
+    #page-login .lo-tagline .em { color: #16a34a; }
+    /* カード */
     #page-login .lo-card {
-      width: 100%; max-width: 400px; animation: fadeUp 0.7s ease 0.3s both;
-      background: rgba(255,255,255,0.85); border: 1px solid rgba(34,197,94,0.2);
-      border-radius: 24px; padding: 36px 32px; backdrop-filter: blur(16px);
-      box-shadow: 0 8px 40px rgba(0,0,0,0.08), 0 2px 8px rgba(34,197,94,0.12);
+      width: 100%; max-width: 380px; animation: fadeUp 0.7s ease 0.22s both;
+      background: #ffffff;
+      border: 1.5px solid #e5e7eb;
+      border-top: 3px solid #22c55e;
+      border-radius: 18px; padding: 30px 26px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.07), 0 2px 8px rgba(34,197,94,0.08);
     }
-    #page-login .card-title { font-size: 13px; font-weight: 700; color: #9ca3af; letter-spacing: 0.12em; text-align: center; margin-bottom: 24px; text-transform: uppercase; }
+    #page-login .card-title {
+      font-size: 10px; font-weight: 800; color: #9ca3af;
+      letter-spacing: 0.2em; text-align: center; margin-bottom: 20px; text-transform: uppercase;
+    }
     #page-login .pass-wrap { position: relative; margin-top: 10px; }
     #page-login .pass-vis-btn {
-      position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
-      background: none; border: none; color: #9ca3af; font-size: 17px; cursor: pointer; padding: 0; line-height: 1;
+      position: absolute; right: 13px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: #9ca3af;
+      font-size: 15px; cursor: pointer; padding: 0; line-height: 1;
     }
     #page-login .remember-row {
-      display: flex; align-items: center; gap: 8px; margin-top: 12px;
-      font-size: 13px; color: #6b7280; cursor: pointer; user-select: none;
+      display: flex; align-items: center; gap: 8px; margin-top: 14px;
+      font-size: 12px; color: #6b7280; cursor: pointer; user-select: none;
     }
-    #page-login .remember-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: #22c55e; cursor: pointer; flex-shrink: 0; }
+    #page-login .remember-row input[type="checkbox"] { width: 15px; height: 15px; accent-color: #22c55e; cursor: pointer; flex-shrink: 0; }
     #page-login .name-input {
-      width: 100%; background: #f9fafb; border: 1.5px solid #e5e7eb;
-      border-radius: 12px; padding: 13px 16px; color: #111827; font-size: 15px; outline: none; transition: all 0.2s; font-family: inherit;
+      width: 100%; background: #f9fafb;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 10px; padding: 13px 16px; color: #111827; font-size: 15px;
+      outline: none; transition: all 0.2s; font-family: inherit;
     }
     #page-login .name-input::placeholder { color: #9ca3af; }
-    #page-login .name-input:focus { border-color: #22c55e; background: #f0fdf4; box-shadow: 0 0 0 3px rgba(34,197,94,0.1); }
+    #page-login .name-input:focus {
+      border-color: #22c55e; background: #f0fdf4;
+      box-shadow: 0 0 0 3px rgba(34,197,94,0.1);
+    }
     #page-login .login-btn {
-      width: 100%; margin-top: 20px;
-      background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-      color: white; font-weight: 800; font-size: 16px; padding: 15px; border-radius: 12px;
-      letter-spacing: 0.05em; transition: all 0.25s; box-shadow: 0 4px 16px rgba(34,197,94,0.35);
+      width: 100%; margin-top: 22px;
+      background: linear-gradient(135deg, #22c55e 0%, #15803d 100%);
+      color: white; font-weight: 900; font-size: 15px; padding: 15px;
+      border-radius: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+      transition: all 0.25s; box-shadow: 0 4px 20px rgba(34,197,94,0.3);
       font-family: inherit;
     }
-    #page-login .login-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(34,197,94,0.45); }
-    #page-login .login-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    #page-login .login-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(34,197,94,0.45); }
+    #page-login .login-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: none; }
     #page-login .error-msg { font-size: 12px; color: #dc2626; text-align: center; margin-top: 10px; display: none; }
     #page-login .error-msg.show { display: block; }
-    #page-login .admin-link { margin-top: 24px; text-align: center; font-size: 12px; color: #9ca3af; }
-    #page-login .admin-link a { color: #6b7280; text-decoration: underline; text-underline-offset: 3px; }
-    #page-login .admin-link a:hover { color: rgba(255,255,255,0.7); }
-    #page-login .footer { position: fixed; bottom: 0; left: 0; right: 0; padding: 12px 20px; text-align: center; font-size: 11px; color: rgba(255,255,255,0.15); z-index: 1; }
+    #page-login .lo-links { margin-top: 28px; display: flex; flex-direction: column; align-items: center; gap: 10px; animation: fadeUp 0.7s ease 0.32s both; }
+    #page-login .lo-reg-link {
+      font-size: 13px; font-weight: 700; color: #16a34a;
+      text-decoration: none; letter-spacing: 0.03em;
+      padding: 9px 22px; border: 1.5px solid #bbf7d0;
+      border-radius: 8px; transition: all 0.2s; background: #f0fdf4;
+    }
+    #page-login .lo-reg-link:hover { background: #dcfce7; border-color: #4ade80; }
+    #page-login .admin-link { text-align: center; font-size: 11px; }
+    #page-login .admin-link a { color: #9ca3af; text-decoration: none; }
+    #page-login .admin-link a:hover { color: #374151; }
+    #page-login .footer { position: fixed; bottom: 0; left: 0; right: 0; padding: 10px 20px; text-align: center; font-size: 10px; color: #d1d5db; z-index: 1; letter-spacing: 0.08em; }
     @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
 
     /* ===== DASHBOARD ===== */
@@ -984,19 +1023,19 @@
 
 <!-- ===== PAGE: LOGIN ===== -->
 <div id="page-login" class="spa-page" style="display:none">
+  <!-- 背景装飾 -->
+  <div class="lo-bg-block"></div>
+  <div class="lo-bg-block2"></div>
+  <div class="lo-slash"></div>
   <div class="lo-page">
     <div class="logo-wrap">
-      <div class="logo-badge">管理栄養士監修</div>
+      <div class="logo-badge">⚡ SPORTS MEAL</div>
       <div class="logo-main">スポミル</div>
       <div class="logo-sub">sports meal</div>
     </div>
-    <div class="tagline-wrap">
-      <p class="tagline-line"><span class="em">スポーツ選手</span>に特化した</p>
-      <p class="tagline-line">管理栄養士監修の</p>
-      <p class="tagline-line"><span class="em">体改革</span>食事アプリ</p>
-    </div>
+    <p class="lo-tagline"><span class="em">勝つ体</span>は、食事から。</p>
     <div class="lo-card">
-      <p class="card-title">ログイン</p>
+      <p class="card-title">— LOGIN —</p>
       <input class="name-input" id="lo_idInput" type="text" placeholder="ログインID" autocomplete="username" oninput="lo_updateLoginBtn()" />
       <div class="pass-wrap">
         <input class="name-input" id="lo_passInput" type="password" placeholder="パスワード" autocomplete="current-password" oninput="lo_updateLoginBtn()" style="width:100%;padding-right:44px" />
@@ -1009,13 +1048,9 @@
       <button class="login-btn" id="lo_loginBtn" onclick="lo_login()" disabled>ログイン →</button>
       <p class="error-msg" id="lo_errorMsg">IDまたはパスワードが正しくありません</p>
     </div>
-    <div style="margin-top:28px;text-align:center;display:flex;flex-direction:column;gap:10px">
-      <p style="font-size:14px">
-        <a href="#" onclick="showPage('register');return false;" style="color:#16a34a;font-weight:700;text-decoration:none">📝 新規会員登録はこちら →</a>
-      </p>
-      <p class="admin-link">
-        <a href="#" onclick="showPage('admin');return false;">管理者ページ</a>
-      </p>
+    <div class="lo-links">
+      <a href="#" onclick="showPage('register');return false;" class="lo-reg-link">📝 新規会員登録はこちら →</a>
+      <p class="admin-link"><a href="#" onclick="showPage('admin');return false;">管理者ページ</a></p>
     </div>
   </div>
   <div class="footer">© 2026 スポミル. All rights reserved.</div>
