@@ -367,7 +367,7 @@ export default function LoginPage() {
           }}
         >
           <Link
-            href="/register"
+            href="/plans"
             style={{
               fontSize: '13px',
               fontWeight: 700,
@@ -383,11 +383,6 @@ export default function LoginPage() {
           >
             新規会員登録
           </Link>
-          <div style={{ textAlign: 'center', fontSize: '11px' }}>
-            <Link href="/admin" style={{ color: '#9ca3af', textDecoration: 'none' }}>
-              管理者ログイン
-            </Link>
-          </div>
         </div>
 
         {/* 法的情報 */}
