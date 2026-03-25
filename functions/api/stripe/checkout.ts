@@ -56,7 +56,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       },
     }
 
-    const priceId = priceMap[planId]?.[period]
+    const priceId = priceMap[planId]?.[period]?.trim()
     if (!priceId) {
       return new Response(JSON.stringify({ error: 'Invalid plan or period' }), {
         status: 400,
