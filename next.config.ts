@@ -1,10 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'export',
-  trailingSlash: true,
+  // Netlifyはサーバーサイドレンダリングに対応しているため
+  // output: 'export' は不要（middlewareとの競合を解消）
   images: {
-    unoptimized: true,
+    domains: [],
   },
 };
 
