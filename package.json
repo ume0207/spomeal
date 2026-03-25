@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "build:cf": "npx @opennextjs/cloudflare build"
   },
   "dependencies": {
     "@stripe/stripe-js": "^8.11.0",
@@ -18,6 +19,7 @@
     "stripe": "^20.4.1"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "latest",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

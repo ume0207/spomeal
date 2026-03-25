@@ -1,14 +1,23 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function proxy(request: NextRequest) {
+export const runtime = 'edge'
+
+export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   })
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return supabaseResponse
+  }
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         getAll() {
@@ -35,11 +44,8 @@ export async function proxy(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
-  // Protected app routes
   const protectedRoutes = ['/dashboard', '/meal', '/body', '/training', '/supplement', '/plans']
   const isProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route))
-
-  // Admin routes
   const isAdminRoute = pathname.startsWith('/admin')
 
   if (!user && (isProtectedRoute || isAdminRoute)) {
@@ -48,17 +54,6 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  if (user && isAdminRoute) {
-    // Check admin role from user metadata
-    const isAdmin = user.user_metadata?.role === 'admin' || user.app_metadata?.role === 'admin'
-    if (!isAdmin) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/dashboard'
-      return NextResponse.redirect(url)
-    }
-  }
-
-  // Redirect logged-in users away from auth pages
   if (user && (pathname === '/login' || pathname === '/register')) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'

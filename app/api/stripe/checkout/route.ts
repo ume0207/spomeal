@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
 
+export const runtime = 'edge'
+
 const PRICE_IDS: Record<string, Record<string, string>> = {
   light: {
     monthly: process.env.STRIPE_PRICE_LIGHT_MONTHLY || 'price_light_monthly',
