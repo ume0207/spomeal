@@ -99,11 +99,11 @@ export default function PlansPage() {
       if (data.url) {
         window.location.href = data.url
       } else {
-        alert('決済ページの取得に失敗しました。もう一度お試しください。')
+        alert('決済ページの取得に失敗しました。\n' + (data.error || 'もう一度お試しください。'))
         setLoading(null)
       }
-    } catch {
-      alert('エラーが発生しました。もう一度お試しください。')
+    } catch (e) {
+      alert('エラーが発生しました。もう一度お試しください。\n' + String(e))
       setLoading(null)
     }
   }
