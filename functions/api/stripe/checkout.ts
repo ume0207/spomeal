@@ -1,3 +1,6 @@
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type PagesFunction<Env = Record<string, unknown>> = (context: { request: Request; env: Env; params: Record<string, string>; next: () => Promise<Response> }) => Promise<Response> | Response
+
 interface Env {
   STRIPE_SECRET_KEY: string
   STRIPE_PRICE_LIGHT_MONTHLY: string
