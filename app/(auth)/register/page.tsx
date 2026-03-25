@@ -44,34 +44,8 @@ export default function RegisterPage() {
       return
     }
 
-    setSuccess(true)
+    router.push('/plans')
     setLoading(false)
-  }
-
-  if (success) {
-    return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6">
-        <div className="max-w-sm w-full text-center">
-          <div
-            className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
-            style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}
-          >
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-              <polyline points="20 6 9 17 4 12"/>
-            </svg>
-          </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">登録完了！</h2>
-          <p className="text-sm text-gray-500 mb-6">
-            確認メールを送信しました。
-            <br />
-            メールを確認してアカウントを有効化してください。
-          </p>
-          <Button variant="primary" fullWidth onClick={() => router.push('/login')}>
-            ログインページへ
-          </Button>
-        </div>
-      </div>
-    )
   }
 
   return (

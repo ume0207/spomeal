@@ -39,10 +39,10 @@ const plans: Plan[] = [
       '週次レポート',
     ],
     prices: {
-      monthly: { amount: 980, label: '月額', period: 'monthly' },
-      quarterly: { amount: 2646, label: '3ヶ月', period: 'quarterly' },
-      semiannual: { amount: 4900, label: '半年', period: 'semiannual' },
-      annual: { amount: 8820, label: '年間', period: 'annual' },
+      monthly: { amount: 660, label: '月額', period: 'monthly' },
+      quarterly: { amount: 1881, label: '3ヶ月', period: 'quarterly' },
+      semiannual: { amount: 3564, label: '半年', period: 'semiannual' },
+      annual: { amount: 6336, label: '年間', period: 'annual' },
     },
   },
   {
@@ -62,10 +62,10 @@ const plans: Plan[] = [
       '月次詳細レポート',
     ],
     prices: {
-      monthly: { amount: 1980, label: '月額', period: 'monthly' },
-      quarterly: { amount: 5346, label: '3ヶ月', period: 'quarterly' },
-      semiannual: { amount: 9900, label: '半年', period: 'semiannual' },
-      annual: { amount: 17820, label: '年間', period: 'annual' },
+      monthly: { amount: 2540, label: '月額', period: 'monthly' },
+      quarterly: { amount: 7239, label: '3ヶ月', period: 'quarterly' },
+      semiannual: { amount: 13716, label: '半年', period: 'semiannual' },
+      annual: { amount: 24384, label: '年間', period: 'annual' },
     },
   },
   {
@@ -84,19 +84,19 @@ const plans: Plan[] = [
       '詳細分析ダッシュボード',
     ],
     prices: {
-      monthly: { amount: 3980, label: '月額', period: 'monthly' },
-      quarterly: { amount: 10746, label: '3ヶ月', period: 'quarterly' },
-      semiannual: { amount: 19900, label: '半年', period: 'semiannual' },
-      annual: { amount: 35820, label: '年間', period: 'annual' },
+      monthly: { amount: 4520, label: '月額', period: 'monthly' },
+      quarterly: { amount: 12882, label: '3ヶ月', period: 'quarterly' },
+      semiannual: { amount: 24408, label: '半年', period: 'semiannual' },
+      annual: { amount: 43392, label: '年間', period: 'annual' },
     },
   },
 ]
 
 const periodLabels: Record<Period, { label: string; discount?: string }> = {
   monthly: { label: '月払い' },
-  quarterly: { label: '3ヶ月', discount: '10%OFF' },
-  semiannual: { label: '半年', discount: '17%OFF' },
-  annual: { label: '年払い', discount: '25%OFF' },
+  quarterly: { label: '3ヶ月', discount: '5%OFF' },
+  semiannual: { label: '半年', discount: '10%OFF' },
+  annual: { label: '年払い', discount: '20%OFF' },
 }
 
 function formatPrice(amount: number, period: Period): string {
@@ -141,8 +141,8 @@ export default function PlansPage() {
             </svg>
           </div>
           <div>
-            <div className="text-xs font-bold text-[#16a34a]">現在のプラン：無料トライアル</div>
-            <div className="text-[10px] text-gray-500">14日間の無料期間中です</div>
+            <div className="text-xs font-bold text-[#16a34a]">現在のプラン：無料トライアル中</div>
+            <div className="text-[10px] text-gray-500">🎉 14日間は全機能が無料でお使いいただけます</div>
           </div>
         </div>
 
