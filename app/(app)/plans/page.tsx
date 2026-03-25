@@ -39,10 +39,10 @@ const plans: Plan[] = [
       '週次レポート',
     ],
     prices: {
-      monthly: { amount: 660, label: '月額', period: 'monthly' },
-      quarterly: { amount: 1881, label: '3ヶ月', period: 'quarterly' },
-      semiannual: { amount: 3564, label: '半年', period: 'semiannual' },
-      annual: { amount: 6336, label: '年間', period: 'annual' },
+      monthly: { amount: 615, label: '月額', period: 'monthly' },
+      quarterly: { amount: 1752, label: '3ヶ月', period: 'quarterly' },
+      semiannual: { amount: 3321, label: '半年', period: 'semiannual' },
+      annual: { amount: 5904, label: '年間', period: 'annual' },
     },
   },
   {
@@ -62,10 +62,10 @@ const plans: Plan[] = [
       '月次詳細レポート',
     ],
     prices: {
-      monthly: { amount: 2540, label: '月額', period: 'monthly' },
-      quarterly: { amount: 7239, label: '3ヶ月', period: 'quarterly' },
-      semiannual: { amount: 13716, label: '半年', period: 'semiannual' },
-      annual: { amount: 24384, label: '年間', period: 'annual' },
+      monthly: { amount: 2560, label: '月額', period: 'monthly' },
+      quarterly: { amount: 7296, label: '3ヶ月', period: 'quarterly' },
+      semiannual: { amount: 13824, label: '半年', period: 'semiannual' },
+      annual: { amount: 24576, label: '年間', period: 'annual' },
     },
   },
   {
@@ -84,10 +84,10 @@ const plans: Plan[] = [
       '詳細分析ダッシュボード',
     ],
     prices: {
-      monthly: { amount: 4520, label: '月額', period: 'monthly' },
-      quarterly: { amount: 12882, label: '3ヶ月', period: 'quarterly' },
-      semiannual: { amount: 24408, label: '半年', period: 'semiannual' },
-      annual: { amount: 43392, label: '年間', period: 'annual' },
+      monthly: { amount: 4540, label: '月額', period: 'monthly' },
+      quarterly: { amount: 12943, label: '3ヶ月', period: 'quarterly' },
+      semiannual: { amount: 24516, label: '半年', period: 'semiannual' },
+      annual: { amount: 43584, label: '年間', period: 'annual' },
     },
   },
 ]
@@ -142,7 +142,7 @@ export default function PlansPage() {
           </div>
           <div>
             <div className="text-xs font-bold text-[#16a34a]">現在のプラン：無料トライアル中</div>
-            <div className="text-[10px] text-gray-500">🎉 14日間は全機能が無料でお使いいただけます</div>
+            <div className="text-[10px] text-gray-500">🎁 2週間は全機能が無料でお使いいただけます</div>
           </div>
         </div>
 
