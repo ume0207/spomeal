@@ -99,7 +99,8 @@ export default function LoginPage() {
             animation: 'fadeUp 0.7s ease both',
           }}
         >
-          <div
+          <a
+            href="/admin"
             style={{
               display: 'inline-block',
               background: 'linear-gradient(135deg, #22c55e, #16a34a)',
@@ -112,10 +113,12 @@ export default function LoginPage() {
               marginBottom: '16px',
               textTransform: 'uppercase',
               boxShadow: '0 2px 10px rgba(34,197,94,0.35)',
+              textDecoration: 'none',
+              cursor: 'pointer',
             }}
           >
             管理栄養士監修
-          </div>
+          </a>
           <div
             style={{
               fontSize: 'clamp(56px, 14vw, 90px)',
@@ -381,7 +384,7 @@ export default function LoginPage() {
             新規会員登録
           </Link>
           <div style={{ textAlign: 'center', fontSize: '11px' }}>
-            <Link href="#" style={{ color: '#9ca3af', textDecoration: 'none' }}>
+            <Link href="/admin" style={{ color: '#9ca3af', textDecoration: 'none' }}>
               管理者ログイン
             </Link>
           </div>
