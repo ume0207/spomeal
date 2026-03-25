@@ -1,172 +1,225 @@
+'use client'
+
 import Link from 'next/link'
-import NutritionCard from '@/components/dashboard/NutritionCard'
-import Card from '@/components/ui/Card'
 
 const today = new Date()
-const dateStr = today.toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' })
+const dateStr = today.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' })
+
+const nutrition = {
+  calories: { current: 1420, target: 2000 },
+  protein: { current: 98, target: 160 },
+  fat: { current: 42, target: 60 },
+  carbs: { current: 165, target: 250 },
+}
+
+const quickActions = [
+  { href: '/meal', label: '食事を追加', icon: '🍽', color: '#22c55e', bgColor: '#f0fdf4', borderColor: '#bbf7d0' },
+  { href: '/body', label: '体組成を記録', icon: '📊', color: '#3b82f6', bgColor: '#eff6ff', borderColor: '#bfdbfe' },
+  { href: '/training', label: 'トレーニング', icon: '💪', color: '#7c3aed', bgColor: '#f5f3ff', borderColor: '#ddd6fe' },
+  { href: '/supplement', label: 'サプリ', icon: '💊', color: '#f97316', bgColor: '#fff7ed', borderColor: '#fed7aa' },
+]
+
+const supplements = [
+  { name: 'ホエイプロテイン', timing: 'トレーニング後', done: true },
+  { name: 'クレアチン', timing: 'トレーニング前', done: true },
+  { name: 'BCAA', timing: 'トレーニング中', done: false },
+  { name: 'マルチビタミン', timing: '朝食後', done: true },
+]
 
 export default function DashboardPage() {
-  // Demo data
-  const nutrition = {
-    calories: { current: 1420, target: 2200 },
-    protein: { current: 98, target: 160 },
-    fat: { current: 42, target: 60 },
-    carbs: { current: 165, target: 250 },
-  }
-
-  const quickActions = [
-    { href: '/meal', label: '食事を記録', icon: '🍱', color: '#f0fdf4', border: '#bbf7d0' },
-    { href: '/body', label: '体重を記録', icon: '⚖️', color: '#eff6ff', border: '#bfdbfe' },
-    { href: '/training', label: 'トレーニング', icon: '💪', color: '#fef3c7', border: '#fde68a' },
-    { href: '/supplement', label: 'サプリ記録', icon: '💊', color: '#fdf4ff', border: '#e9d5ff' },
-  ]
-
-  const recentMeals = [
-    { name: '朝食', time: '07:30', items: 'オートミール、プロテイン', kcal: 380 },
-    { name: '昼食', time: '12:15', items: '鶏胸肉定食、サラダ', kcal: 650 },
-    { name: '間食', time: '15:00', items: 'プロテインバー', kcal: 210 },
-  ]
+  const calPct = Math.min((nutrition.calories.current / nutrition.calories.target) * 100, 100)
+  const isOver = nutrition.calories.current > nutrition.calories.target
 
   return (
-    <div className="flex flex-col">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-4 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-gray-400">{dateStr}</p>
-            <h1 className="text-lg font-black text-[#1a1a1a] mt-0.5">
-              スポ<span className="text-[#22c55e]">ミル</span>
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/plans"
-              className="px-3 py-1.5 bg-[#f0fdf4] text-[#16a34a] text-xs font-semibold rounded-xl border border-green-200 hover:bg-green-100 transition-colors"
-            >
-              プラン
-            </Link>
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#22c55e] to-[#16a34a] flex items-center justify-center">
-              <span className="text-white text-sm font-bold">U</span>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div style={{ fontFamily: "'Helvetica Neue', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif", color: '#1a1a1a' }}>
+      <div style={{ maxWidth: '640px', margin: '0 auto', padding: '16px 12px 40px' }}>
 
-      <div className="px-4 py-4 space-y-4">
-        {/* Nutrition card */}
-        <NutritionCard {...nutrition} />
-
-        {/* Quick Actions */}
-        <div>
-          <h2 className="text-sm font-bold text-gray-700 mb-3">クイックアクション</h2>
-          <div className="grid grid-cols-4 gap-2">
-            {quickActions.map((action) => (
-              <Link
-                key={action.href}
-                href={action.href}
-                className="flex flex-col items-center gap-1.5 p-3 rounded-[14px] border transition-all active:scale-95"
-                style={{ backgroundColor: action.color, borderColor: action.border }}
-              >
-                <span className="text-xl">{action.icon}</span>
-                <span className="text-[10px] font-semibold text-gray-600 text-center leading-tight">{action.label}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        {/* Today's body stats */}
-        <Card>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-bold text-gray-800">今日の体重</h2>
-            <Link href="/body" className="text-xs text-[#22c55e] font-medium">詳細 →</Link>
-          </div>
-          <div className="flex items-end gap-4">
-            <div>
-              <span className="text-3xl font-black text-gray-900">72.4</span>
-              <span className="text-sm text-gray-400 ml-1">kg</span>
+        {/* クイック記録グリッド */}
+        <div style={{ marginBottom: '12px' }}>
+          <div style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '12px' }}>
+            <div style={{ padding: '14px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151' }}>クイック記録</span>
             </div>
-            <div className="flex items-center gap-1 text-sm text-green-600 font-semibold mb-0.5">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
-                <polyline points="17 6 23 6 23 12"/>
-              </svg>
-              -0.3 kg
-            </div>
-            <div className="text-xs text-gray-400 mb-0.5">前日比</div>
-          </div>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <div className="bg-gray-50 rounded-xl p-2.5">
-              <div className="text-[10px] text-gray-400 mb-0.5">体脂肪率</div>
-              <div className="text-base font-bold text-gray-800">18.5<span className="text-xs font-normal text-gray-400 ml-0.5">%</span></div>
-            </div>
-            <div className="bg-gray-50 rounded-xl p-2.5">
-              <div className="text-[10px] text-gray-400 mb-0.5">筋肉量</div>
-              <div className="text-base font-bold text-gray-800">59.0<span className="text-xs font-normal text-gray-400 ml-0.5">kg</span></div>
-            </div>
-          </div>
-        </Card>
-
-        {/* Recent meals */}
-        <Card>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-bold text-gray-800">今日の食事</h2>
-            <Link href="/meal" className="text-xs text-[#22c55e] font-medium">すべて →</Link>
-          </div>
-          <div className="space-y-2">
-            {recentMeals.map((meal, i) => (
-              <div key={i} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-[#f0fdf4] rounded-xl flex items-center justify-center">
-                    <span className="text-xs font-bold text-[#22c55e]">{meal.name.charAt(0)}</span>
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold text-gray-800">{meal.name}</div>
-                    <div className="text-[10px] text-gray-400">{meal.time} · {meal.items}</div>
-                  </div>
-                </div>
-                <div className="text-xs font-semibold text-gray-600">{meal.kcal} <span className="text-[10px] text-gray-400">kcal</span></div>
+            <div style={{ padding: '14px 16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                {quickActions.map((action) => (
+                  <Link
+                    key={action.href}
+                    href={action.href}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      padding: '16px 8px',
+                      borderRadius: '14px',
+                      border: `1.5px solid ${action.borderColor}`,
+                      fontWeight: 700,
+                      fontSize: '12px',
+                      transition: 'all 0.2s',
+                      textAlign: 'center',
+                      background: 'white',
+                      cursor: 'pointer',
+                      color: action.color,
+                      textDecoration: 'none',
+                    }}
+                  >
+                    <span style={{ fontSize: '24px' }}>{action.icon}</span>
+                    <span>{action.label}</span>
+                  </Link>
+                ))}
               </div>
-            ))}
+            </div>
           </div>
-          <Link
-            href="/meal"
-            className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-green-300 text-xs text-[#22c55e] font-semibold hover:bg-[#f0fdf4] transition-colors"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="12" y1="5" x2="12" y2="19"/>
-              <line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            食事を追加
-          </Link>
-        </Card>
+        </div>
 
-        {/* Weekly summary */}
-        <Card>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-bold text-gray-800">今週の達成率</h2>
-            <span className="text-xs text-gray-400">月〜日</span>
+        {/* 今日の栄養カード */}
+        <div style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '12px' }}>
+          <div style={{ padding: '14px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              🍽 今日の栄養
+            </span>
+            <Link href="/meal" style={{ fontSize: '11px', color: '#22c55e', fontWeight: 600, textDecoration: 'none' }}>
+              詳細
+            </Link>
           </div>
-          <div className="flex gap-1 items-end h-16">
-            {[65, 80, 45, 90, 72, 88, 64].map((val, i) => {
-              const days = ['月', '火', '水', '木', '金', '土', '日']
-              const isToday = i === 3
-              return (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <div className="w-full relative" style={{ height: `${val * 0.48}px` }}>
-                    <div
-                      className="absolute bottom-0 w-full rounded-t-sm transition-all"
-                      style={{
-                        height: '100%',
-                        backgroundColor: isToday ? '#22c55e' : '#dcfce7',
-                      }}
-                    />
+          <div style={{ padding: '14px 16px' }}>
+            <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '2px' }}>
+              摂取カロリー
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', margin: '2px 0' }}>
+              <span style={{ fontSize: '32px', fontWeight: 900, color: '#111827', lineHeight: 1 }}>
+                {nutrition.calories.current.toLocaleString()}
+              </span>
+              <span style={{ fontSize: '13px', color: '#9ca3af' }}>
+                / {nutrition.calories.target.toLocaleString()} kcal
+              </span>
+            </div>
+            {/* プログレスバー */}
+            <div style={{ width: '100%', height: '10px', background: '#f3f4f6', borderRadius: '20px', overflow: 'hidden', margin: '8px 0' }}>
+              <div
+                style={{
+                  height: '100%',
+                  borderRadius: '20px',
+                  width: `${calPct}%`,
+                  background: isOver
+                    ? 'linear-gradient(90deg, #22c55e, #f59e0b, #ef4444)'
+                    : 'linear-gradient(90deg, #22c55e, #4ade80)',
+                  transition: 'width 0.6s',
+                }}
+              />
+            </div>
+            {/* PFCグリッド */}
+            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '4px' }}>
+              {[
+                { label: 'たんぱく質', value: nutrition.protein.current, target: nutrition.protein.target, unit: 'g', color: '#3B82F6' },
+                { label: '脂質', value: nutrition.fat.current, target: nutrition.fat.target, unit: 'g', color: '#F59E0B' },
+                { label: '炭水化物', value: nutrition.carbs.current, target: nutrition.carbs.target, unit: 'g', color: '#10B981' },
+              ].map((pfc) => (
+                <div key={pfc.label} style={{ minWidth: '70px' }}>
+                  <div style={{ fontSize: '10px', color: '#9ca3af', marginBottom: '1px' }}>{pfc.label}</div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
+                    <span style={{ fontSize: '15px', fontWeight: 800, color: pfc.color }}>{pfc.value}</span>
+                    <span style={{ fontSize: '10px', color: '#9ca3af' }}>{pfc.unit}</span>
                   </div>
-                  <span className={`text-[10px] font-semibold ${isToday ? 'text-[#22c55e]' : 'text-gray-300'}`}>{days[i]}</span>
+                  <div style={{ fontSize: '10px', color: '#9ca3af' }}>/{pfc.target}{pfc.unit}</div>
                 </div>
-              )
-            })}
+              ))}
+            </div>
           </div>
-        </Card>
+        </div>
+
+        {/* 体組成カード */}
+        <div style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '12px' }}>
+          <div style={{ padding: '14px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              📊 体組成
+            </span>
+            <Link href="/body" style={{ fontSize: '11px', color: '#22c55e', fontWeight: 600, textDecoration: 'none' }}>詳細</Link>
+          </div>
+          <div style={{ padding: '14px 16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+              {[
+                { label: '体重', value: '72.4', unit: 'kg', change: '-0.3', isGood: true },
+                { label: '体脂肪率', value: '18.5', unit: '%', change: '-0.2', isGood: true },
+                { label: '筋肉量', value: '59.0', unit: 'kg', change: '+0.1', isGood: true },
+              ].map((stat) => (
+                <div key={stat.label} style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '10px', color: '#9ca3af' }}>{stat.label}</div>
+                  <div style={{ fontSize: '18px', fontWeight: 900, marginTop: '2px' }}>{stat.value}</div>
+                  <div style={{ fontSize: '10px', color: '#9ca3af' }}>{stat.unit}</div>
+                  <div style={{ marginTop: '2px', fontSize: '10px', fontWeight: 600, color: stat.isGood ? '#22c55e' : '#ef4444' }}>
+                    {stat.change}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* トレーニングカード */}
+        <div style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '12px' }}>
+          <div style={{ padding: '14px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              💪 今日のトレーニング
+            </span>
+            <Link href="/training" style={{ fontSize: '11px', color: '#22c55e', fontWeight: 600, textDecoration: 'none' }}>詳細</Link>
+          </div>
+          <div style={{ padding: '14px 16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {[
+                { name: '胸・三頭筋', cat: '筋トレ', detail: '65分 · 320kcal', catColor: '#7c3aed', catBg: '#ede9fe' },
+              ].map((item, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '1px solid #f3f4f6' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: item.catBg, color: item.catColor, whiteSpace: 'nowrap' }}>
+                    {item.cat}
+                  </span>
+                  <span style={{ flex: 1, fontSize: '13px', fontWeight: 600 }}>{item.name}</span>
+                  <span style={{ fontSize: '11px', color: '#9ca3af' }}>{item.detail}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* サプリカード */}
+        <div style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '12px' }}>
+          <div style={{ padding: '14px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              💊 本日の服用状況
+            </span>
+            <Link href="/supplement" style={{ fontSize: '11px', color: '#22c55e', fontWeight: 600, textDecoration: 'none' }}>詳細</Link>
+          </div>
+          <div style={{ padding: '14px 16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {supplements.map((s, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '10px', background: '#fafafa' }}>
+                  <div
+                    style={{
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: '50%',
+                      border: s.done ? 'none' : '2px solid #d1d5db',
+                      background: s.done ? '#22c55e' : 'transparent',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '12px',
+                      flexShrink: 0,
+                      color: s.done ? 'white' : '#9ca3af',
+                    }}
+                  >
+                    {s.done ? '✓' : '·'}
+                  </div>
+                  <span style={{ flex: 1, fontSize: '13px', fontWeight: 600 }}>{s.name}</span>
+                  <span style={{ fontSize: '10px', color: '#9ca3af' }}>{s.timing}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   )
