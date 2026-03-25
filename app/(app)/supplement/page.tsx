@@ -2,262 +2,265 @@
 
 import { useState } from 'react'
 
-interface Supplement {
-  id: string
-  name: string
-  type: string
-  timing: string
-  dose: string
-  taken: boolean
-  icon: string
-}
-
-const demoSupplements: Supplement[] = [
-  { id: '1', name: 'ホエイプロテイン', type: 'プロテイン', timing: 'トレーニング後', dose: '30g', taken: true, icon: '🥛' },
-  { id: '2', name: 'クレアチン', type: 'パフォーマンス', timing: 'トレーニング前', dose: '5g', taken: true, icon: '⚡' },
-  { id: '3', name: 'BCAA', type: 'アミノ酸', timing: 'トレーニング中', dose: '10g', taken: false, icon: '💊' },
-  { id: '4', name: 'マルチビタミン', type: 'ビタミン', timing: '起床後', dose: '1粒', taken: true, icon: '🌿' },
-  { id: '5', name: 'オメガ3', type: '脂肪酸', timing: '就寝前', dose: '2粒', taken: false, icon: '🐟' },
-  { id: '6', name: 'ZMA', type: 'ミネラル', timing: '就寝前', dose: '3粒', taken: false, icon: '🌙' },
+const demoTodaySupps = [
+  { id: '1', name: 'ホエイプロテイン', timing: 'トレーニング後', dose: '30g', taken: true },
+  { id: '2', name: 'クレアチン', timing: 'トレーニング前', dose: '5g', taken: true },
+  { id: '3', name: 'BCAA', timing: 'トレーニング中', dose: '10g', taken: false },
+  { id: '4', name: 'マルチビタミン', timing: '起床後', dose: '1粒', taken: true },
 ]
 
-const timingOrder = ['起床後', 'トレーニング前', 'トレーニング中', 'トレーニング後', '就寝前']
+const demoMySupps = [
+  { id: '1', name: 'ホエイプロテイン', catLabel: 'プロテイン', catBg: '#dbeafe', catColor: '#1d4ed8', timing: 'トレーニング後', dose: '30g', brand: 'ザバス' },
+  { id: '2', name: 'クレアチン', catLabel: 'クレアチン', catBg: '#d1fae5', catColor: '#065f46', timing: 'トレーニング前', dose: '5g', brand: 'マイプロ' },
+  { id: '3', name: 'BCAA', catLabel: 'BCAA / EAA', catBg: '#fce7f3', catColor: '#9d174d', timing: 'トレーニング中', dose: '10g', brand: '' },
+  { id: '4', name: 'マルチビタミン', catLabel: 'ビタミン・ミネラル', catBg: '#fef3c7', catColor: '#92400e', timing: '起床後', dose: '1粒', brand: '' },
+  { id: '5', name: 'オメガ3', catLabel: 'オメガ3', catBg: '#e0e7ff', catColor: '#3730a3', timing: '就寝前', dose: '2粒', brand: '' },
+]
 
-const timingGuide = [
-  { timing: '起床後', icon: '🌅', color: '#f59e0b', bg: '#fffbeb', desc: 'マルチビタミン・ミネラル' },
-  { timing: 'トレ前', icon: '⚡', color: '#3b82f6', bg: '#eff6ff', desc: 'クレアチン・カフェイン' },
-  { timing: 'トレ後', icon: '💪', color: '#22c55e', bg: '#f0fdf4', desc: 'プロテイン・BCAA' },
-  { timing: '就寝前', icon: '🌙', color: '#7c3aed', bg: '#f5f3ff', desc: 'ZMA・グルタミン' },
+const timingItems = [
+  '☀️ 起床後 — マルチビタミン・プロテイン',
+  '🏋️ トレ前 — クレアチン・BCAA・カフェイン',
+  '⚡ トレ後 — プロテイン・クレアチン・グルタミン',
+  '🌙 就寝前 — カゼインプロテイン・ZMA',
 ]
 
 export default function SupplementPage() {
-  const [supplements, setSupplements] = useState(demoSupplements)
+  const [todaySupps, setTodaySupps] = useState(demoTodaySupps)
   const [showAddModal, setShowAddModal] = useState(false)
 
   const toggleTaken = (id: string) => {
-    setSupplements((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, taken: !s.taken } : s))
-    )
+    setTodaySupps(prev => prev.map(s => s.id === id ? { ...s, taken: !s.taken } : s))
   }
 
-  const takenCount = supplements.filter((s) => s.taken).length
-  const totalCount = supplements.length
-  const pct = Math.round((takenCount / totalCount) * 100)
+  const takenCount = todaySupps.filter(s => s.taken).length
+  const today = new Date()
+  const headerDate = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`
 
   return (
     <div style={{ fontFamily: "'Helvetica Neue', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif", color: '#1a1a1a' }}>
-      <div style={{ maxWidth: '640px', margin: '0 auto', padding: '16px 12px 100px' }}>
 
-        {/* 本日のサプリチェックリスト（プログレスカード） */}
-        <div
-          style={{
-            background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-            borderRadius: '18px',
-            padding: '18px',
-            marginBottom: '12px',
-            color: 'white',
-            boxShadow: '0 4px 20px rgba(34,197,94,0.3)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <span style={{ fontSize: '14px', fontWeight: 700 }}>本日の服用状況</span>
-            <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.8)' }}>{takenCount}/{totalCount}</span>
+      {/* ===== トップヘッダー（オレンジグラデーション）===== */}
+      <div
+        style={{
+          background: 'linear-gradient(135deg, #c2410c 0%, #f97316 60%, #fb923c 100%)',
+          color: 'white',
+          padding: '16px 16px 18px',
+          position: 'sticky',
+          top: '126px',
+          zIndex: 90,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+          <div>
+            <p style={{ fontSize: '13px', opacity: 0.85, marginBottom: '2px' }}>サプリメント管理</p>
+            <p style={{ fontSize: '11px', opacity: 0.7 }}>{headerDate}</p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', marginBottom: '12px' }}>
-            <span style={{ fontSize: '40px', fontWeight: 900, lineHeight: 1 }}>{pct}</span>
-            <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.8)', marginBottom: '4px' }}>%</span>
+        </div>
+      </div>
+
+      {/* ===== メインコンテンツ ===== */}
+      <div style={{ maxWidth: '640px', margin: '0 auto', padding: '16px 12px 60px' }}>
+
+        {/* 今日のサプリ服用 */}
+        <div style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '14px' }}>
+          <div style={{ padding: '14px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <p style={{ fontSize: '14px', fontWeight: 700, color: '#374151', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                💊 今日のサプリ服用
+              </p>
+              <p style={{ fontSize: '11px', color: '#9ca3af', marginTop: '2px' }}>タップして服用済みをマーク</p>
+            </div>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: '#f97316' }}>
+              {takenCount}/{todaySupps.length}
+            </span>
           </div>
-          <div style={{ height: '10px', background: 'rgba(255,255,255,0.2)', borderRadius: '20px', overflow: 'hidden', marginBottom: '10px' }}>
-            <div
-              style={{
-                height: '100%',
-                background: 'white',
-                borderRadius: '20px',
-                width: `${pct}%`,
-                transition: 'width 0.7s',
-              }}
-            />
-          </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {supplements.map((s) => (
+          <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {todaySupps.map((supp) => (
               <div
-                key={s.id}
+                key={supp.id}
+                onClick={() => toggleTaken(supp.id)}
                 style={{
-                  width: '28px',
-                  height: '28px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '12px',
-                  background: s.taken ? 'white' : 'rgba(255,255,255,0.2)',
-                  color: s.taken ? '#16a34a' : 'white',
-                  fontWeight: 700,
+                  display: 'flex', alignItems: 'center', gap: '12px',
+                  padding: '12px 14px', borderRadius: '12px',
+                  border: `1.5px solid ${supp.taken ? '#f97316' : '#e5e7eb'}`,
+                  background: supp.taken ? '#fff7ed' : 'white',
+                  transition: 'all 0.2s', cursor: 'pointer',
                 }}
               >
-                {s.taken ? '✓' : '·'}
+                <div
+                  style={{
+                    width: '28px', height: '28px', borderRadius: '50%',
+                    border: `2px solid ${supp.taken ? '#f97316' : '#d1d5db'}`,
+                    background: supp.taken ? '#f97316' : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '14px', flexShrink: 0, transition: 'all 0.2s',
+                    color: supp.taken ? 'white' : 'transparent',
+                  }}
+                >
+                  ✓
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '14px', fontWeight: 600 }}>{supp.name}</div>
+                  <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '2px' }}>
+                    {supp.timing} · {supp.dose}
+                  </div>
+                </div>
+                {supp.taken && (
+                  <span style={{ fontSize: '10px', color: '#f97316', fontWeight: 600 }}>服用済み</span>
+                )}
               </div>
             ))}
+            {todaySupps.length === 0 && (
+              <div style={{ padding: '24px 16px', textAlign: 'center', color: '#9ca3af', fontSize: '12px' }}>
+                サプリが登録されていません
+              </div>
+            )}
           </div>
         </div>
 
-        {/* タイミングガイドカード */}
-        <div style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '12px', padding: '16px' }}>
-          <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151', display: 'block', marginBottom: '12px' }}>
-            タイミングガイド
-          </span>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-            {timingGuide.map((guide) => (
+        {/* マイサプリ一覧 */}
+        <div style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '14px' }}>
+          <div style={{ padding: '14px 16px 0' }}>
+            <p style={{ fontSize: '14px', fontWeight: 700, color: '#374151', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              📋 マイサプリ一覧
+            </p>
+          </div>
+          <div style={{ height: '12px' }} />
+          <div style={{ padding: '0 16px 12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {demoMySupps.map((supp) => (
               <div
-                key={guide.timing}
+                key={supp.id}
                 style={{
-                  background: guide.bg,
-                  borderRadius: '12px',
-                  padding: '12px',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '8px',
+                  display: 'flex', alignItems: 'center', gap: '10px',
+                  padding: '10px 12px', borderRadius: '10px',
+                  background: '#fafafa', border: '1px solid #f0f0f0',
                 }}
               >
-                <span style={{ fontSize: '20px', flexShrink: 0 }}>{guide.icon}</span>
-                <div>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: guide.color, marginBottom: '2px' }}>{guide.timing}</div>
-                  <div style={{ fontSize: '10px', color: '#6b7280', lineHeight: 1.4 }}>{guide.desc}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '13px', fontWeight: 600 }}>{supp.name}</div>
+                  <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '1px' }}>
+                    {supp.timing} · {supp.dose}{supp.brand ? ` · ${supp.brand}` : ''}
+                  </div>
+                </div>
+                <span
+                  style={{
+                    fontSize: '10px', fontWeight: 700,
+                    padding: '2px 7px', borderRadius: '20px', whiteSpace: 'nowrap' as const,
+                    flexShrink: 0,
+                    background: supp.catBg, color: supp.catColor,
+                  }}
+                >
+                  {supp.catLabel}
+                </span>
+                <div style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
+                  <button style={{ width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>✏️</button>
+                  <button style={{ width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>🗑</button>
                 </div>
               </div>
             ))}
           </div>
+          <div style={{ padding: '0 16px 14px' }}>
+            <button
+              onClick={() => setShowAddModal(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px', width: '100%',
+                padding: '12px 14px', borderRadius: '10px',
+                border: '1.5px dashed #d1d5db', color: '#9ca3af',
+                fontSize: '13px', fontWeight: 600, transition: 'all 0.2s',
+                justifyContent: 'center', background: 'none', cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              <span style={{ fontSize: '18px' }}>＋</span>サプリを追加
+            </button>
+          </div>
         </div>
 
-        {/* マイサプリ一覧（タイミング別） */}
-        {timingOrder.map((timing) => {
-          const timingSupps = supplements.filter((s) => s.timing === timing)
-          if (timingSupps.length === 0) return null
-          return (
-            <div key={timing} style={{ marginBottom: '12px' }}>
-              <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px', paddingLeft: '4px' }}>
-                {timing}
-              </div>
-              <div style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: '14px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-                {timingSupps.map((supp, i) => (
-                  <div
-                    key={supp.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '12px 16px',
-                      borderBottom: i < timingSupps.length - 1 ? '1px solid #f3f4f6' : 'none',
-                      gap: '12px',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: '12px',
-                        background: supp.taken ? '#f0fdf4' : '#f9fafb',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '18px',
-                        flexShrink: 0,
-                      }}
-                    >
-                      {supp.icon}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>{supp.name}</div>
-                      <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '2px' }}>{supp.type} · {supp.dose}</div>
-                    </div>
-                    <button
-                      onClick={() => toggleTaken(supp.id)}
-                      style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '10px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        background: supp.taken ? '#22c55e' : '#f3f4f6',
-                        border: 'none',
-                        cursor: 'pointer',
-                        color: supp.taken ? 'white' : '#9ca3af',
-                        fontSize: '14px',
-                        boxShadow: supp.taken ? '0 2px 8px rgba(34,197,94,0.3)' : 'none',
-                        transition: 'all 0.2s',
-                        fontFamily: 'inherit',
-                      }}
-                    >
-                      ✓
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )
-        })}
+        {/* タイミングガイド */}
+        <div style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '14px' }}>
+          <div style={{ padding: '14px 16px 0' }}>
+            <p style={{ fontSize: '14px', fontWeight: 700, color: '#374151', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              ⏰ タイミングガイド
+            </p>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: '6px', padding: '12px 16px' }}>
+            {timingItems.map((item, i) => (
+              <span
+                key={i}
+                style={{
+                  fontSize: '11px', color: '#6b7280',
+                  padding: '4px 10px', background: '#f3f4f6', borderRadius: '20px',
+                }}
+              >
+                {item}
+              </span>
+            ))}
+          </div>
+        </div>
 
       </div>
 
-      {/* FABボタン */}
-      <button
-        onClick={() => setShowAddModal(true)}
-        style={{
-          position: 'fixed',
-          bottom: '90px',
-          right: '20px',
-          width: '56px',
-          height: '56px',
-          borderRadius: '50%',
-          background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-          color: 'white',
-          fontSize: '28px',
-          fontWeight: 300,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          border: 'none',
-          cursor: 'pointer',
-          boxShadow: '0 4px 20px rgba(34,197,94,0.45)',
-          zIndex: 50,
-          fontFamily: 'inherit',
-        }}
-      >
-        +
-      </button>
-
-      {/* 追加モーダル */}
+      {/* サプリ追加モーダル */}
       {showAddModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)' }} onClick={() => setShowAddModal(false)} />
-          <div style={{ position: 'relative', zIndex: 10, width: '100%', maxWidth: '640px', background: 'white', borderRadius: '24px 24px 0 0', padding: '24px' }}>
-            <div style={{ width: '48px', height: '4px', background: '#e5e7eb', borderRadius: '2px', margin: '0 auto 16px' }} />
-            <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#111827', marginBottom: '8px' }}>サプリを追加</h3>
-            <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '20px' }}>管理するサプリメントを追加します</p>
-            <button
-              onClick={() => setShowAddModal(false)}
-              style={{
-                width: '100%',
-                padding: '14px',
-                borderRadius: '12px',
-                background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: 700,
-                color: 'white',
-                fontFamily: 'inherit',
-                marginBottom: '8px',
-              }}
-            >
-              追加する
-            </button>
-            <button
-              onClick={() => setShowAddModal(false)}
-              style={{ width: '100%', padding: '12px', borderRadius: '12px', background: '#f3f4f6', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#6b7280', fontFamily: 'inherit' }}
-            >
-              キャンセル
-            </button>
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+          onClick={() => setShowAddModal(false)}
+        >
+          <div
+            style={{ background: 'white', width: '100%', maxWidth: '500px', borderRadius: '24px 24px 0 0', maxHeight: '92vh', overflowY: 'auto' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ position: 'sticky', top: 0, background: 'white', borderBottom: '1px solid #f0f0f0', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: '24px 24px 0 0', zIndex: 10 }}>
+              <span style={{ fontWeight: 700, color: '#111827', fontSize: '15px' }}>💊 サプリを追加</span>
+              <button onClick={() => setShowAddModal(false)} style={{ fontSize: '20px', color: '#9ca3af', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>✕</button>
+            </div>
+            <div style={{ padding: '20px' }}>
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: '#4b5563', marginBottom: '4px', display: 'block' }}>サプリ名 *</label>
+                <input placeholder="例：ホエイプロテイン、クレアチン" style={{ width: '100%', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '10px 12px', fontSize: '14px', outline: 'none', color: '#1a1a1a', background: 'white', fontFamily: 'inherit', boxSizing: 'border-box' as const }} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#4b5563', marginBottom: '4px', display: 'block' }}>カテゴリ</label>
+                  <select style={{ width: '100%', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '10px 12px', fontSize: '14px', outline: 'none', color: '#1a1a1a', background: 'white', fontFamily: 'inherit', boxSizing: 'border-box' as const }}>
+                    <option>プロテイン</option>
+                    <option>クレアチン</option>
+                    <option>BCAA / EAA</option>
+                    <option>ビタミン・ミネラル</option>
+                    <option>オメガ3</option>
+                    <option>その他</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#4b5563', marginBottom: '4px', display: 'block' }}>タイミング</label>
+                  <select style={{ width: '100%', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '10px 12px', fontSize: '14px', outline: 'none', color: '#1a1a1a', background: 'white', fontFamily: 'inherit', boxSizing: 'border-box' as const }}>
+                    <option>🌅 朝食時</option>
+                    <option>☀️ 起床後</option>
+                    <option>🏋️ トレーニング前</option>
+                    <option>⚡ トレーニング後</option>
+                    <option>🍽 夕食時</option>
+                    <option>🌙 就寝前</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#4b5563', marginBottom: '4px', display: 'block' }}>1回の量</label>
+                  <input placeholder="例：30g, 5mg" style={{ width: '100%', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '10px 12px', fontSize: '14px', outline: 'none', color: '#1a1a1a', background: 'white', fontFamily: 'inherit', boxSizing: 'border-box' as const }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#4b5563', marginBottom: '4px', display: 'block' }}>ブランド</label>
+                  <input placeholder="例：ザバス、マイプロ" style={{ width: '100%', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '10px 12px', fontSize: '14px', outline: 'none', color: '#1a1a1a', background: 'white', fontFamily: 'inherit', boxSizing: 'border-box' as const }} />
+                </div>
+              </div>
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: '#4b5563', marginBottom: '4px', display: 'block' }}>メモ</label>
+                <textarea placeholder="目的・注意事項など" style={{ width: '100%', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '10px 12px', fontSize: '14px', outline: 'none', color: '#1a1a1a', resize: 'vertical', minHeight: '72px', fontFamily: 'inherit', boxSizing: 'border-box' as const }} />
+              </div>
+              <button
+                onClick={() => setShowAddModal(false)}
+                style={{ width: '100%', background: '#f97316', color: 'white', fontWeight: 700, padding: '12px', borderRadius: '12px', fontSize: '15px', marginTop: '8px', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                登録する
+              </button>
+            </div>
           </div>
         </div>
       )}

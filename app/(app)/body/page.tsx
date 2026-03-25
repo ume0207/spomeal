@@ -47,7 +47,7 @@ export default function BodyPage() {
   const bmiColor = bmi < 18.5 ? '#3b82f6' : bmi < 25 ? '#22c55e' : bmi < 30 ? '#f59e0b' : '#ef4444'
   const bmiPct = Math.min(Math.max(((bmi - 15) / (35 - 15)) * 100, 0), 100)
 
-  const inputStyle = {
+  const inputStyle: React.CSSProperties = {
     width: '100%',
     background: '#f9fafb',
     border: '1.5px solid #e5e7eb',
@@ -57,15 +57,36 @@ export default function BodyPage() {
     fontSize: '14px',
     outline: 'none',
     fontFamily: 'inherit',
-    boxSizing: 'border-box' as const,
+    boxSizing: 'border-box',
   }
 
   return (
     <div style={{ fontFamily: "'Helvetica Neue', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif", color: '#1a1a1a' }}>
-      <div style={{ maxWidth: '640px', margin: '0 auto', padding: '16px 12px 100px' }}>
+      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '20px 16px 40px' }}>
 
-        {/* 統計グリッド（3列） */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+        {/* ===== ページヘッダー ===== */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '26px' }}>📊</span>
+            <h1 style={{ fontSize: '22px', fontWeight: 900, color: '#111827', margin: 0 }}>体組成データ管理</h1>
+          </div>
+          <button
+            onClick={() => setShowAddModal(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              background: '#dc2626', color: 'white', fontWeight: 700,
+              padding: '10px 20px', borderRadius: '10px', fontSize: '14px',
+              transition: 'all 0.2s', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            <span>＋</span> データ記録
+          </button>
+        </div>
+
+        {/* ===== 統計グリッド（4列）===== */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '16px' }}
+          className="stats-grid-body">
+
           {[
             { label: '体重', value: latest.weight, unit: 'kg', change: `${parseFloat(weightChange) <= 0 ? '' : '+'}${weightChange}`, isGood: parseFloat(weightChange) <= 0 },
             { label: '体脂肪率', value: latest.bodyFat, unit: '%', change: `${parseFloat(fatChange) < 0 ? '' : '+'}${fatChange}`, isGood: parseFloat(fatChange) < 0 },
@@ -75,30 +96,36 @@ export default function BodyPage() {
             <div
               key={stat.label}
               style={{
-                background: 'white',
-                border: '1px solid #f0f0f0',
-                borderRadius: '14px',
-                padding: '12px 8px',
-                textAlign: 'center',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+                background: 'white', border: '1px solid #f0f0f0', borderRadius: '14px',
+                padding: '12px 8px', textAlign: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
               }}
             >
               <div style={{ fontSize: '10px', color: '#9ca3af', marginBottom: '4px' }}>{stat.label}</div>
               <div style={{ fontSize: '18px', fontWeight: 900, color: '#111827' }}>{stat.value}</div>
               <div style={{ fontSize: '10px', color: '#9ca3af' }}>{stat.unit}</div>
-              <div style={{ marginTop: '4px', fontSize: '10px', fontWeight: 600, color: stat.isGood ? '#22c55e' : '#ef4444' }}>
+              <div
+                style={{
+                  marginTop: '4px', fontSize: '10px', fontWeight: 600,
+                  color: stat.isGood ? '#22c55e' : '#ef4444',
+                }}
+              >
                 {stat.change}
               </div>
             </div>
           ))}
         </div>
 
-        {/* グラフエリア */}
-        <div style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '12px', padding: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-            <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151' }}>体重推移（7日間）</span>
-            <span style={{ fontSize: '12px', color: '#9ca3af' }}>kg</span>
+        {/* ===== グラフエリア（体重・体脂肪率・筋肉量）===== */}
+        <div
+          style={{
+            background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '16px',
+          }}
+        >
+          <div style={{ padding: '16px 16px 0' }}>
+            <span style={{ fontSize: '15px', fontWeight: 700, color: '#111827', display: 'block', marginBottom: '12px' }}>体重・体脂肪率・筋肉量の推移</span>
           </div>
+          <div style={{ padding: '0 16px 16px' }}>
           <div style={{ position: 'relative', height: '112px' }}>
             <svg width="100%" height="100%" viewBox="0 0 300 80" preserveAspectRatio="none">
               {[0, 25, 50, 75].map((y) => (
@@ -136,8 +163,7 @@ export default function BodyPage() {
                 return (
                   <circle
                     key={i}
-                    cx={x}
-                    cy={y}
+                    cx={x} cy={y}
                     r={i === weekWeights.length - 1 ? 4 : 3}
                     fill={i === weekWeights.length - 1 ? '#22c55e' : 'white'}
                     stroke="#22c55e"
@@ -147,128 +173,160 @@ export default function BodyPage() {
               })}
             </svg>
           </div>
+          {/* 凡例 */}
+          <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap', marginTop: '8px' }}>
+            {[
+              { color: '#3b82f6', label: '体重(kg)' },
+              { color: '#f97316', label: '体脂肪率(%)' },
+              { color: '#22c55e', label: '筋肉量(kg)' },
+            ].map((leg) => (
+              <div key={leg.label} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#4b5563' }}>
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: leg.color }} />
+                {leg.label}
+              </div>
+            ))}
+          </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
             {['19日', '20日', '21日', '22日', '23日', '24日', '今日'].map((d) => (
               <span key={d} style={{ fontSize: '9px', color: '#9ca3af' }}>{d}</span>
             ))}
           </div>
-        </div>
-
-        {/* BMIカード */}
-        <div style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '12px', padding: '16px' }}>
-          <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151' }}>BMI</span>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', margin: '10px 0' }}>
-            <span style={{ fontSize: '32px', fontWeight: 900, color: '#111827' }}>{bmi}</span>
-            <span style={{ fontSize: '14px', fontWeight: 600, marginBottom: '4px', color: bmiColor }}>{bmiLabel}</span>
-          </div>
-          <div style={{ position: 'relative', height: '16px', background: '#f3f4f6', borderRadius: '8px', overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', inset: 0, display: 'flex' }}>
-              {[
-                { width: 18, color: '#93c5fd' },
-                { width: 30, color: '#86efac' },
-                { width: 20, color: '#fde68a' },
-                { width: 32, color: '#fca5a5' },
-              ].map((seg, i) => (
-                <div key={i} style={{ width: `${seg.width}%`, backgroundColor: seg.color }} />
-              ))}
-            </div>
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                width: '4px',
-                height: '100%',
-                background: '#374151',
-                borderRadius: '2px',
-                left: `calc(${bmiPct}% - 2px)`,
-              }}
-            />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#9ca3af', marginTop: '4px' }}>
-            <span>低体重 &lt;18.5</span>
-            <span>標準 18.5-24.9</span>
-            <span>肥満 25+</span>
           </div>
         </div>
 
-        {/* 記録テーブル */}
-        <div style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '12px', padding: '16px' }}>
-          <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151', display: 'block', marginBottom: '12px' }}>記録履歴</span>
-          <div>
-            {/* ヘッダー */}
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: '4px', padding: '6px 0', borderBottom: '1px solid #f3f4f6', fontSize: '10px', fontWeight: 700, color: '#9ca3af' }}>
-              <span>測定日</span>
-              <span style={{ textAlign: 'center' }}>体重</span>
-              <span style={{ textAlign: 'center' }}>体脂肪率</span>
-              <span style={{ textAlign: 'center' }}>筋肉量</span>
-              <span style={{ textAlign: 'center' }}>BMI</span>
+        {/* ===== 水分摂取量の推移 ===== */}
+        <div
+          style={{
+            background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '16px',
+          }}
+        >
+          <div style={{ padding: '16px 16px 0' }}>
+            <span style={{ fontSize: '15px', fontWeight: 700, color: '#111827', display: 'block', marginBottom: '12px' }}>水分摂取量の推移</span>
+          </div>
+          <div style={{ padding: '0 16px 16px' }}>
+            <div style={{ height: '112px' }}>
+              <svg width="100%" height="100%" viewBox="0 0 300 80" preserveAspectRatio="none">
+                {[0, 25, 50, 75].map((y) => (
+                  <line key={y} x1="0" y1={y} x2="300" y2={y} stroke="#f3f4f6" strokeWidth="1" />
+                ))}
+                <path
+                  d="M 0 60 L 50 55 L 100 50 L 150 45 L 200 35 L 250 40 L 300 30"
+                  fill="none"
+                  stroke="#06b6d4"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </div>
-            {demoRecords.map((record, i) => (
-              <div
-                key={i}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr',
-                  gap: '4px',
-                  padding: '8px 0',
-                  borderBottom: i < demoRecords.length - 1 ? '1px solid #f3f4f6' : 'none',
-                  fontSize: '12px',
-                }}
-              >
-                <span style={{ color: '#6b7280' }}>{record.date}</span>
-                <span style={{ textAlign: 'center', fontWeight: 700, color: '#111827' }}>{record.weight}</span>
-                <span style={{ textAlign: 'center', fontWeight: 700, color: '#111827' }}>{record.bodyFat}</span>
-                <span style={{ textAlign: 'center', fontWeight: 700, color: '#111827' }}>{record.muscle}</span>
-                <span style={{ textAlign: 'center', fontWeight: 700, color: '#111827' }}>{record.bmi}</span>
+            <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginTop: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#4b5563' }}>
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#06b6d4' }} />
+                水分摂取量(ml)
               </div>
-            ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ===== 測定記録一覧 ===== */}
+        <div
+          style={{
+            background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '12px',
+          }}
+        >
+          <div style={{ padding: '16px 16px 0' }}>
+            <span style={{ fontSize: '15px', fontWeight: 700, color: '#111827', display: 'block', marginBottom: '12px' }}>
+              測定記録一覧
+            </span>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
+                  <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: '11px', color: '#9ca3af', fontWeight: 600, whiteSpace: 'nowrap' }}>測定日</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: '11px', color: '#9ca3af', fontWeight: 600, whiteSpace: 'nowrap' }}>体重</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: '11px', color: '#9ca3af', fontWeight: 600, whiteSpace: 'nowrap' }}>体脂肪率</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: '11px', color: '#9ca3af', fontWeight: 600, whiteSpace: 'nowrap' }}>筋肉量</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: '11px', color: '#9ca3af', fontWeight: 600, whiteSpace: 'nowrap' }}>BMI</th>
+                  <th style={{ padding: '8px 12px' }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {demoRecords.map((record, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                    <td style={{ padding: '10px 12px', color: '#6b7280', whiteSpace: 'nowrap' }}>{record.date}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700 }}>{record.weight}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700 }}>{record.bodyFat}%</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700 }}>{record.muscle}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700 }}>{record.bmi}</td>
+                    <td style={{ padding: '10px 12px' }}>
+                      <button
+                        style={{
+                          padding: '4px 8px', borderRadius: '6px', fontSize: '16px',
+                          color: '#d1d5db', background: 'none', border: 'none', cursor: 'pointer',
+                        }}
+                      >
+                        🗑
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 
       </div>
 
-      {/* FABボタン */}
-      <button
-        onClick={() => setShowAddModal(true)}
-        style={{
-          position: 'fixed',
-          bottom: '90px',
-          right: '20px',
-          width: '56px',
-          height: '56px',
-          borderRadius: '50%',
-          background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-          color: 'white',
-          fontSize: '28px',
-          fontWeight: 300,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          border: 'none',
-          cursor: 'pointer',
-          boxShadow: '0 4px 20px rgba(34,197,94,0.45)',
-          zIndex: 50,
-          fontFamily: 'inherit',
-        }}
-      >
-        +
-      </button>
-
-      {/* 追加モーダル */}
+      {/* ===== データ記録モーダル ===== */}
       {showAddModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)' }} onClick={() => setShowAddModal(false)} />
-          <div style={{ position: 'relative', zIndex: 10, width: '100%', maxWidth: '640px', background: 'white', borderRadius: '24px 24px 0 0', padding: '24px' }}>
-            <div style={{ width: '48px', height: '4px', background: '#e5e7eb', borderRadius: '2px', margin: '0 auto 16px' }} />
-            <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#111827', marginBottom: '16px' }}>体組成を記録</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
+        <div
+          style={{
+            display: 'flex', position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,0.5)', zIndex: 300,
+            alignItems: 'flex-end', justifyContent: 'center',
+          }}
+          onClick={() => setShowAddModal(false)}
+        >
+          <div
+            style={{
+              background: 'white', width: '100%', maxWidth: '500px',
+              borderRadius: '24px 24px 0 0', maxHeight: '92vh', overflowY: 'auto',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                position: 'sticky', top: 0, background: 'white',
+                borderBottom: '1px solid #f0f0f0', padding: '16px 20px',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                borderRadius: '24px 24px 0 0',
+              }}
+            >
+              <p style={{ fontWeight: 700, color: '#111827', fontSize: '15px' }}>体組成を記録</p>
+              <button
+                onClick={() => setShowAddModal(false)}
+                style={{
+                  fontSize: '20px', color: '#9ca3af', width: '32px', height: '32px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{ padding: '20px' }}>
               {[
                 { label: '体重 (kg)', placeholder: '72.5', value: newWeight, onChange: setNewWeight },
                 { label: '体脂肪率 (%)', placeholder: '18.5', value: newBodyFat, onChange: setNewBodyFat },
                 { label: '筋肉量 (kg)', placeholder: '59.0', value: newMuscle, onChange: setNewMuscle },
               ].map((f) => (
-                <div key={f.label}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '6px' }}>{f.label}</label>
+                <div key={f.label} style={{ marginBottom: '14px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#4b5563', marginBottom: '4px', display: 'block' }}>
+                    {f.label}
+                  </label>
                   <input
                     type="number"
                     step="0.1"
@@ -279,17 +337,14 @@ export default function BodyPage() {
                   />
                 </div>
               ))}
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 onClick={() => setShowAddModal(false)}
-                style={{ flex: 1, padding: '12px', borderRadius: '12px', background: '#f3f4f6', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#6b7280', fontFamily: 'inherit' }}
-              >
-                キャンセル
-              </button>
-              <button
-                onClick={() => setShowAddModal(false)}
-                style={{ flex: 1, padding: '12px', borderRadius: '12px', background: 'linear-gradient(135deg, #22c55e, #16a34a)', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: 'white', fontFamily: 'inherit' }}
+                style={{
+                  width: '100%', background: '#dc2626', color: 'white',
+                  fontWeight: 700, padding: '12px', borderRadius: '12px',
+                  fontSize: '15px', marginTop: '8px', border: 'none',
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}
               >
                 記録する
               </button>

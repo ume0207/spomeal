@@ -70,11 +70,19 @@ const catColors: Record<string, { bg: string; color: string }> = {
   チーム練習: { bg: '#dbeafe', color: '#2563eb' },
 }
 
+const weekDays = ['月', '火', '水', '木', '金', '土', '日']
+const weekHasTraining = [true, false, true, false, true, false, false] // 今週のトレーニング状況
+
 export default function TrainingPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [activeFilter, setActiveFilter] = useState('すべて')
   const [expanded, setExpanded] = useState<string | null>('1')
   const [currentDate, setCurrentDate] = useState(new Date(2026, 2, 25))
+  const [newTitle, setNewTitle] = useState('')
+  const [newCategory, setNewCategory] = useState('筋トレ')
+  const [newDuration, setNewDuration] = useState('')
+  const [newCalories, setNewCalories] = useState('')
+  const [newIntensity, setNewIntensity] = useState('medium')
 
   const filtered = activeFilter === 'すべて'
     ? demoWorkouts
@@ -95,212 +103,382 @@ export default function TrainingPage() {
   return (
     <div style={{ fontFamily: "'Helvetica Neue', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif", color: '#1a1a1a' }}>
 
-      {/* 日付ナビゲーション */}
+      {/* ===== 日付ナビゲーションヘッダー（紫グラデーション）===== */}
       <div
         style={{
-          background: '#22C55E',
+          background: 'linear-gradient(135deg, #5b21b6 0%, #7c3aed 60%, #a78bfa 100%)',
           color: 'white',
-          padding: '10px 16px',
+          padding: '12px 16px',
           position: 'sticky',
-          top: '60px',
+          top: '126px',
           zIndex: 90,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', minHeight: '40px' }}>
-          <button
-            onClick={prevDay}
-            style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', color: 'white', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
-          >
-            ◄
-          </button>
-          <span style={{ fontSize: '13px', fontWeight: 700, minWidth: '130px', textAlign: 'center' }}>
-            {dateLabel}
-          </span>
-          <button
-            onClick={nextDay}
-            style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', color: 'white', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
-          >
-            ►
-          </button>
-        </div>
-      </div>
-
-      <div style={{ maxWidth: '640px', margin: '0 auto', padding: '16px 12px 100px' }}>
-
-        {/* 週間サマリー */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '12px' }}>
-          {[
-            { label: '今週のトレ', value: '3', unit: '回' },
-            { label: '総時間', value: '195', unit: '分' },
-            { label: '消費カロリー', value: '1,050', unit: 'kcal' },
-          ].map((stat) => (
-            <div key={stat.label} style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: '14px', padding: '12px 8px', textAlign: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-              <div style={{ fontSize: '10px', color: '#9ca3af', marginBottom: '4px' }}>{stat.label}</div>
-              <div style={{ fontSize: '20px', fontWeight: 900, color: '#22c55e' }}>{stat.value}</div>
-              <div style={{ fontSize: '10px', color: '#9ca3af' }}>{stat.unit}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* カテゴリフィルター */}
-        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', marginBottom: '12px' }}>
-          {categoryFilters.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setActiveFilter(cat)}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '20px',
-                fontSize: '12px',
-                fontWeight: 600,
-                whiteSpace: 'nowrap',
-                flexShrink: 0,
-                background: activeFilter === cat ? '#22c55e' : 'white',
-                color: activeFilter === cat ? 'white' : '#6b7280',
-                border: activeFilter === cat ? 'none' : '1px solid #e5e7eb',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                transition: 'all 0.2s',
-              }}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-
-        {/* トレーニングリスト */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {filtered.map((workout) => {
-            const catStyle = catColors[workout.category] || { bg: '#f3f4f6', color: '#374151' }
-            return (
-              <div key={workout.id} style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+        <div
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            gap: '8px', minHeight: '40px', position: 'relative',
+          }}
+        >
+          <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <button
-                  style={{ width: '100%', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
-                  onClick={() => setExpanded(expanded === workout.id ? null : workout.id)}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ width: '40px', height: '40px', background: '#f0fdf4', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>
-                      💪
-                    </div>
-                    <div style={{ textAlign: 'left' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-                        <span style={{ fontSize: '14px', fontWeight: 700, color: '#111827' }}>{workout.title}</span>
-                        <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: catStyle.bg, color: catStyle.color }}>{workout.category}</span>
-                      </div>
-                      <div style={{ fontSize: '11px', color: '#9ca3af' }}>
-                        {workout.date} · {workout.duration}分 · {workout.calories} kcal
-                      </div>
-                    </div>
-                  </div>
-                  <span style={{ fontSize: '16px', color: '#9ca3af', transform: expanded === workout.id ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', display: 'inline-block' }}>
-                    ▼
-                  </span>
-                </button>
-
-                {expanded === workout.id && (
-                  <div style={{ padding: '0 16px 14px', borderTop: '1px solid #f3f4f6' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '4px', fontSize: '10px', fontWeight: 700, color: '#9ca3af', padding: '8px 0 4px', borderBottom: '1px solid #f3f4f6' }}>
-                      <span>種目</span>
-                      <span style={{ textAlign: 'center' }}>セット×回数</span>
-                      <span style={{ textAlign: 'right' }}>重量</span>
-                    </div>
-                    {workout.exercises.map((ex, i) => (
-                      <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '4px', padding: '7px 0', borderBottom: i < workout.exercises.length - 1 ? '1px solid #f8f8f8' : 'none' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 500, color: '#111827' }}>{ex.name}</span>
-                        <span style={{ fontSize: '12px', color: '#6b7280', textAlign: 'center' }}>{ex.sets}×{ex.reps}</span>
-                        <span style={{ fontSize: '12px', fontWeight: 600, color: '#111827', textAlign: 'right' }}>
-                          {ex.weight > 0 ? `${ex.weight}${ex.unit}` : ex.unit}
-                        </span>
-                      </div>
-                    ))}
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                      <button style={{ flex: 1, padding: '7px', fontSize: '12px', color: '#22c55e', fontWeight: 600, background: '#f0fdf4', borderRadius: '8px', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                        編集
-                      </button>
-                      <button style={{ flex: 1, padding: '7px', fontSize: '12px', color: '#ef4444', fontWeight: 600, background: '#fef2f2', borderRadius: '8px', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                        削除
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-
-      </div>
-
-      {/* FABボタン */}
-      <button
-        onClick={() => setShowAddModal(true)}
-        style={{
-          position: 'fixed',
-          bottom: '90px',
-          right: '20px',
-          width: '56px',
-          height: '56px',
-          borderRadius: '50%',
-          background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-          color: 'white',
-          fontSize: '28px',
-          fontWeight: 300,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          border: 'none',
-          cursor: 'pointer',
-          boxShadow: '0 4px 20px rgba(34,197,94,0.45)',
-          zIndex: 50,
-          fontFamily: 'inherit',
-        }}
-      >
-        +
-      </button>
-
-      {/* 追加モーダル */}
-      {showAddModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)' }} onClick={() => setShowAddModal(false)} />
-          <div style={{ position: 'relative', zIndex: 10, width: '100%', maxWidth: '640px', background: 'white', borderRadius: '24px 24px 0 0', padding: '24px' }}>
-            <div style={{ width: '48px', height: '4px', background: '#e5e7eb', borderRadius: '2px', margin: '0 auto 16px' }} />
-            <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#111827', marginBottom: '8px' }}>トレーニングを記録</h3>
-            <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>本日のワークアウトを記録します</p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
-              {['胸・三頭筋', '背中・二頭筋', '肩', '脚・臀部', '腕', 'カスタム'].map((t) => (
-                <button
-                  key={t}
+                  onClick={prevDay}
                   style={{
-                    padding: '12px 16px',
-                    background: '#f9fafb',
-                    borderRadius: '12px',
-                    border: '1px solid #f0f0f0',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    color: '#374151',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    fontFamily: 'inherit',
-                    transition: 'all 0.2s',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#f0fdf4'
-                    e.currentTarget.style.borderColor = '#bbf7d0'
-                    e.currentTarget.style.color = '#22c55e'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = '#f9fafb'
-                    e.currentTarget.style.borderColor = '#f0f0f0'
-                    e.currentTarget.style.color = '#374151'
+                    width: '28px', height: '28px', borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.2)', color: 'white', fontSize: '12px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    border: 'none', cursor: 'pointer', fontFamily: 'inherit',
                   }}
                 >
-                  {t}
+                  ◄
                 </button>
+                <button
+                  onClick={() => setCurrentDate(new Date())}
+                  style={{
+                    fontSize: '13px', fontWeight: 700, minWidth: '120px',
+                    textAlign: 'center', color: 'white', padding: '2px 8px',
+                    borderRadius: '4px', background: 'none', border: 'none',
+                    cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  {dateLabel}
+                </button>
+                <button
+                  onClick={nextDay}
+                  style={{
+                    width: '28px', height: '28px', borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.2)', color: 'white', fontSize: '12px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  ►
+                </button>
+              </div>
+              <span
+                style={{
+                  fontSize: '10px', background: 'rgba(255,255,255,0.25)',
+                  borderRadius: '20px', padding: '2px 8px', fontWeight: 600,
+                }}
+              >
+                今日: 1件
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: '640px', margin: '0 auto', padding: '12px 12px 100px' }}>
+
+        {/* ===== トレーニングタイムライン ===== */}
+        <div
+          style={{
+            background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '12px',
+          }}
+        >
+          <div style={{ borderTop: '1px solid #f3f4f6' }}>
+            {filtered.map((workout, idx) => {
+              const catStyle = catColors[workout.category] || { bg: '#f3f4f6', color: '#374151' }
+              const intensityMap: Record<string, { bg: string; color: string; label: string }> = {
+                筋トレ: { bg: '#fef3c7', color: '#d97706', label: '中強度' },
+                有酸素: { bg: '#d1fae5', color: '#059669', label: '軽強度' },
+              }
+              const intensity = intensityMap[workout.category] || { bg: '#f3f4f6', color: '#6b7280', label: '中強度' }
+              return (
+                <div
+                  key={workout.id}
+                  style={{
+                    display: 'flex', alignItems: 'center', padding: '10px 16px',
+                    borderBottom: idx < filtered.length - 1 ? '1px solid #f8f8f8' : 'none',
+                    gap: '10px',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '22px', height: '22px', borderRadius: '50%',
+                      background: '#ede9fe', color: '#7c3aed', fontSize: '11px',
+                      fontWeight: 700, display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', flexShrink: 0,
+                    }}
+                  >
+                    {idx + 1}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '14px', fontWeight: 600, color: '#1f2937' }}>{workout.title}</div>
+                    <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '2px' }}>
+                      {workout.date} · {workout.duration}分 · {workout.calories}kcal
+                    </div>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: '10px', padding: '2px 6px', borderRadius: '20px',
+                      whiteSpace: 'nowrap' as const, flexShrink: 0,
+                      background: catStyle.bg, color: catStyle.color,
+                    }}
+                  >
+                    {workout.category}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '10px', padding: '2px 6px', borderRadius: '20px',
+                      whiteSpace: 'nowrap' as const, flexShrink: 0,
+                      background: intensity.bg, color: intensity.color,
+                    }}
+                  >
+                    {intensity.label}
+                  </span>
+                  <button
+                    style={{
+                      width: '28px', height: '28px', borderRadius: '50%',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '14px', color: '#d1d5db', flexShrink: 0,
+                      background: 'none', border: 'none', cursor: 'pointer',
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              )
+            })}
+            {filtered.length === 0 && (
+              <div style={{ padding: '20px 16px', textAlign: 'center', color: '#9ca3af', fontSize: '12px' }}>
+                トレーニング記録がありません
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ===== 今週のトレーニング ===== */}
+        <div
+          style={{
+            background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '12px',
+          }}
+        >
+          <div style={{ padding: '14px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <p style={{ fontSize: '14px', fontWeight: 700, color: '#374151' }}>📅 今週のトレーニング</p>
+          </div>
+          <div style={{ padding: '12px 16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '12px' }}>
+              {weekDays.map((day, i) => (
+                <div key={day} style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '10px', color: '#9ca3af', marginBottom: '4px' }}>{day}</div>
+                  <div
+                    style={{
+                      width: '28px', height: '28px', borderRadius: '50%', margin: '0 auto',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '10px', fontWeight: 700,
+                      background: i === 4 ? '#ede9fe' : weekHasTraining[i] ? '#7c3aed' : '#f3f4f6',
+                      color: i === 4 ? '#7c3aed' : weekHasTraining[i] ? 'white' : '#d1d5db',
+                      border: i === 4 ? '2px solid #7c3aed' : 'none',
+                    }}
+                  >
+                    {19 + i}
+                  </div>
+                </div>
               ))}
             </div>
-            <button onClick={() => setShowAddModal(false)} style={{ width: '100%', padding: '12px', borderRadius: '12px', background: '#f3f4f6', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#6b7280', fontFamily: 'inherit' }}>
-              キャンセル
-            </button>
+            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+              {[
+                { label: '今週のトレ', value: '3', unit: '回', color: '#7c3aed' },
+                { label: '総時間', value: '195', unit: '分', color: '#7c3aed' },
+                { label: '消費カロリー', value: '1,050', unit: 'kcal', color: '#7c3aed' },
+              ].map((stat) => (
+                <div key={stat.label}>
+                  <div style={{ fontSize: '10px', color: '#9ca3af' }}>{stat.label}</div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
+                    <span style={{ fontSize: '18px', fontWeight: 800, color: stat.color }}>{stat.value}</span>
+                    <span style={{ fontSize: '10px', color: '#9ca3af' }}>{stat.unit}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+
+      </div>
+
+      {/* ===== FAB（トレーニングを記録するボタン）===== */}
+      <div
+        style={{
+          position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', zIndex: 50,
+        }}
+      >
+        <button
+          onClick={() => setShowAddModal(true)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+            background: '#7c3aed', color: 'white', fontWeight: 700,
+            padding: '14px 32px', borderRadius: '50px',
+            boxShadow: '0 8px 32px rgba(124,58,237,0.4)',
+            fontSize: '15px', transition: 'all 0.2s',
+            border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+          }}
+        >
+          <span style={{ fontSize: '20px', fontWeight: 300 }}>＋</span>
+          トレーニングを記録
+        </button>
+      </div>
+
+      {/* ===== 追加モーダル ===== */}
+      {showAddModal && (
+        <div
+          style={{
+            display: 'flex', position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,0.5)', zIndex: 300,
+            alignItems: 'flex-end', justifyContent: 'center',
+          }}
+          onClick={() => setShowAddModal(false)}
+        >
+          <div
+            style={{
+              background: 'white', width: '100%', maxWidth: '500px',
+              borderRadius: '24px 24px 0 0', maxHeight: '92vh', overflowY: 'auto',
+              display: 'flex', flexDirection: 'column',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                position: 'sticky', top: 0, background: 'white',
+                borderBottom: '1px solid #f0f0f0', padding: '16px 20px',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                borderRadius: '24px 24px 0 0', zIndex: 10,
+              }}
+            >
+              <p style={{ fontWeight: 700, color: '#111827', fontSize: '15px' }}>トレーニングを記録</p>
+              <button
+                onClick={() => setShowAddModal(false)}
+                style={{
+                  fontSize: '20px', color: '#9ca3af', width: '32px', height: '32px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ padding: '20px' }}>
+              {/* 種目名 */}
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: '#4b5563', marginBottom: '4px', display: 'block' }}>
+                  種目名
+                </label>
+                <input
+                  type="text"
+                  placeholder="例：ベンチプレス、ランニング"
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  style={{
+                    width: '100%', border: '1px solid #e5e7eb', borderRadius: '12px',
+                    padding: '10px 12px', fontSize: '14px', outline: 'none', color: '#1a1a1a',
+                    background: 'white', fontFamily: 'inherit', boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              {/* カテゴリ */}
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: '#4b5563', marginBottom: '4px', display: 'block' }}>
+                  カテゴリ
+                </label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {['筋トレ', '有酸素', 'ストレッチ', 'チーム練習', 'その他'].map((cat) => (
+                    <label
+                      key={cat}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '4px',
+                        fontSize: '12px', color: newCategory === cat ? '#6d28d9' : '#374151',
+                        cursor: 'pointer', padding: '6px 12px',
+                        border: newCategory === cat ? '1px solid #7c3aed' : '1px solid #e5e7eb',
+                        borderRadius: '8px', transition: 'all 0.2s',
+                        background: newCategory === cat ? '#f5f3ff' : 'white',
+                        fontWeight: newCategory === cat ? 600 : 400,
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        style={{ display: 'none' }}
+                        checked={newCategory === cat}
+                        onChange={() => setNewCategory(cat)}
+                      />
+                      {cat}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* 時間・カロリー */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+                {[
+                  { label: '時間 (分)', placeholder: '65', value: newDuration, onChange: setNewDuration },
+                  { label: 'カロリー (kcal)', placeholder: '320', value: newCalories, onChange: setNewCalories },
+                ].map((f) => (
+                  <div key={f.label}>
+                    <label style={{ fontSize: '12px', fontWeight: 700, color: '#4b5563', marginBottom: '4px', display: 'block' }}>
+                      {f.label}
+                    </label>
+                    <input
+                      type="number"
+                      placeholder={f.placeholder}
+                      value={f.value}
+                      onChange={(e) => f.onChange(e.target.value)}
+                      style={{
+                        width: '100%', border: '1px solid #e5e7eb', borderRadius: '12px',
+                        padding: '10px 12px', fontSize: '14px', outline: 'none', color: '#1a1a1a',
+                        background: 'white', fontFamily: 'inherit', boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* 強度 */}
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: '#4b5563', marginBottom: '4px', display: 'block' }}>
+                  強度
+                </label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {[
+                    { key: 'light', label: '軽強度', bg: '#f0fdf4', color: '#16a34a' },
+                    { key: 'medium', label: '中強度', bg: '#fef3c7', color: '#d97706' },
+                    { key: 'heavy', label: '高強度', bg: '#fef2f2', color: '#dc2626' },
+                    { key: 'max', label: '最大', bg: '#3f0c5c', color: '#f5d0fe' },
+                  ].map((level) => (
+                    <button
+                      key={level.key}
+                      onClick={() => setNewIntensity(level.key)}
+                      style={{
+                        fontSize: '10px', padding: '2px 6px', borderRadius: '20px',
+                        background: newIntensity === level.key ? level.bg : '#f3f4f6',
+                        color: newIntensity === level.key ? level.color : '#9ca3af',
+                        border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                        fontWeight: 600, transition: 'all 0.15s',
+                      }}
+                    >
+                      {level.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowAddModal(false)}
+                style={{
+                  width: '100%', background: '#7c3aed', color: 'white',
+                  fontWeight: 700, padding: '12px', borderRadius: '12px',
+                  fontSize: '15px', marginTop: '8px', border: 'none',
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                記録する
+              </button>
+            </div>
           </div>
         </div>
       )}
