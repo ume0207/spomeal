@@ -83,10 +83,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }),
     })
 
-    const session = await stripeRes.json() as { url?: string; error?: { message: string; type?: string; code?: string } }
+    const sessionText = await stripeRes.text()
+    console.log('Stripe response status:', stripeRes.status, 'body:', sessionText)
+    const session = JSON.parse(sessionText) as { url?: string; error?: { message: string; type?: string; code?: string } }
 
     if (!session.url) {
-      const errMsg = session.error?.message || JSON.stringify(session)
+      const errMsg = `[${stripeRes.status}] ${session.error?.message || sessionText}`
       console.error('Stripe error:', errMsg)
       return new Response(JSON.stringify({ error: errMsg }), {
         status: 500,
