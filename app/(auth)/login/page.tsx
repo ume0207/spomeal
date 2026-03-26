@@ -56,11 +56,17 @@ export default function LoginPage() {
           height: 'min(55vw, 420px)',
           background: 'linear-gradient(145deg, #4ade80, #22c55e, #16a34a)',
           borderRadius: '50%',
-          opacity: 0.12,
+          opacity: 0.15,
           pointerEvents: 'none',
           zIndex: 0,
+          overflow: 'hidden',
         }}
-      />
+      >
+        <div style={{
+          position: 'absolute', inset: 0, borderRadius: '50%',
+          background: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.25) 10px, rgba(255,255,255,0.25) 12px)',
+        }} />
+      </div>
       {/* 左下グリーン装飾ブロック */}
       <div
         style={{
@@ -71,11 +77,17 @@ export default function LoginPage() {
           height: 'min(35vw, 280px)',
           background: 'linear-gradient(145deg, #86efac, #4ade80)',
           borderRadius: '50%',
-          opacity: 0.10,
+          opacity: 0.13,
           pointerEvents: 'none',
           zIndex: 0,
+          overflow: 'hidden',
         }}
-      />
+      >
+        <div style={{
+          position: 'absolute', inset: 0, borderRadius: '50%',
+          background: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.25) 10px, rgba(255,255,255,0.25) 12px)',
+        }} />
+      </div>
 
       <div
         style={{
