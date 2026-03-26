@@ -29,40 +29,57 @@ function toDateKey(y: number, m: number, d: number) {
   return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
 }
 
+// 9:00〜18:45 を15分刻みで生成（計40スロット、最後のミーティングは19:00終了）
+function generateDefaultTimeSlots(): TimeSlot[] {
+  const slots: TimeSlot[] = []
+  let id = 1
+  for (let h = 9; h <= 18; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      const time = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+      const label = h < 12 ? '午前の栄養相談' : h < 17 ? '午後の栄養相談' : '夕方の栄養相談'
+      slots.push({ id: `ts${id++}`, time, label, maxSlots: 1, daysOfWeek: [1, 2, 3, 4, 5], enabled: true })
+    }
+  }
+  return slots
+}
+
 export default function ReservePage() {
-  const today = new Date(2026, 2, 25)
-  const [curYear, setCurYear] = useState(today.getFullYear())
-  const [curMonth, setCurMonth] = useState(today.getMonth())
+  const [today, setToday] = useState<Date | null>(null)
+  const [curYear, setCurYear] = useState(2026)
+  const [curMonth, setCurMonth] = useState(2) // 0-indexed
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [reservations, setReservations] = useState<Reservation[]>([])
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([])
   const [showConfirm, setShowConfirm] = useState(false)
   const [confirmSlot, setConfirmSlot] = useState<{ date: string; time: string; staffName: string } | null>(null)
   const [confirmNotes, setConfirmNotes] = useState('')
+  const [bookingLoading, setBookingLoading] = useState(false)
+  const [gcalStatus, setGcalStatus] = useState<'idle' | 'linked' | 'error'>('idle')
 
   useEffect(() => {
+    const now = new Date()
+    setToday(now)
+    setCurYear(now.getFullYear())
+    setCurMonth(now.getMonth())
     try {
       const saved = localStorage.getItem('reservations_v1')
       if (saved) setReservations(JSON.parse(saved))
     } catch {}
     try {
       const savedSlots = localStorage.getItem('timeSlots_v1')
-      if (savedSlots) setTimeSlots(JSON.parse(savedSlots))
-      else {
-        // デフォルトスロット
-        const defaults: TimeSlot[] = [
-          { id: 'ts1', time: '09:00', label: '朝の栄養相談', maxSlots: 1, daysOfWeek: [1, 2, 3, 4, 5], enabled: true },
-          { id: 'ts2', time: '10:00', label: '午前の栄養相談', maxSlots: 1, daysOfWeek: [1, 2, 3, 4, 5], enabled: true },
-          { id: 'ts3', time: '11:00', label: '午前の栄養相談', maxSlots: 1, daysOfWeek: [1, 2, 3, 4, 5], enabled: true },
-          { id: 'ts4', time: '13:00', label: '午後の栄養相談', maxSlots: 1, daysOfWeek: [1, 2, 3, 4, 5], enabled: true },
-          { id: 'ts5', time: '14:00', label: '午後の栄養相談', maxSlots: 1, daysOfWeek: [1, 2, 3, 4, 5], enabled: true },
-          { id: 'ts6', time: '15:00', label: '午後の栄養相談', maxSlots: 1, daysOfWeek: [1, 2, 3, 4, 5], enabled: true },
-          { id: 'ts7', time: '16:00', label: '夕方の栄養相談', maxSlots: 1, daysOfWeek: [1, 2, 3, 4, 5], enabled: true },
-          { id: 'ts8', time: '17:00', label: '夕方の栄養相談', maxSlots: 1, daysOfWeek: [1, 2, 3, 4, 5], enabled: true },
-        ]
+      const parsed: TimeSlot[] = savedSlots ? JSON.parse(savedSlots) : []
+      // 古い形式（40スロット未満）は新しいデフォルトに置き換え
+      if (parsed.length >= 40) {
+        setTimeSlots(parsed)
+      } else {
+        const defaults = generateDefaultTimeSlots()
         setTimeSlots(defaults)
+        localStorage.setItem('timeSlots_v1', JSON.stringify(defaults))
       }
-    } catch {}
+    } catch {
+      const defaults = generateDefaultTimeSlots()
+      setTimeSlots(defaults)
+    }
   }, [])
 
   const saveReservations = (data: Reservation[]) => {
@@ -81,7 +98,7 @@ export default function ReservePage() {
 
   const firstDay = new Date(curYear, curMonth, 1).getDay()
   const daysInMonth = new Date(curYear, curMonth + 1, 0).getDate()
-  const todayKey = toDateKey(today.getFullYear(), today.getMonth(), today.getDate())
+  const todayKey = today ? toDateKey(today.getFullYear(), today.getMonth(), today.getDate()) : ''
 
   const getReservationsForDate = (dateKey: string) => reservations.filter((r) => r.date === dateKey && r.status !== 'cancelled')
 
@@ -100,20 +117,55 @@ export default function ReservePage() {
     setShowConfirm(true)
   }
 
-  const confirmBook = () => {
+  const confirmBook = async () => {
     if (!confirmSlot) return
-    const newRes: Reservation = {
-      id: Date.now().toString(),
-      date: confirmSlot.date,
-      time: confirmSlot.time,
-      staffName: confirmSlot.staffName,
-      notes: confirmNotes,
-      status: 'confirmed',
-      createdAt: new Date().toISOString(),
+    setBookingLoading(true)
+    try {
+      // Google Calendar & Meet API 呼び出し
+      let meetLink: string | null = null
+      let calendarEventId: string | null = null
+      try {
+        const memberName = '選手'
+        const gcalRes = await fetch('/api/gcal/create-event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            date: confirmSlot.date,
+            time: confirmSlot.time,
+            memberName,
+            notes: confirmNotes,
+          }),
+        })
+        const gcalData = await gcalRes.json() as { meetLink?: string; eventId?: string; skipped?: boolean }
+        meetLink = gcalData.meetLink ?? null
+        calendarEventId = gcalData.eventId ?? null
+        setGcalStatus(meetLink ? 'linked' : 'idle')
+      } catch {
+        // gcal失敗しても予約は保存する
+        setGcalStatus('error')
+      }
+
+      const newRes: Reservation = {
+        id: Date.now().toString(),
+        date: confirmSlot.date,
+        time: confirmSlot.time,
+        staffName: confirmSlot.staffName,
+        notes: confirmNotes,
+        status: 'confirmed',
+        createdAt: new Date().toISOString(),
+        meetLink: meetLink ?? undefined,
+        calendarEventId: calendarEventId ?? undefined,
+      }
+      saveReservations([...reservations, newRes])
+      setShowConfirm(false)
+      if (meetLink) {
+        alert(`予約が完了しました！\n\nGoogle Meet リンク:\n${meetLink}`)
+      } else {
+        alert('予約が完了しました！')
+      }
+    } finally {
+      setBookingLoading(false)
     }
-    saveReservations([...reservations, newRes])
-    setShowConfirm(false)
-    alert('予約が完了しました！')
   }
 
   const cancelReservation = (id: string) => {
@@ -448,21 +500,29 @@ export default function ReservePage() {
                 }}
               >
                 <span style={{ fontSize: '18px' }}>📅</span>
-                <div>
+                <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, color: '#1d4ed8' }}>Google カレンダー &amp; Meet 自動連携</div>
                   <div style={{ color: '#374151', marginTop: '2px' }}>予約確定後、自動でカレンダーに登録しMeetリンクを発行します。</div>
                 </div>
+                <span style={{
+                  fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px',
+                  background: gcalStatus === 'linked' ? '#dcfce7' : '#f3f4f6',
+                  color: gcalStatus === 'linked' ? '#16a34a' : '#9ca3af',
+                }}>
+                  {gcalStatus === 'linked' ? '✅ 連携済み' : '⚪ 設定待ち'}
+                </span>
               </div>
               <button
                 onClick={confirmBook}
+                disabled={bookingLoading}
                 style={{
                   width: '100%', marginTop: '12px', padding: '14px', borderRadius: '12px', border: 'none',
-                  background: '#0ea5e9', color: 'white', fontWeight: 800, fontSize: '14px',
-                  cursor: 'pointer', fontFamily: 'inherit',
-                  boxShadow: '0 4px 16px rgba(14,165,233,0.35)',
+                  background: bookingLoading ? '#9ca3af' : '#0ea5e9', color: 'white', fontWeight: 800, fontSize: '14px',
+                  cursor: bookingLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                  boxShadow: bookingLoading ? 'none' : '0 4px 16px rgba(14,165,233,0.35)',
                 }}
               >
-                ✅ 予約を確定する
+                {bookingLoading ? '⏳ 処理中...' : '✅ 予約を確定する'}
               </button>
             </div>
           </div>
