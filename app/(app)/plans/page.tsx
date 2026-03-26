@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
 
 type Period = 1 | 3 | 6 | 12
 
@@ -79,6 +80,16 @@ export default function PlansPage() {
   const router = useRouter()
   const [selectedPeriod, setSelectedPeriod] = useState<Period>(1)
   const [loading, setLoading] = useState<string | null>(null)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => {
+      setUserEmail(data.user?.email ?? null)
+      setUserId(data.user?.id ?? null)
+    })
+  }, [])
 
   const periodKey: Record<Period, string> = {
     1: 'monthly',
@@ -93,7 +104,7 @@ export default function PlansPage() {
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planId, period: periodKey[selectedPeriod] }),
+        body: JSON.stringify({ planId, period: periodKey[selectedPeriod], customerEmail: userEmail, userId }),
       })
       const data = await res.json()
       if (data.url) {

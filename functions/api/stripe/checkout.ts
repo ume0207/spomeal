@@ -32,8 +32,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 
   try {
-    const body = await request.json() as { planId: string; period: string }
-    const { planId, period } = body
+    const body = await request.json() as { planId: string; period: string; customerEmail?: string; userId?: string }
+    const { planId, period, customerEmail, userId } = body
 
     const priceMap: Record<string, Record<string, string>> = {
       light: {
@@ -80,6 +80,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         'subscription_data[trial_period_days]': '14',
         'success_url': `${appUrl}/home/?success=true`,
         'cancel_url': `${appUrl}/plans/?cancelled=true`,
+        ...(customerEmail ? { 'customer_email': customerEmail } : {}),
+        ...(userId ? { 'metadata[userId]': userId } : {}),
+        'metadata[planId]': planId,
+        'metadata[period]': period,
       }),
     })
 
