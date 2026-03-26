@@ -134,6 +134,7 @@ export default function ReservePage() {
             time: confirmSlot.time,
             memberName,
             notes: confirmNotes,
+            refreshToken: localStorage.getItem('gcal_refresh_token') || undefined,
           }),
         })
         const gcalData = await gcalRes.json() as { meetLink?: string; eventId?: string; skipped?: boolean }

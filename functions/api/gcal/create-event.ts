@@ -37,22 +37,24 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return new Response(null, { headers: corsHeaders })
   }
 
-  // 環境変数未設定の場合はスキップ（Meet連携なしで予約）
-  if (!env.GOOGLE_REFRESH_TOKEN) {
-    return new Response(JSON.stringify({ meetLink: null, eventId: null, skipped: true }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
-  }
-
   try {
     const body = await request.json() as {
       date: string        // YYYY-MM-DD
       time: string        // HH:MM
       memberName: string
       notes: string
+      refreshToken?: string  // クライアント側のlocalStorageから送信
     }
-    const { date, time, memberName, notes } = body
+    const { date, time, memberName, notes, refreshToken } = body
+
+    // リフレッシュトークン: リクエスト body > 環境変数 の優先順位
+    const effectiveRefreshToken = refreshToken || env.GOOGLE_REFRESH_TOKEN
+    if (!effectiveRefreshToken) {
+      return new Response(JSON.stringify({ meetLink: null, eventId: null, skipped: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
     // 開始・終了時刻（15分単位）
     const [hour, min] = time.split(':').map(Number)
