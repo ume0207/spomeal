@@ -4,6 +4,10 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'スポミル | sports meal',
   description: '勝つ体は、食事から。スポーツ栄養管理アプリ',
+  icons: {
+    icon: '/icon.png',
+    apple: '/icon.png',
+  },
 }
 
 export const viewport: Viewport = {
