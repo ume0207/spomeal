@@ -107,8 +107,28 @@ export default function GcalSetupPage() {
         {savedToken && (
           <div style={{ background: '#dcfce7', border: '1.5px solid #86efac', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
             <div style={{ fontSize: '15px', fontWeight: 800, color: '#16a34a', marginBottom: '4px' }}>✅ 連携済み</div>
-            <div style={{ fontSize: '12px', color: '#374151' }}>Google カレンダーと正常に連携されています。予約時に自動でMeetリンクが発行されます。</div>
-            <button onClick={clearToken} style={{ marginTop: '10px', fontSize: '12px', color: '#ef4444', background: 'none', border: '1px solid #fca5a5', borderRadius: '8px', padding: '4px 12px', cursor: 'pointer', fontFamily: 'inherit' }}>
+            <div style={{ fontSize: '12px', color: '#374151', marginBottom: '12px' }}>Google カレンダーと正常に連携されています。予約時に自動でMeetリンクが発行されます。</div>
+
+            {/* スマホでも使えるようにするためのCloudflare設定手順 */}
+            <div style={{ background: '#fefce8', border: '1px solid #fde68a', borderRadius: '10px', padding: '12px', marginBottom: '12px', fontSize: '12px', color: '#92400e', lineHeight: 1.8 }}>
+              <strong>📱 スマホでも Meet リンクを使うには：</strong><br />
+              1. 下の「トークンをコピー」ボタンを押す<br />
+              2. <a href="https://dash.cloudflare.com" target="_blank" rel="noreferrer" style={{ color: '#d97706' }}>Cloudflare Pages</a> → 設定 → 環境変数<br />
+              3. 変数名 <code style={{ background: '#fef3c7', padding: '1px 4px', borderRadius: '3px' }}>GOOGLE_REFRESH_TOKEN</code> で貼り付けて保存<br />
+              4. 再デプロイ
+            </div>
+
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(savedToken)
+                alert('トークンをコピーしました！\nCloudflare の環境変数 GOOGLE_REFRESH_TOKEN に貼り付けてください。')
+              }}
+              style={{ display: 'block', width: '100%', padding: '10px', borderRadius: '10px', border: 'none', background: '#16a34a', color: 'white', fontWeight: 700, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit', marginBottom: '8px' }}
+            >
+              📋 トークンをコピー（Cloudflare 設定用）
+            </button>
+
+            <button onClick={clearToken} style={{ fontSize: '12px', color: '#ef4444', background: 'none', border: '1px solid #fca5a5', borderRadius: '8px', padding: '4px 12px', cursor: 'pointer', fontFamily: 'inherit' }}>
               連携を解除する
             </button>
           </div>
