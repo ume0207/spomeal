@@ -1,34 +1,60 @@
+'use client'
+
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+
+const navItems = [
+  { href: '/admin', label: 'ダッシュボード' },
+  { href: '/admin/members', label: 'メンバー' },
+  { href: '/admin/calendar', label: '予約カレンダー' },
+  { href: '/admin/schedule', label: 'スケジュール' },
+  { href: '/admin/staff', label: 'スタッフ' },
+  { href: '/admin/shift', label: 'シフト' },
+]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
+
   return (
-    <div className="min-h-screen bg-[#f3f4f6]">
+    <div style={{ minHeight: '100vh', background: '#f3f4f6', fontFamily: "'Helvetica Neue', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" }}>
       {/* Admin top nav */}
-      <nav className="bg-[#1a1a1a] text-white px-4 py-3">
-        <div className="max-w-[1200px] mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/admin" className="text-base font-black">
-              スポ<span className="text-[#22c55e]">ミル</span>
-              <span className="text-xs text-gray-400 ml-2 font-normal">Admin</span>
+      <nav style={{ background: '#1a1a1a', color: 'white', padding: '0 16px' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: '52px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflowX: 'auto', scrollbarWidth: 'none' }}>
+            <Link
+              href="/admin"
+              style={{ fontSize: '15px', fontWeight: 900, color: 'white', textDecoration: 'none', whiteSpace: 'nowrap', marginRight: '8px', flexShrink: 0 }}
+            >
+              スポ<span style={{ color: '#22c55e' }}>ミル</span>
+              <span style={{ fontSize: '11px', color: '#9ca3af', marginLeft: '6px', fontWeight: 400 }}>Admin</span>
             </Link>
-            <div className="flex items-center gap-1">
-              {[
-                { href: '/admin', label: 'ダッシュボード' },
-                { href: '/admin/members', label: 'メンバー' },
-              ].map((item) => (
+            {navItems.map((item) => {
+              const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
+              return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: isActive ? 700 : 400,
+                    color: isActive ? 'white' : '#9ca3af',
+                    background: isActive ? 'rgba(255,255,255,0.12)' : 'transparent',
+                    textDecoration: 'none',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                    transition: 'all 0.12s',
+                  }}
                 >
                   {item.label}
                 </Link>
-              ))}
-            </div>
+              )
+            })}
           </div>
           <Link
             href="/dashboard"
-            className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1"
+            style={{ fontSize: '11px', color: '#9ca3af', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="15 18 9 12 15 6"/>
@@ -37,7 +63,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
         </div>
       </nav>
-      <main className="max-w-[1200px] mx-auto px-4 py-6">
+      <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px 16px' }}>
         {children}
       </main>
     </div>

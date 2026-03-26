@@ -5,54 +5,11 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-const inputStyle = {
-  width: '100%',
-  background: '#f9fafb',
-  border: '1.5px solid #e5e7eb',
-  borderRadius: '10px',
-  padding: '11px 14px',
-  color: '#111827',
-  fontSize: '14px',
-  outline: 'none',
-  fontFamily: 'inherit',
-  boxSizing: 'border-box' as const,
-  transition: 'all 0.2s',
-}
-
-const labelStyle = {
-  fontSize: '11px',
-  fontWeight: 600 as const,
-  color: '#374151',
-  display: 'block' as const,
-  marginBottom: '5px',
-}
-
-function Field({
-  label,
-  required,
-  children,
-}: {
-  label: string
-  required?: boolean
-  children: React.ReactNode
-}) {
-  return (
-    <div>
-      <label style={labelStyle}>
-        {label}
-        {required && <span style={{ color: '#ef4444', marginLeft: '3px' }}>*</span>}
-      </label>
-      {children}
-    </div>
-  )
-}
-
 export default function RegisterPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirm, setShowConfirm] = useState(false)
+  const [success, setSuccess] = useState(false)
 
   // フォームデータ
   const [name, setName] = useState('')
@@ -72,8 +29,8 @@ export default function RegisterPage() {
     e.preventDefault()
     setError('')
 
-    if (password.length < 8) {
-      setError('パスワードは8文字以上で入力してください')
+    if (password.length < 6) {
+      setError('パスワードは6文字以上で入力してください')
       return
     }
     if (password !== confirmPassword) {
@@ -108,438 +65,299 @@ export default function RegisterPage() {
       return
     }
 
-    router.push('/plans')
+    setSuccess(true)
+    setLoading(false)
   }
 
-  const focusStyle = {
-    borderColor: '#22c55e',
-    background: '#f0fdf4',
-    boxShadow: '0 0 0 3px rgba(34,197,94,0.1)',
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    background: 'rgba(255,255,255,0.06)',
+    border: '1px solid rgba(255,255,255,0.15)',
+    borderRadius: '10px',
+    padding: '10px 14px',
+    color: 'white',
+    fontSize: '14px',
+    outline: 'none',
+    transition: 'border-color 0.2s',
+    fontFamily: 'inherit',
+    boxSizing: 'border-box',
+  }
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: '11px',
+    fontWeight: 700,
+    color: 'rgba(255,255,255,0.5)',
+    marginBottom: '4px',
+    display: 'block',
   }
 
   return (
     <div
       style={{
-        background: '#ffffff',
-        color: '#111827',
         minHeight: '100vh',
-        overflow: 'hidden',
+        background: '#0b0f1a',
+        color: '#fff',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '40px 20px 60px',
         position: 'relative',
+        zIndex: 1,
         fontFamily: "'Helvetica Neue', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif",
       }}
     >
-      {/* 背景装飾 */}
-      <div
-        style={{
-          position: 'fixed',
-          top: '-80px',
-          right: '-80px',
-          width: 'min(55vw, 420px)',
-          height: 'min(55vw, 420px)',
-          background: 'linear-gradient(145deg, #4ade80, #22c55e, #16a34a)',
-          borderRadius: '50%',
-          opacity: 0.12,
-          pointerEvents: 'none',
-          zIndex: 0,
-        }}
-      />
-
-      <div
-        style={{
-          position: 'relative',
-          zIndex: 1,
-          maxWidth: '640px',
-          margin: '0 auto',
-          padding: '32px 20px 60px',
-        }}
-      >
-        {/* 戻るリンク */}
-        <Link
-          href="/login"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            color: '#9ca3af',
-            textDecoration: 'none',
-            fontSize: '13px',
-            marginBottom: '20px',
-          }}
-        >
-          ← ログインに戻る
-        </Link>
-
-        {/* ロゴ */}
-        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-            <div
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: '16px',
-                fontWeight: 900,
-              }}
-            >
-              S
-            </div>
-            <span style={{ fontSize: '22px', fontWeight: 900, color: '#1a1a1a' }}>
-              スポミル
-            </span>
-          </div>
-          <h1 style={{ fontSize: '18px', fontWeight: 800, color: '#111827', margin: 0 }}>
-            📝 新規会員登録
-          </h1>
-          <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: '4px' }}>
-            スポーツ栄養管理を始めましょう
-          </p>
-        </div>
-
-        {/* フォームカード */}
+      {/* ヘッダー */}
+      <div style={{ textAlign: 'center', marginBottom: '32px' }}>
         <div
           style={{
-            background: '#ffffff',
-            border: '1.5px solid #e5e7eb',
-            borderTop: '3px solid #22c55e',
-            borderRadius: '18px',
+            fontSize: '36px',
+            fontWeight: 900,
+            letterSpacing: '-0.02em',
+            background: 'linear-gradient(135deg, #ffffff 0%, #a7f3d0 50%, #22c55e 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            marginBottom: '6px',
+          }}
+        >
+          スポミル
+        </div>
+        <p style={{ fontSize: '16px', fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>
+          📝 新規会員登録
+        </p>
+      </div>
+
+      {!success ? (
+        /* 登録フォームカード */
+        <div
+          style={{
+            width: '100%',
+            maxWidth: '480px',
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '20px',
             padding: '28px 24px',
-            boxShadow: '0 8px 40px rgba(0,0,0,0.07)',
           }}
         >
           <form onSubmit={handleRegister}>
             {/* 基本情報 */}
-            <div style={{ marginBottom: '20px' }}>
-              <div
-                style={{
-                  fontSize: '10px',
-                  fontWeight: 800,
-                  color: '#22c55e',
-                  letterSpacing: '0.15em',
-                  textTransform: 'uppercase',
-                  marginBottom: '12px',
-                  paddingBottom: '6px',
-                  borderBottom: '1px solid #f0f0f0',
-                }}
-              >
-                基本情報
+            <div
+              style={{
+                fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)',
+                letterSpacing: '0.1em', textTransform: 'uppercase',
+                margin: '0 0 10px', paddingBottom: '6px',
+                borderBottom: '1px solid rgba(255,255,255,0.08)',
+              }}
+            >
+              基本情報
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+              <div>
+                <label style={labelStyle}>氏名<span style={{ color: '#f87171', marginLeft: '2px' }}>*</span></label>
+                <input
+                  className="reg-input"
+                  type="text"
+                  placeholder="山田 太郎"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  style={inputStyle}
+                />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <Field label="氏名" required>
-                  <input
-                    type="text"
-                    placeholder="山田 太郎"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                    style={inputStyle}
-                    onFocus={(e) => Object.assign(e.target.style, focusStyle)}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = '#e5e7eb'
-                      e.target.style.background = '#f9fafb'
-                      e.target.style.boxShadow = 'none'
-                    }}
-                  />
-                </Field>
-                <Field label="フリガナ">
-                  <input
-                    type="text"
-                    placeholder="ヤマダ タロウ"
-                    value={furigana}
-                    onChange={(e) => setFurigana(e.target.value)}
-                    style={inputStyle}
-                    onFocus={(e) => Object.assign(e.target.style, focusStyle)}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = '#e5e7eb'
-                      e.target.style.background = '#f9fafb'
-                      e.target.style.boxShadow = 'none'
-                    }}
-                  />
-                </Field>
-                <Field label="生年月日">
-                  <input
-                    type="date"
-                    value={birthdate}
-                    onChange={(e) => setBirthdate(e.target.value)}
-                    style={inputStyle}
-                    onFocus={(e) => Object.assign(e.target.style, focusStyle)}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = '#e5e7eb'
-                      e.target.style.background = '#f9fafb'
-                      e.target.style.boxShadow = 'none'
-                    }}
-                  />
-                </Field>
-                <Field label="性別">
-                  <select
-                    value={gender}
-                    onChange={(e) => setGender(e.target.value)}
-                    style={inputStyle}
-                    onFocus={(e) => Object.assign(e.target.style, focusStyle)}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = '#e5e7eb'
-                      e.target.style.background = '#f9fafb'
-                      e.target.style.boxShadow = 'none'
-                    }}
-                  >
-                    <option value="">選択してください</option>
-                    <option value="male">男性</option>
-                    <option value="female">女性</option>
-                    <option value="other">その他</option>
-                  </select>
-                </Field>
+              <div>
+                <label style={labelStyle}>フリガナ</label>
+                <input
+                  className="reg-input"
+                  type="text"
+                  placeholder="ヤマダ タロウ"
+                  value={furigana}
+                  onChange={(e) => setFurigana(e.target.value)}
+                  style={inputStyle}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>生年月日</label>
+                <input
+                  className="reg-input"
+                  type="date"
+                  value={birthdate}
+                  onChange={(e) => setBirthdate(e.target.value)}
+                  style={inputStyle}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>性別</label>
+                <select
+                  className="reg-select"
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value)}
+                  style={{ ...inputStyle, cursor: 'pointer' }}
+                >
+                  <option value="">選択してください</option>
+                  <option value="男性">男性</option>
+                  <option value="女性">女性</option>
+                  <option value="その他">その他</option>
+                  <option value="回答しない">回答しない</option>
+                </select>
               </div>
             </div>
 
-            {/* 所属 */}
-            <div style={{ marginBottom: '20px' }}>
-              <div
-                style={{
-                  fontSize: '10px',
-                  fontWeight: 800,
-                  color: '#22c55e',
-                  letterSpacing: '0.15em',
-                  textTransform: 'uppercase',
-                  marginBottom: '12px',
-                  paddingBottom: '6px',
-                  borderBottom: '1px solid #f0f0f0',
-                }}
-              >
-                所属
-              </div>
-              <Field label="所属チーム名" required>
-                <input
-                  type="text"
-                  placeholder="○○高校サッカー部"
-                  value={team}
-                  onChange={(e) => setTeam(e.target.value)}
-                  required
-                  style={inputStyle}
-                  onFocus={(e) => Object.assign(e.target.style, focusStyle)}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = '#e5e7eb'
-                    e.target.style.background = '#f9fafb'
-                    e.target.style.boxShadow = 'none'
-                  }}
-                />
-              </Field>
+            {/* 所属・チーム */}
+            <div
+              style={{
+                fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)',
+                letterSpacing: '0.1em', textTransform: 'uppercase',
+                margin: '18px 0 10px', paddingBottom: '6px',
+                borderBottom: '1px solid rgba(255,255,255,0.08)',
+              }}
+            >
+              所属・チーム
+            </div>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={labelStyle}>所属チーム名<span style={{ color: '#f87171', marginLeft: '2px' }}>*</span></label>
+              <input
+                className="reg-input"
+                type="text"
+                placeholder="例：〇〇高校サッカー部、△△FC"
+                value={team}
+                onChange={(e) => setTeam(e.target.value)}
+                required
+                style={inputStyle}
+              />
             </div>
 
             {/* 連絡先 */}
-            <div style={{ marginBottom: '20px' }}>
-              <div
-                style={{
-                  fontSize: '10px',
-                  fontWeight: 800,
-                  color: '#22c55e',
-                  letterSpacing: '0.15em',
-                  textTransform: 'uppercase',
-                  marginBottom: '12px',
-                  paddingBottom: '6px',
-                  borderBottom: '1px solid #f0f0f0',
-                }}
-              >
-                連絡先
+            <div
+              style={{
+                fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)',
+                letterSpacing: '0.1em', textTransform: 'uppercase',
+                margin: '18px 0 10px', paddingBottom: '6px',
+                borderBottom: '1px solid rgba(255,255,255,0.08)',
+              }}
+            >
+              連絡先
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+              <div>
+                <label style={labelStyle}>電話番号</label>
+                <input
+                  className="reg-input"
+                  type="tel"
+                  placeholder="090-0000-0000"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  style={inputStyle}
+                />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <Field label="電話番号">
-                  <input
-                    type="tel"
-                    placeholder="090-0000-0000"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    style={inputStyle}
-                    onFocus={(e) => Object.assign(e.target.style, focusStyle)}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = '#e5e7eb'
-                      e.target.style.background = '#f9fafb'
-                      e.target.style.boxShadow = 'none'
-                    }}
-                  />
-                </Field>
-                <Field label="メールアドレス" required>
-                  <input
-                    type="email"
-                    placeholder="example@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    autoComplete="email"
-                    style={inputStyle}
-                    onFocus={(e) => Object.assign(e.target.style, focusStyle)}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = '#e5e7eb'
-                      e.target.style.background = '#f9fafb'
-                      e.target.style.boxShadow = 'none'
-                    }}
-                  />
-                </Field>
-                <div style={{ gridColumn: '1 / -1' }}>
-                  <Field label="住所">
-                    <input
-                      type="text"
-                      placeholder="東京都○○区..."
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      style={inputStyle}
-                      onFocus={(e) => Object.assign(e.target.style, focusStyle)}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = '#e5e7eb'
-                        e.target.style.background = '#f9fafb'
-                        e.target.style.boxShadow = 'none'
-                      }}
-                    />
-                  </Field>
-                </div>
-                <Field label="LINE ID">
-                  <input
-                    type="text"
-                    placeholder="line_id_here"
-                    value={lineId}
-                    onChange={(e) => setLineId(e.target.value)}
-                    style={inputStyle}
-                    onFocus={(e) => Object.assign(e.target.style, focusStyle)}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = '#e5e7eb'
-                      e.target.style.background = '#f9fafb'
-                      e.target.style.boxShadow = 'none'
-                    }}
-                  />
-                </Field>
+              <div>
+                <label style={labelStyle}>メールアドレス</label>
+                <input
+                  className="reg-input"
+                  type="email"
+                  placeholder="example@mail.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  style={inputStyle}
+                />
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={labelStyle}>住所</label>
+                <input
+                  className="reg-input"
+                  type="text"
+                  placeholder="東京都〇〇区..."
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  style={inputStyle}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>LINE ID</label>
+                <input
+                  className="reg-input"
+                  type="text"
+                  placeholder="line_id_example"
+                  value={lineId}
+                  onChange={(e) => setLineId(e.target.value)}
+                  style={inputStyle}
+                />
               </div>
             </div>
 
             {/* その他 */}
-            <div style={{ marginBottom: '20px' }}>
-              <div
-                style={{
-                  fontSize: '10px',
-                  fontWeight: 800,
-                  color: '#22c55e',
-                  letterSpacing: '0.15em',
-                  textTransform: 'uppercase',
-                  marginBottom: '12px',
-                  paddingBottom: '6px',
-                  borderBottom: '1px solid #f0f0f0',
-                }}
-              >
-                その他
-              </div>
-              <Field label="メモ（アレルギー等）">
-                <textarea
-                  placeholder="アレルギー・食事制限など"
-                  value={memo}
-                  onChange={(e) => setMemo(e.target.value)}
-                  rows={3}
-                  style={{
-                    ...inputStyle,
-                    resize: 'vertical' as const,
-                  }}
-                  onFocus={(e) => Object.assign(e.target.style, focusStyle)}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = '#e5e7eb'
-                    e.target.style.background = '#f9fafb'
-                    e.target.style.boxShadow = 'none'
-                  }}
-                />
-              </Field>
+            <div
+              style={{
+                fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)',
+                letterSpacing: '0.1em', textTransform: 'uppercase',
+                margin: '18px 0 10px', paddingBottom: '6px',
+                borderBottom: '1px solid rgba(255,255,255,0.08)',
+              }}
+            >
+              その他
+            </div>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={labelStyle}>メモ・備考（アレルギー、特記事項など）</label>
+              <input
+                className="reg-input"
+                type="text"
+                placeholder="食物アレルギー、持病など"
+                value={memo}
+                onChange={(e) => setMemo(e.target.value)}
+                style={inputStyle}
+              />
             </div>
 
             {/* ログイン情報 */}
-            <div style={{ marginBottom: '20px' }}>
-              <div
+            <div
+              style={{
+                fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)',
+                letterSpacing: '0.1em', textTransform: 'uppercase',
+                margin: '18px 0 10px', paddingBottom: '6px',
+                borderBottom: '1px solid rgba(255,255,255,0.08)',
+              }}
+            >
+              🔑 ログイン情報
+            </div>
+            <div style={{ marginBottom: '10px' }}>
+              <p
                 style={{
-                  fontSize: '10px',
-                  fontWeight: 800,
-                  color: '#22c55e',
-                  letterSpacing: '0.15em',
-                  textTransform: 'uppercase',
-                  marginBottom: '12px',
-                  paddingBottom: '6px',
-                  borderBottom: '1px solid #f0f0f0',
+                  fontSize: '11px', color: 'rgba(74,222,128,0.8)', marginBottom: '10px',
+                  background: 'rgba(34,197,94,0.1)', borderRadius: '8px', padding: '8px 12px',
                 }}
               >
-                ログイン情報
+                📧 上記のメールアドレスがログインIDになります
+              </p>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+              <div>
+                <label style={labelStyle}>パスワード<span style={{ color: '#f87171', marginLeft: '2px' }}>*</span></label>
+                <input
+                  className="reg-input"
+                  type="password"
+                  placeholder="6文字以上"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                  style={inputStyle}
+                />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <Field label="パスワード" required>
-                  <div style={{ position: 'relative' }}>
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="8文字以上"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      autoComplete="new-password"
-                      style={{ ...inputStyle, paddingRight: '40px' }}
-                      onFocus={(e) => Object.assign(e.target.style, focusStyle)}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = '#e5e7eb'
-                        e.target.style.background = '#f9fafb'
-                        e.target.style.boxShadow = 'none'
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      style={{
-                        position: 'absolute',
-                        right: '10px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        background: 'none',
-                        border: 'none',
-                        color: '#9ca3af',
-                        cursor: 'pointer',
-                        padding: 0,
-                        fontSize: '13px',
-                      }}
-                    >
-                      {showPassword ? '🙈' : '👁'}
-                    </button>
-                  </div>
-                </Field>
-                <Field label="確認パスワード" required>
-                  <div style={{ position: 'relative' }}>
-                    <input
-                      type={showConfirm ? 'text' : 'password'}
-                      placeholder="再入力"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      required
-                      autoComplete="new-password"
-                      style={{ ...inputStyle, paddingRight: '40px' }}
-                      onFocus={(e) => Object.assign(e.target.style, focusStyle)}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = '#e5e7eb'
-                        e.target.style.background = '#f9fafb'
-                        e.target.style.boxShadow = 'none'
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirm(!showConfirm)}
-                      style={{
-                        position: 'absolute',
-                        right: '10px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        background: 'none',
-                        border: 'none',
-                        color: '#9ca3af',
-                        cursor: 'pointer',
-                        padding: 0,
-                        fontSize: '13px',
-                      }}
-                    >
-                      {showConfirm ? '🙈' : '👁'}
-                    </button>
-                  </div>
-                </Field>
+              <div>
+                <label style={labelStyle}>パスワード確認<span style={{ color: '#f87171', marginLeft: '2px' }}>*</span></label>
+                <input
+                  className="reg-input"
+                  type="password"
+                  placeholder="もう一度入力"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                  style={inputStyle}
+                />
               </div>
             </div>
 
@@ -547,27 +365,15 @@ export default function RegisterPage() {
             {error && (
               <div
                 style={{
-                  fontSize: '12px',
-                  color: '#dc2626',
-                  textAlign: 'center',
-                  marginBottom: '12px',
-                  padding: '8px 12px',
-                  background: 'rgba(220,38,38,0.06)',
-                  borderRadius: '8px',
+                  fontSize: '12px', color: '#f87171', textAlign: 'center',
+                  marginBottom: '12px', padding: '8px 12px',
+                  background: 'rgba(239,68,68,0.1)', borderRadius: '8px',
+                  border: '1px solid rgba(239,68,68,0.3)',
                 }}
               >
                 {error}
               </div>
             )}
-
-            {/* 同意文 */}
-            <p style={{ fontSize: '10px', color: '#9ca3af', textAlign: 'center', marginBottom: '14px', lineHeight: 1.7 }}>
-              登録することで、
-              <Link href="#" style={{ color: '#22c55e' }}>利用規約</Link>
-              および
-              <Link href="#" style={{ color: '#22c55e' }}>プライバシーポリシー</Link>
-              に同意します
-            </p>
 
             {/* 登録ボタン */}
             <button
@@ -575,38 +381,68 @@ export default function RegisterPage() {
               disabled={loading}
               style={{
                 width: '100%',
-                background: loading ? '#d1d5db' : 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                marginTop: '20px',
+                background: loading ? 'rgba(34,197,94,0.4)' : 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
                 color: 'white',
-                fontWeight: 900,
-                fontSize: '15px',
-                padding: '15px',
+                fontWeight: 800,
+                fontSize: '16px',
+                padding: '14px',
                 borderRadius: '12px',
+                boxShadow: loading ? 'none' : '0 4px 20px rgba(34,197,94,0.3)',
+                transition: 'all 0.25s',
                 border: 'none',
                 cursor: loading ? 'not-allowed' : 'pointer',
                 fontFamily: 'inherit',
-                boxShadow: loading ? 'none' : '0 4px 20px rgba(34,197,94,0.3)',
-                transition: 'all 0.25s',
-                opacity: loading ? 0.6 : 1,
               }}
             >
               {loading ? '登録中...' : '会員登録する →'}
             </button>
           </form>
-
-          <div style={{ marginTop: '16px', textAlign: 'center' }}>
-            <p style={{ fontSize: '12px', color: '#9ca3af' }}>
-              すでにアカウントをお持ちの方は{' '}
-              <Link href="/login" style={{ color: '#22c55e', fontWeight: 700, textDecoration: 'none' }}>
-                ログイン
-              </Link>
+        </div>
+      ) : (
+        /* 成功画面 */
+        <div
+          style={{
+            width: '100%',
+            maxWidth: '480px',
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '20px',
+            padding: '28px 24px',
+          }}
+        >
+          <div style={{ textAlign: 'center', padding: '32px 20px' }}>
+            <div style={{ fontSize: '64px', marginBottom: '16px' }}>✅</div>
+            <p style={{ fontSize: '22px', fontWeight: 900, color: '#4ade80', marginBottom: '8px' }}>
+              登録完了！
             </p>
+            <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', marginBottom: '24px' }}>
+              会員登録が完了しました。<br />
+              ログインページからお入りください。
+            </p>
+            <Link
+              href="/login"
+              style={{
+                display: 'inline-block',
+                padding: '12px 32px',
+                background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                color: 'white',
+                fontWeight: 800,
+                borderRadius: '12px',
+                fontSize: '15px',
+                textDecoration: 'none',
+              }}
+            >
+              ログインページへ →
+            </Link>
           </div>
         </div>
+      )}
 
-        <div style={{ paddingTop: '24px', textAlign: 'center' }}>
-          <p style={{ fontSize: '10px', color: '#d1d5db' }}>© 2025 スポミル. All rights reserved.</p>
-        </div>
-      </div>
+      <p style={{ marginTop: '16px', textAlign: 'center', fontSize: '13px', color: 'rgba(255,255,255,0.35)' }}>
+        すでに登録済みの方は{' '}
+        <Link href="/login" style={{ color: 'rgba(255,255,255,0.5)' }}>ログインへ</Link>
+      </p>
     </div>
   )
 }

@@ -1,214 +1,452 @@
 'use client'
 
 import { useState } from 'react'
-import Card from '@/components/ui/Card'
-import Button from '@/components/ui/Button'
-import Input from '@/components/ui/Input'
 
 interface Member {
   id: string
   name: string
+  nameKana: string
   email: string
-  plan: string
-  status: 'active' | 'trial' | 'free' | 'cancelled'
-  joinedAt: string
-  lastActive: string
-  revenue: number
+  phone: string
+  address: string
+  team: string
+  gender: string
+  status: 'active' | 'inactive'
+  memo: string
+  createdAt: string
 }
 
 const demoMembers: Member[] = [
-  { id: '1', name: '山田 太郎', email: 'yamada@example.com', plan: 'スタンダード', status: 'active', joinedAt: '2025-01-15', lastActive: '今日', revenue: 1980 },
-  { id: '2', name: '佐藤 花子', email: 'sato@example.com', plan: 'プレミアム', status: 'active', joinedAt: '2024-12-01', lastActive: '今日', revenue: 3980 },
-  { id: '3', name: '鈴木 一郎', email: 'suzuki@example.com', plan: 'ライト', status: 'trial', joinedAt: '2025-03-20', lastActive: '昨日', revenue: 0 },
-  { id: '4', name: '田中 美咲', email: 'tanaka@example.com', plan: 'スタンダード', status: 'active', joinedAt: '2025-02-10', lastActive: '2日前', revenue: 1980 },
-  { id: '5', name: '伊藤 健司', email: 'ito@example.com', plan: 'フリー', status: 'free', joinedAt: '2025-03-18', lastActive: '3日前', revenue: 0 },
-  { id: '6', name: '渡辺 さくら', email: 'watanabe@example.com', plan: 'プレミアム', status: 'active', joinedAt: '2024-11-20', lastActive: '今日', revenue: 3980 },
-  { id: '7', name: '中村 拓哉', email: 'nakamura@example.com', plan: 'スタンダード', status: 'cancelled', joinedAt: '2024-10-05', lastActive: '1週間前', revenue: 0 },
-  { id: '8', name: '小林 葵', email: 'kobayashi@example.com', plan: 'ライト', status: 'active', joinedAt: '2025-01-28', lastActive: '今日', revenue: 980 },
+  {
+    id: '1', name: '山田 太郎', nameKana: 'ヤマダ タロウ',
+    email: 'yamada@example.com', phone: '090-1111-2222',
+    address: '東京都渋谷区', team: '○○高校サッカー部',
+    gender: 'male', status: 'active', memo: 'アレルギーなし',
+    createdAt: '2026-01-15',
+  },
+  {
+    id: '2', name: '佐藤 花子', nameKana: 'サトウ ハナコ',
+    email: 'sato@example.com', phone: '080-3333-4444',
+    address: '東京都新宿区', team: '△△バスケ部',
+    gender: 'female', status: 'active', memo: '',
+    createdAt: '2026-02-01',
+  },
 ]
 
-const statusConfig: Record<string, { label: string; className: string }> = {
-  active: { label: '有料', className: 'bg-green-100 text-green-700' },
-  trial: { label: 'トライアル', className: 'bg-blue-100 text-blue-700' },
-  free: { label: '無料', className: 'bg-gray-100 text-gray-500' },
-  cancelled: { label: '解約', className: 'bg-red-100 text-red-600' },
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  background: '#f9fafb',
+  border: '1.5px solid #e5e7eb',
+  borderRadius: '10px',
+  padding: '10px 14px',
+  color: '#111827',
+  fontSize: '13px',
+  outline: 'none',
+  fontFamily: 'inherit',
+  boxSizing: 'border-box',
 }
 
 export default function MembersPage() {
+  const [members, setMembers] = useState<Member[]>(demoMembers)
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [selectedMember, setSelectedMember] = useState<Member | null>(null)
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
+  const [showModal, setShowModal] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [showDetail, setShowDetail] = useState<Member | null>(null)
 
-  const filtered = demoMembers.filter((m) => {
+  // フォーム
+  const [fName, setFName] = useState('')
+  const [fKana, setFKana] = useState('')
+  const [fPhone, setFPhone] = useState('')
+  const [fEmail, setFEmail] = useState('')
+  const [fAddress, setFAddress] = useState('')
+  const [fTeam, setFTeam] = useState('')
+  const [fGender, setFGender] = useState('')
+  const [fStatus, setFStatus] = useState<'active' | 'inactive'>('active')
+  const [fMemo, setFMemo] = useState('')
+
+  const filtered = members.filter((m) => {
+    const q = search.toLowerCase()
     const matchSearch =
-      m.name.toLowerCase().includes(search.toLowerCase()) ||
-      m.email.toLowerCase().includes(search.toLowerCase())
+      m.name.includes(q) ||
+      m.nameKana.toLowerCase().includes(q) ||
+      m.email.toLowerCase().includes(q) ||
+      m.phone.includes(q)
     const matchStatus = statusFilter === 'all' || m.status === statusFilter
     return matchSearch && matchStatus
   })
 
+  const openAdd = () => {
+    setEditingId(null)
+    setFName(''); setFKana(''); setFPhone(''); setFEmail('')
+    setFAddress(''); setFTeam(''); setFGender(''); setFStatus('active'); setFMemo('')
+    setShowModal(true)
+  }
+
+  const openEdit = (m: Member) => {
+    setEditingId(m.id)
+    setFName(m.name); setFKana(m.nameKana); setFPhone(m.phone); setFEmail(m.email)
+    setFAddress(m.address); setFTeam(m.team); setFGender(m.gender); setFStatus(m.status); setFMemo(m.memo)
+    setShowModal(true)
+    setShowDetail(null)
+  }
+
+  const handleSave = () => {
+    if (!fName || !fPhone || !fAddress) {
+      alert('氏名・電話番号・住所は必須です')
+      return
+    }
+    if (editingId) {
+      setMembers((prev) =>
+        prev.map((m) =>
+          m.id === editingId
+            ? { ...m, name: fName, nameKana: fKana, phone: fPhone, email: fEmail, address: fAddress, team: fTeam, gender: fGender, status: fStatus, memo: fMemo }
+            : m
+        )
+      )
+    } else {
+      const newMember: Member = {
+        id: Date.now().toString(),
+        name: fName, nameKana: fKana, phone: fPhone, email: fEmail,
+        address: fAddress, team: fTeam, gender: fGender, status: fStatus,
+        memo: fMemo, createdAt: new Date().toISOString().slice(0, 10),
+      }
+      setMembers((prev) => [...prev, newMember])
+    }
+    setShowModal(false)
+  }
+
+  const handleDelete = (id: string) => {
+    if (!confirm('この会員を削除しますか？')) return
+    setMembers((prev) => prev.filter((m) => m.id !== id))
+    setShowDetail(null)
+  }
+
+  const exportCSV = () => {
+    const headers = ['氏名', 'フリガナ', '電話番号', 'メール', '住所', 'チーム', '性別', 'ステータス', 'メモ', '登録日']
+    const rows = members.map((m) => [
+      m.name, m.nameKana, m.phone, m.email, m.address, m.team,
+      m.gender === 'male' ? '男性' : m.gender === 'female' ? '女性' : 'その他',
+      m.status === 'active' ? 'アクティブ' : '非アクティブ',
+      m.memo, m.createdAt,
+    ])
+    const csv = [headers, ...rows].map((r) => r.map((v) => `"${v}"`).join(',')).join('\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = 'members.csv'; a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div style={{ fontFamily: "'Helvetica Neue', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif", color: '#1a1a1a' }}>
+      {/* ヘッダー */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
         <div>
-          <h1 className="text-2xl font-black text-gray-900">会員管理</h1>
-          <p className="text-sm text-gray-500 mt-1">全 {demoMembers.length} 名</p>
+          <h1 style={{ fontSize: '20px', fontWeight: 900, margin: 0, color: '#111827' }}>会員管理</h1>
+          <p style={{ fontSize: '12px', color: '#6b7280', margin: '4px 0 0' }}>
+            会員情報の登録・編集・管理 <strong style={{ color: '#111827' }}>{filtered.length}名</strong>
+          </p>
         </div>
-        <Button variant="primary" size="sm">
-          CSVエクスポート
-        </Button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            onClick={exportCSV}
+            style={{
+              padding: '8px 14px', borderRadius: '10px', border: '1.5px solid #e5e7eb',
+              background: 'white', color: '#374151', fontSize: '12px', fontWeight: 700,
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            ⬇ CSV出力
+          </button>
+          <button
+            onClick={openAdd}
+            style={{
+              padding: '8px 14px', borderRadius: '10px', border: 'none',
+              background: '#2563eb', color: 'white', fontSize: '12px', fontWeight: 700,
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            ＋ 会員登録
+          </button>
+        </div>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex-1">
-            <Input
-              placeholder="名前・メールで検索..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              leftIcon={
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="11" cy="11" r="8"/>
-                  <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                </svg>
-              }
-            />
-          </div>
-          <div className="flex gap-2">
-            {[
-              { value: 'all', label: 'すべて' },
-              { value: 'active', label: '有料' },
-              { value: 'trial', label: 'トライアル' },
-              { value: 'free', label: '無料' },
-              { value: 'cancelled', label: '解約' },
-            ].map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => setStatusFilter(opt.value)}
-                className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
-                  statusFilter === opt.value
-                    ? 'bg-[#22c55e] text-white'
-                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+      {/* フィルター */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '4px', background: '#f3f4f6', borderRadius: '10px', padding: '3px' }}>
+          {(['all', 'active', 'inactive'] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              style={{
+                padding: '5px 12px', borderRadius: '8px', border: 'none',
+                background: statusFilter === s ? '#2563eb' : 'transparent',
+                color: statusFilter === s ? 'white' : '#6b7280',
+                fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              {s === 'all' ? '全員' : s === 'active' ? 'アクティブ' : '非アクティブ'}
+            </button>
+          ))}
         </div>
-      </Card>
-
-      {/* Members table */}
-      <Card padding="none">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-gray-100">
-                <th className="text-left font-semibold text-gray-400 px-4 py-3">会員</th>
-                <th className="text-left font-semibold text-gray-400 px-4 py-3">プラン</th>
-                <th className="text-left font-semibold text-gray-400 px-4 py-3">ステータス</th>
-                <th className="text-left font-semibold text-gray-400 px-4 py-3">登録日</th>
-                <th className="text-left font-semibold text-gray-400 px-4 py-3">最終ログイン</th>
-                <th className="text-right font-semibold text-gray-400 px-4 py-3">月収益</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {filtered.map((member) => (
-                <tr key={member.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#22c55e] to-[#16a34a] flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
-                        {member.name.charAt(0)}
-                      </div>
-                      <div>
-                        <div className="font-semibold text-gray-800">{member.name}</div>
-                        <div className="text-gray-400 text-[10px]">{member.email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{member.plan}</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusConfig[member.status].className}`}>
-                      {statusConfig[member.status].label}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-400">{member.joinedAt}</td>
-                  <td className="px-4 py-3 text-gray-400">{member.lastActive}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-gray-800">
-                    {member.revenue > 0 ? `¥${member.revenue.toLocaleString()}` : '-'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() => setSelectedMember(member)}
-                      className="text-[#22c55e] font-semibold hover:text-[#16a34a] text-[10px]"
-                    >
-                      詳細
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filtered.length === 0 && (
-            <div className="text-center py-8 text-sm text-gray-400">
-              会員が見つかりませんでした
-            </div>
-          )}
+        <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
+          <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', fontSize: '14px' }}>🔍</span>
+          <input
+            type="text"
+            placeholder="No・名前・フリガナ・電話・メールで検索"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ ...inputStyle, paddingLeft: '32px', fontSize: '12px' }}
+          />
         </div>
-      </Card>
+      </div>
 
-      {/* Member detail modal */}
-      {selectedMember && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setSelectedMember(null)} />
-          <div className="relative z-10 w-full max-w-md bg-white rounded-[20px] p-6 shadow-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-bold text-gray-900">会員詳細</h3>
-              <button
-                onClick={() => setSelectedMember(null)}
-                className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+      {/* 会員リスト */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {filtered.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af', fontSize: '13px', background: 'white', borderRadius: '16px', border: '1px solid #f0f0f0' }}>
+            <div style={{ fontSize: '32px', marginBottom: '8px', opacity: 0.3 }}>👥</div>
+            会員が見つかりません
+          </div>
+        ) : (
+          filtered.map((m, i) => (
+            <div
+              key={m.id}
+              onClick={() => setShowDetail(m)}
+              style={{
+                background: 'white', border: '1px solid #f0f0f0', borderRadius: '14px',
+                padding: '14px 16px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+                display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer',
+                transition: 'box-shadow 0.15s',
+              }}
+            >
+              <div
+                style={{
+                  width: '40px', height: '40px', borderRadius: '50%', flexShrink: 0,
+                  background: m.status === 'active' ? '#dcfce7' : '#f3f4f6',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '16px', fontWeight: 800, color: m.status === 'active' ? '#16a34a' : '#9ca3af',
+                }}
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.5">
-                  <line x1="18" y1="6" x2="6" y2="18"/>
-                  <line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
-            </div>
-
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#22c55e] to-[#16a34a] flex items-center justify-center text-white text-base font-bold">
-                {selectedMember.name.charAt(0)}
+                {m.name.charAt(0)}
               </div>
-              <div>
-                <div className="font-bold text-gray-900">{selectedMember.name}</div>
-                <div className="text-xs text-gray-400">{selectedMember.email}</div>
-              </div>
-            </div>
-
-            <div className="space-y-2 mb-4">
-              {[
-                { label: 'プラン', value: selectedMember.plan },
-                { label: 'ステータス', value: statusConfig[selectedMember.status].label },
-                { label: '登録日', value: selectedMember.joinedAt },
-                { label: '最終ログイン', value: selectedMember.lastActive },
-                { label: '月収益', value: selectedMember.revenue > 0 ? `¥${selectedMember.revenue.toLocaleString()}` : '無料' },
-              ].map((item) => (
-                <div key={item.label} className="flex justify-between py-2 border-b border-gray-50 last:border-0">
-                  <span className="text-xs text-gray-400">{item.label}</span>
-                  <span className="text-xs font-semibold text-gray-800">{item.value}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 700, fontSize: '14px', color: '#111827' }}>{m.name}</span>
+                  <span style={{ fontSize: '11px', color: '#9ca3af' }}>{m.nameKana}</span>
+                  <span
+                    style={{
+                      fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px',
+                      background: m.status === 'active' ? '#dcfce7' : '#f3f4f6',
+                      color: m.status === 'active' ? '#16a34a' : '#6b7280',
+                    }}
+                  >
+                    {m.status === 'active' ? 'アクティブ' : '非アクティブ'}
+                  </span>
                 </div>
-              ))}
+                <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {m.team && <span style={{ marginRight: '12px' }}>⚽ {m.team}</span>}
+                  {m.phone && <span style={{ marginRight: '12px' }}>📞 {m.phone}</span>}
+                  {m.email && <span>✉ {m.email}</span>}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                <button
+                  onClick={(e) => { e.stopPropagation(); openEdit(m) }}
+                  style={{
+                    fontSize: '11px', padding: '5px 10px', borderRadius: '7px',
+                    border: '1px solid #e5e7eb', color: '#374151', fontWeight: 600,
+                    cursor: 'pointer', background: 'white', fontFamily: 'inherit',
+                  }}
+                >
+                  編集
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleDelete(m.id) }}
+                  style={{
+                    fontSize: '11px', padding: '5px 10px', borderRadius: '7px',
+                    border: '1px solid #fca5a5', color: '#ef4444', fontWeight: 600,
+                    cursor: 'pointer', background: 'white', fontFamily: 'inherit',
+                  }}
+                >
+                  削除
+                </button>
+              </div>
             </div>
+          ))
+        )}
+      </div>
 
-            <div className="flex gap-2">
-              <Button variant="outline" fullWidth size="sm">
-                メール送信
-              </Button>
-              <Button variant="danger" size="sm" className="flex-1">
-                アカウント停止
-              </Button>
+      {/* 詳細パネル */}
+      {showDetail && (
+        <div
+          onClick={() => setShowDetail(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 300,
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'white', width: '100%', maxWidth: '640px',
+              borderRadius: '20px 20px 0 0', padding: '20px', maxHeight: '80vh',
+              overflowY: 'auto',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 900, margin: 0, color: '#111827' }}>{showDetail.name}</h2>
+              <button onClick={() => setShowDetail(null)} style={{ fontSize: '20px', color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>✕</button>
+            </div>
+            {[
+              { label: '氏名', value: showDetail.name },
+              { label: 'フリガナ', value: showDetail.nameKana },
+              { label: '電話番号', value: showDetail.phone },
+              { label: 'メール', value: showDetail.email },
+              { label: '住所', value: showDetail.address },
+              { label: 'チーム', value: showDetail.team },
+              { label: '性別', value: showDetail.gender === 'male' ? '男性' : showDetail.gender === 'female' ? '女性' : 'その他' },
+              { label: 'ステータス', value: showDetail.status === 'active' ? 'アクティブ' : '非アクティブ' },
+              { label: 'メモ', value: showDetail.memo },
+              { label: '登録日', value: showDetail.createdAt },
+            ].filter((r) => r.value).map((row) => (
+              <div key={row.label} style={{ display: 'flex', gap: '12px', padding: '8px 0', borderBottom: '1px solid #f3f4f6', fontSize: '13px' }}>
+                <span style={{ color: '#6b7280', width: '80px', flexShrink: 0 }}>{row.label}</span>
+                <span style={{ fontWeight: 600, color: '#111827' }}>{row.value}</span>
+              </div>
+            ))}
+            <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+              <button
+                onClick={() => openEdit(showDetail)}
+                style={{
+                  flex: 1, padding: '10px', borderRadius: '10px', border: 'none',
+                  background: '#2563eb', color: 'white', fontWeight: 700, fontSize: '13px',
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                編集する
+              </button>
+              <button
+                onClick={() => handleDelete(showDetail.id)}
+                style={{
+                  flex: 1, padding: '10px', borderRadius: '10px', border: '1.5px solid #fca5a5',
+                  background: 'white', color: '#ef4444', fontWeight: 700, fontSize: '13px',
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                削除する
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 登録・編集モーダル */}
+      {showModal && (
+        <div
+          onClick={() => setShowModal(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 400,
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'white', width: '100%', maxWidth: '640px',
+              borderRadius: '20px 20px 0 0', maxHeight: '90vh', overflowY: 'auto',
+            }}
+          >
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ fontSize: '16px', fontWeight: 900, margin: 0, color: '#111827' }}>
+                {editingId ? '会員を編集' : '会員を登録'}
+              </h2>
+              <button onClick={() => setShowModal(false)} style={{ fontSize: '20px', color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>✕</button>
+            </div>
+            <div style={{ padding: '16px 20px 24px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', display: 'block', marginBottom: '4px' }}>
+                    氏名 <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <input value={fName} onChange={(e) => setFName(e.target.value)} placeholder="山田 太郎" style={inputStyle} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', display: 'block', marginBottom: '4px' }}>フリガナ</label>
+                  <input value={fKana} onChange={(e) => setFKana(e.target.value)} placeholder="ヤマダ タロウ" style={inputStyle} />
+                </div>
+              </div>
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', display: 'block', marginBottom: '4px' }}>
+                  電話番号 <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input value={fPhone} onChange={(e) => setFPhone(e.target.value)} type="tel" placeholder="090-0000-0000" style={inputStyle} />
+              </div>
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', display: 'block', marginBottom: '4px' }}>メールアドレス</label>
+                <input value={fEmail} onChange={(e) => setFEmail(e.target.value)} type="email" placeholder="example@email.com" style={inputStyle} />
+              </div>
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', display: 'block', marginBottom: '4px' }}>
+                  住所 <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input value={fAddress} onChange={(e) => setFAddress(e.target.value)} placeholder="東京都渋谷区..." style={inputStyle} />
+              </div>
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', display: 'block', marginBottom: '4px' }}>所属チーム名</label>
+                <input value={fTeam} onChange={(e) => setFTeam(e.target.value)} placeholder="○○高校サッカー部" style={inputStyle} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', display: 'block', marginBottom: '4px' }}>性別</label>
+                  <select value={fGender} onChange={(e) => setFGender(e.target.value)} style={inputStyle}>
+                    <option value="">選択</option>
+                    <option value="male">男性</option>
+                    <option value="female">女性</option>
+                    <option value="other">その他</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', display: 'block', marginBottom: '4px' }}>ステータス</label>
+                  <select value={fStatus} onChange={(e) => setFStatus(e.target.value as 'active' | 'inactive')} style={inputStyle}>
+                    <option value="active">アクティブ</option>
+                    <option value="inactive">非アクティブ</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', display: 'block', marginBottom: '4px' }}>メモ</label>
+                <textarea
+                  value={fMemo}
+                  onChange={(e) => setFMemo(e.target.value)}
+                  placeholder="備考・メモ"
+                  rows={3}
+                  style={{ ...inputStyle, resize: 'vertical' }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => setShowModal(false)}
+                  style={{
+                    flex: 1, padding: '12px', borderRadius: '10px', border: '1.5px solid #e5e7eb',
+                    background: 'white', color: '#374151', fontWeight: 700, fontSize: '13px',
+                    cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  キャンセル
+                </button>
+                <button
+                  onClick={handleSave}
+                  style={{
+                    flex: 2, padding: '12px', borderRadius: '10px', border: 'none',
+                    background: '#2563eb', color: 'white', fontWeight: 700, fontSize: '13px',
+                    cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  {editingId ? '更新する' : '登録する'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
