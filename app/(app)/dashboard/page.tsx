@@ -32,11 +32,24 @@ interface GoalData {
   goalType?: string
 }
 
+interface Reservation {
+  id: string
+  memberName: string
+  date: string
+  time: string
+  staffName: string
+  notes?: string
+  status: 'confirmed' | 'cancelled' | 'completed'
+  meetLink?: string
+  createdAt: string
+}
+
 export default function DashboardPage() {
   const calPct = Math.min((nutrition.calories.current / nutrition.calories.target) * 100, 100)
   const isOver = nutrition.calories.current > nutrition.calories.target
   const [suppState, setSuppState] = useState(supplements.map(s => s.done))
   const [goal, setGoal] = useState<GoalData | null>(null)
+  const [nextReservation, setNextReservation] = useState<Reservation | null>(null)
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -47,6 +60,20 @@ export default function DashboardPage() {
           if (parsed['__default__']) {
             setGoal(parsed['__default__'])
           }
+        }
+      } catch {
+        // ignore
+      }
+
+      try {
+        const raw = localStorage.getItem('reservations_v1')
+        if (raw) {
+          const all: Reservation[] = JSON.parse(raw)
+          const today = new Date().toISOString().slice(0, 10)
+          const upcoming = all
+            .filter(r => r.status === 'confirmed' && r.date >= today)
+            .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
+          setNextReservation(upcoming[0] ?? null)
         }
       } catch {
         // ignore
@@ -70,6 +97,57 @@ export default function DashboardPage() {
       }}
     >
       <div style={{ maxWidth: '640px', margin: '0 auto', padding: '16px 12px 40px' }}>
+
+        {/* ===== 次回の栄養相談 ===== */}
+        {nextReservation && (
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
+              borderRadius: '16px',
+              boxShadow: '0 2px 8px rgba(14,165,233,0.3)',
+              marginBottom: '12px',
+              overflow: 'hidden',
+            }}
+          >
+            <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.85)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                📅 次回の栄養相談
+              </span>
+              <Link href="/reserve" style={{ fontSize: '11px', color: 'rgba(255,255,255,0.75)', fontWeight: 600, textDecoration: 'none' }}>
+                予約管理 ›
+              </Link>
+            </div>
+            <div style={{ padding: '0 16px 16px' }}>
+              <div style={{ fontSize: '22px', fontWeight: 900, color: 'white', letterSpacing: '-0.5px' }}>
+                {nextReservation.date.replace(/-/g, '/')} {nextReservation.time}
+              </div>
+              <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)', marginTop: '4px' }}>
+                担当: {nextReservation.staffName}
+                {nextReservation.notes && <span style={{ marginLeft: '8px' }}>/ {nextReservation.notes}</span>}
+              </div>
+              {nextReservation.meetLink ? (
+                <a
+                  href={nextReservation.meetLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '6px',
+                    marginTop: '10px', padding: '8px 16px', borderRadius: '10px',
+                    background: 'white', color: '#0284c7', fontSize: '13px',
+                    fontWeight: 800, textDecoration: 'none',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
+                  }}
+                >
+                  🎥 Google Meet に参加する
+                </a>
+              ) : (
+                <div style={{ marginTop: '10px', fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>
+                  ※ Meet リンクは Google カレンダー連携後に表示されます
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ===== クイック記録 ===== */}
         <div
