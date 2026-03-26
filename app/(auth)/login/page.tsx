@@ -198,9 +198,14 @@ export default function LoginPage() {
               textAlign: 'center',
               marginBottom: '20px',
               textTransform: 'uppercase',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
             }}
           >
+            <span style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
             LOGIN
+            <span style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
           </div>
 
           <form onSubmit={handleLogin}>
