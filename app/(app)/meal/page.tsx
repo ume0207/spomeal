@@ -82,9 +82,13 @@ interface GoalData {
   fat: number
   carbs: number
   targetWeight?: number
-  startDate?: string
-  endDate?: string
+  currentWeight?: number
+  height?: number
+  activityLevel?: string
   goalType?: string
+  pfcP?: number
+  pfcF?: number
+  pfcC?: number
 }
 
 const MEAL_KEY = 'mealRecords_v1'
@@ -95,7 +99,35 @@ const catIcons: Record<string, string> = { 朝食: '🌅', 昼食: '☀️', 夕
 const mealTypeMap: Record<string, string> = { breakfast: '朝食', lunch: '昼食', dinner: '夕食', snack: '間食' }
 const mealTypeReverseMap: Record<string, string> = { 朝食: 'breakfast', 昼食: 'lunch', 夕食: 'dinner', 間食: 'snack' }
 
-const defaultGoal: GoalData = { cal: 2000, protein: 160, fat: 60, carbs: 250 }
+const defaultGoal: GoalData = { cal: 2000, protein: 125, fat: 44, carbs: 275, pfcP: 25, pfcF: 20, pfcC: 55 }
+
+const ACTIVITY_LABELS: Record<string, string> = {
+  sedentary: 'ほぼ座り仕事',
+  light: '軽い運動（週1〜2回）',
+  moderate: '中程度（週3〜5回）',
+  active: '活発（週6〜7回）',
+  very_active: '非常に活発（1日2回以上）',
+}
+const ACTIVITY_MULT: Record<string, number> = {
+  sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725, very_active: 1.9,
+}
+
+function calcAutoCalories(height: number, weight: number, activity: string, goalType: string): number {
+  if (!height || !weight) return 2000
+  const bmr = 10 * weight + 6.25 * height - 5 * 30 + 5
+  let tdee = Math.round(bmr * (ACTIVITY_MULT[activity] || 1.55))
+  if (goalType === 'lose_weight') tdee = Math.round(tdee * 0.8)
+  else if (goalType === 'gain_muscle') tdee = Math.round(tdee * 1.1)
+  return tdee
+}
+
+function pfcToGrams(cal: number, pfcP: number, pfcF: number, pfcC: number) {
+  return {
+    protein: Math.round((pfcP / 100) * cal / 4),
+    fat: Math.round((pfcF / 100) * cal / 9),
+    carbs: Math.round((pfcC / 100) * cal / 4),
+  }
+}
 
 function toDateStr(d: Date) {
   return d.toISOString().slice(0, 10)
@@ -127,14 +159,15 @@ export default function MealPage() {
   const [cartItems, setCartItems] = useState<MealItem[]>([])
 
   // 目標設定フォーム
-  const [goalCal, setGoalCal] = useState('')
-  const [goalProtein, setGoalProtein] = useState('')
-  const [goalFat, setGoalFat] = useState('')
-  const [goalCarbs, setGoalCarbs] = useState('')
+  const [goalHeight, setGoalHeight] = useState('')
+  const [goalCurWeight, setGoalCurWeight] = useState('')
   const [goalTargetWeight, setGoalTargetWeight] = useState('')
-  const [goalStartDate, setGoalStartDate] = useState('')
-  const [goalEndDate, setGoalEndDate] = useState('')
-  const [goalType, setGoalType] = useState('')
+  const [goalActivity, setGoalActivity] = useState('moderate')
+  const [goalTypeState, setGoalTypeState] = useState('maintain')
+  const [goalPfcP, setGoalPfcP] = useState(25)
+  const [goalPfcF, setGoalPfcF] = useState(20)
+  const [goalPfcC, setGoalPfcC] = useState(55)
+  const [goalCalAuto, setGoalCalAuto] = useState(2000)
 
   // お気に入り（デモ）
   const favorites = Object.entries(FOOD_DB).slice(0, 8).map(([name, data]) => ({ name, data }))
@@ -190,6 +223,8 @@ export default function MealPage() {
     return acc
   }, {} as Record<string, MealRecord[]>)
 
+  const DAY_JA = ['日', '月', '火', '水', '木', '金', '土']
+
   const prevDay = () => {
     const d = new Date(currentDate ?? new Date())
     d.setDate(d.getDate() - 1)
@@ -200,9 +235,30 @@ export default function MealPage() {
     d.setDate(d.getDate() + 1)
     setCurrentDate(d)
   }
-  const dateLabel = currentDate
-    ? `${currentDate.getFullYear()}/${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(currentDate.getDate()).padStart(2, '0')}`
-    : '読み込み中...'
+  const jumpToPrevRecordDay = () => {
+    const cur = dateStr
+    const dates = [...new Set(records.map(r => r.mealDate))].sort().reverse()
+    const prev = dates.find(d => d < cur)
+    if (prev) setCurrentDate(new Date(prev + 'T12:00:00'))
+  }
+  const jumpToNextRecordDay = () => {
+    const cur = dateStr
+    const dates = [...new Set(records.map(r => r.mealDate))].sort()
+    const next = dates.find(d => d > cur)
+    if (next) setCurrentDate(new Date(next + 'T12:00:00'))
+  }
+
+  const formatDateLabel = (d: Date): string => {
+    const todayStr = toDateStr(new Date())
+    const yest = new Date(); yest.setDate(yest.getDate() - 1)
+    const base = `${d.getMonth() + 1}/${d.getDate()}（${DAY_JA[d.getDay()]}）`
+    if (toDateStr(d) === todayStr) return `今日 ${base}`
+    if (toDateStr(d) === toDateStr(yest)) return `昨日 ${base}`
+    return base
+  }
+
+  const dateLabel = currentDate ? formatDateLabel(currentDate) : '読み込み中...'
+  const hasRecordToday = todayRecords.length > 0
 
   const deleteRecord = (id: string) => {
     saveRecords(records.filter(r => r.id !== id))
@@ -293,29 +349,44 @@ export default function MealPage() {
     setShowAddModal(false)
   }
 
+  // PFC変更時にカロリー比率を再計算
+  const recalcPfc = (p: number, f: number, c: number, cal: number) => {
+    const grams = pfcToGrams(cal, p, f, c)
+    return grams
+  }
+
   // 目標設定モーダルを開く
   const openGoalModal = () => {
-    setGoalCal(String(goal.cal))
-    setGoalProtein(String(goal.protein))
-    setGoalFat(String(goal.fat))
-    setGoalCarbs(String(goal.carbs))
+    setGoalHeight(goal.height ? String(goal.height) : '')
+    setGoalCurWeight(goal.currentWeight ? String(goal.currentWeight) : '')
     setGoalTargetWeight(goal.targetWeight != null ? String(goal.targetWeight) : '')
-    setGoalStartDate(goal.startDate ?? '')
-    setGoalEndDate(goal.endDate ?? '')
-    setGoalType(goal.goalType ?? '')
+    setGoalActivity(goal.activityLevel ?? 'moderate')
+    setGoalTypeState(goal.goalType ?? 'maintain')
+    const p = goal.pfcP ?? 25, f = goal.pfcF ?? 20, c = goal.pfcC ?? 55
+    setGoalPfcP(p); setGoalPfcF(f); setGoalPfcC(c)
+    setGoalCalAuto(goal.cal)
     setShowGoalModal(true)
   }
 
+  // BMR再計算（フォーム変更時）
+  const triggerCalcCalories = (h: string, w: string, act: string, gt: string) => {
+    const cal = calcAutoCalories(parseFloat(h) || 0, parseFloat(w) || 0, act, gt)
+    setGoalCalAuto(cal)
+  }
+
   const handleSaveGoal = () => {
+    const grams = pfcToGrams(goalCalAuto, goalPfcP, goalPfcF, goalPfcC)
     const newGoal: GoalData = {
-      cal: parseFloat(goalCal) || 2000,
-      protein: parseFloat(goalProtein) || 160,
-      fat: parseFloat(goalFat) || 60,
-      carbs: parseFloat(goalCarbs) || 250,
+      cal: goalCalAuto,
+      protein: grams.protein,
+      fat: grams.fat,
+      carbs: grams.carbs,
       targetWeight: goalTargetWeight ? parseFloat(goalTargetWeight) : undefined,
-      startDate: goalStartDate || undefined,
-      endDate: goalEndDate || undefined,
-      goalType: goalType || undefined,
+      currentWeight: goalCurWeight ? parseFloat(goalCurWeight) : undefined,
+      height: goalHeight ? parseFloat(goalHeight) : undefined,
+      activityLevel: goalActivity,
+      goalType: goalTypeState,
+      pfcP: goalPfcP, pfcF: goalPfcF, pfcC: goalPfcC,
     }
     setGoal(newGoal)
     if (typeof window !== 'undefined') {
@@ -327,6 +398,10 @@ export default function MealPage() {
       } catch { /* ignore */ }
     }
     setShowGoalModal(false)
+  }
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: '12px', fontWeight: 700, color: '#4b5563', marginBottom: '4px', display: 'block',
   }
 
   const inputStyle: React.CSSProperties = {
@@ -372,7 +447,20 @@ export default function MealPage() {
         >
           <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                {/* ◄◄ 前の記録日 */}
+                <button
+                  onClick={jumpToPrevRecordDay}
+                  title="前の記録日"
+                  style={{
+                    width: '28px', height: '28px', borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.2)', color: 'white', fontSize: '10px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  ◄◄
+                </button>
                 <button
                   onClick={prevDay}
                   style={{
@@ -387,7 +475,7 @@ export default function MealPage() {
                 <button
                   onClick={() => setCurrentDate(new Date())}
                   style={{
-                    fontSize: '13px', fontWeight: 700, minWidth: '130px',
+                    fontSize: '13px', fontWeight: 700, minWidth: '140px',
                     textAlign: 'center', color: 'white', padding: '2px 8px',
                     borderRadius: '4px', background: 'none', border: 'none',
                     cursor: 'pointer', fontFamily: 'inherit',
@@ -406,15 +494,30 @@ export default function MealPage() {
                 >
                   ►
                 </button>
+                {/* ▶▶ 次の記録日 */}
+                <button
+                  onClick={jumpToNextRecordDay}
+                  title="次の記録日"
+                  style={{
+                    width: '28px', height: '28px', borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.2)', color: 'white', fontSize: '10px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  ▶▶
+                </button>
               </div>
-              <span
-                style={{
-                  fontSize: '10px', background: 'rgba(255,255,255,0.3)',
-                  borderRadius: '20px', padding: '1px 8px', fontWeight: 500,
-                }}
-              >
-                {todayRecords.length > 0 ? `✓ ${todayRecords.length}件の記録` : '記録なし'}
-              </span>
+              {hasRecordToday && (
+                <span
+                  style={{
+                    fontSize: '10px', background: 'rgba(255,255,255,0.3)',
+                    borderRadius: '20px', padding: '1px 8px', fontWeight: 700,
+                  }}
+                >
+                  ✓ 記録あり
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -1014,123 +1117,141 @@ export default function MealPage() {
       {/* ===== 目標設定モーダル ===== */}
       {showGoalModal && (
         <div
-          style={{
-            display: 'flex', position: 'fixed', inset: 0,
-            background: 'rgba(0,0,0,0.5)', zIndex: 300,
-            alignItems: 'flex-end', justifyContent: 'center',
-          }}
+          style={{ display: 'flex', position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 300, alignItems: 'flex-end', justifyContent: 'center' }}
           onClick={() => setShowGoalModal(false)}
         >
           <div
-            style={{
-              background: 'white', width: '100%', maxWidth: '500px',
-              borderRadius: '24px 24px 0 0', maxHeight: '92vh', overflowY: 'auto',
-            }}
+            style={{ background: 'white', width: '100%', maxWidth: '500px', borderRadius: '24px 24px 0 0', maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div
-              style={{
-                position: 'sticky', top: 0, background: 'white',
-                borderBottom: '1px solid #f0f0f0', padding: '16px 20px',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                borderRadius: '24px 24px 0 0', zIndex: 10,
-              }}
-            >
-              <p style={{ fontWeight: 700, color: '#111827', fontSize: '15px' }}>⚙ 目標設定</p>
-              <button
-                onClick={() => setShowGoalModal(false)}
-                style={{
-                  fontSize: '20px', color: '#9ca3af', width: '32px', height: '32px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: 'none', border: 'none', cursor: 'pointer',
-                }}
-              >
-                ✕
-              </button>
+            {/* ヘッダー */}
+            <div style={{ position: 'sticky', top: 0, background: 'white', borderBottom: '1px solid #f0f0f0', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: '24px 24px 0 0', zIndex: 10 }}>
+              <div>
+                <p style={{ fontWeight: 700, color: '#111827', fontSize: '15px', margin: 0 }}>目標・プロフィール設定</p>
+                <p style={{ fontSize: '11px', color: '#9ca3af', margin: '2px 0 0' }}>カロリーとPFCが自動計算されます</p>
+              </div>
+              <button onClick={() => setShowGoalModal(false)} style={{ fontSize: '20px', color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
             </div>
-            <div style={{ padding: '20px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
-                {[
-                  { label: 'カロリー目標 (kcal)', value: goalCal, set: setGoalCal, placeholder: '2000' },
-                  { label: 'たんぱく質目標 (g)', value: goalProtein, set: setGoalProtein, placeholder: '160' },
-                  { label: '脂質目標 (g)', value: goalFat, set: setGoalFat, placeholder: '60' },
-                  { label: '炭水化物目標 (g)', value: goalCarbs, set: setGoalCarbs, placeholder: '250' },
-                ].map((f) => (
-                  <div key={f.label}>
-                    <label style={{ fontSize: '12px', fontWeight: 700, color: '#4b5563', marginBottom: '4px', display: 'block' }}>
-                      {f.label}
-                    </label>
-                    <input
-                      type="number"
-                      value={f.value}
-                      onChange={(e) => f.set(e.target.value)}
-                      placeholder={f.placeholder}
-                      style={inputStyle}
-                    />
-                  </div>
-                ))}
-              </div>
+            <div style={{ overflowY: 'auto', flex: 1, padding: '20px' }}>
+              {/* 身長 */}
               <div style={{ marginBottom: '14px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: '#4b5563', marginBottom: '4px', display: 'block' }}>
-                  目標体重 (kg)
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={goalTargetWeight}
-                  onChange={(e) => setGoalTargetWeight(e.target.value)}
-                  placeholder="例：65.0"
-                  style={inputStyle}
-                />
+                <label style={labelStyle}>身長 (cm)</label>
+                <input type="number" value={goalHeight} placeholder="170"
+                  onChange={(e) => { setGoalHeight(e.target.value); triggerCalcCalories(e.target.value, goalCurWeight, goalActivity, goalTypeState) }}
+                  style={inputStyle} />
               </div>
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: '#4b5563', marginBottom: '4px', display: 'block' }}>
-                  目標タイプ
-                </label>
-                <select
-                  value={goalType}
-                  onChange={(e) => setGoalType(e.target.value)}
-                  style={inputStyle}
-                >
-                  <option value="">選択してください</option>
-                  <option value="減量">減量</option>
-                  <option value="増量">増量</option>
-                  <option value="維持">維持</option>
-                  <option value="バルクアップ">バルクアップ</option>
-                </select>
-              </div>
+              {/* 体重 */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
                 <div>
-                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#4b5563', marginBottom: '4px', display: 'block' }}>
-                    開始日
-                  </label>
-                  <input
-                    type="date"
-                    value={goalStartDate}
-                    onChange={(e) => setGoalStartDate(e.target.value)}
-                    style={inputStyle}
-                  />
+                  <label style={labelStyle}>現在の体重 (kg)</label>
+                  <input type="number" step="0.1" value={goalCurWeight} placeholder="65.0"
+                    onChange={(e) => { setGoalCurWeight(e.target.value); triggerCalcCalories(goalHeight, e.target.value, goalActivity, goalTypeState) }}
+                    style={inputStyle} />
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#4b5563', marginBottom: '4px', display: 'block' }}>
-                    終了日
-                  </label>
-                  <input
-                    type="date"
-                    value={goalEndDate}
-                    onChange={(e) => setGoalEndDate(e.target.value)}
-                    style={inputStyle}
-                  />
+                  <label style={labelStyle}>目標体重 (kg)</label>
+                  <input type="number" step="0.1" value={goalTargetWeight} placeholder="60.0"
+                    onChange={(e) => setGoalTargetWeight(e.target.value)}
+                    style={inputStyle} />
+                </div>
+              </div>
+              {/* 活動レベル */}
+              <div style={{ marginBottom: '14px' }}>
+                <label style={labelStyle}>活動レベル</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {Object.entries(ACTIVITY_LABELS).map(([val, lbl]) => (
+                    <button key={val} type="button"
+                      onClick={() => { setGoalActivity(val); triggerCalcCalories(goalHeight, goalCurWeight, val, goalTypeState) }}
+                      style={{
+                        padding: '10px 14px', borderRadius: '10px', textAlign: 'left',
+                        fontSize: '13px', fontWeight: 600, fontFamily: 'inherit',
+                        border: goalActivity === val ? '2px solid #22C55E' : '1.5px solid #e5e7eb',
+                        background: goalActivity === val ? '#f0fdf4' : 'white',
+                        color: goalActivity === val ? '#16a34a' : '#374151',
+                        cursor: 'pointer',
+                      }}
+                    >{lbl}</button>
+                  ))}
+                </div>
+              </div>
+              {/* 目標タイプ */}
+              <div style={{ marginBottom: '14px' }}>
+                <label style={labelStyle}>目標</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '8px' }}>
+                  {[['lose_weight','体重を減らす'],['maintain','体重を維持する'],['gain_muscle','筋肉をつける']].map(([val, lbl]) => (
+                    <button key={val} type="button"
+                      onClick={() => { setGoalTypeState(val); triggerCalcCalories(goalHeight, goalCurWeight, goalActivity, val) }}
+                      style={{
+                        padding: '10px 8px', borderRadius: '10px', fontSize: '12px',
+                        fontWeight: 700, fontFamily: 'inherit',
+                        border: goalTypeState === val ? '2px solid #22C55E' : '1.5px solid #e5e7eb',
+                        background: goalTypeState === val ? '#f0fdf4' : 'white',
+                        color: goalTypeState === val ? '#16a34a' : '#374151',
+                        cursor: 'pointer',
+                      }}
+                    >{lbl}</button>
+                  ))}
+                </div>
+              </div>
+              {/* 自動計算カロリー表示 */}
+              <div style={{ background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: '12px', padding: '12px 16px', marginBottom: '14px' }}>
+                <div style={{ fontSize: '11px', color: '#16a34a', fontWeight: 700, marginBottom: '4px' }}>🔥 自動計算カロリー目標</div>
+                <div style={{ fontSize: '28px', fontWeight: 900, color: '#15803d' }}>{goalCalAuto.toLocaleString()} <span style={{ fontSize: '14px' }}>kcal/日</span></div>
+                <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px' }}>身長・体重・活動レベル・目標から自動計算されます</div>
+              </div>
+              {/* PFC比率 */}
+              <div style={{ border: '1.5px solid #e5e7eb', borderRadius: '12px', padding: '14px', marginBottom: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151' }}>🥩 PFC比率設定</span>
+                  <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: (goalPfcP + goalPfcF + goalPfcC) === 100 ? '#dcfce7' : '#fee2e2', color: (goalPfcP + goalPfcF + goalPfcC) === 100 ? '#16a34a' : '#dc2626' }}>
+                    合計 {goalPfcP + goalPfcF + goalPfcC}%
+                  </span>
+                </div>
+                {/* プリセット */}
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' as const }}>
+                  {[['標準',25,20,55],['減量重視',30,25,45],['筋肉重視',35,25,40],['ケトジェニック',20,70,10]].map(([lbl,p,f,c]) => (
+                    <button key={lbl as string} type="button"
+                      onClick={() => { setGoalPfcP(p as number); setGoalPfcF(f as number); setGoalPfcC(c as number) }}
+                      style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 600, border: '1.5px solid #e5e7eb', background: 'white', cursor: 'pointer', fontFamily: 'inherit' }}
+                    >{lbl as string}</button>
+                  ))}
+                </div>
+                {/* スライダー */}
+                {[
+                  { key: 'P', label: 'タンパク質', val: goalPfcP, set: setGoalPfcP, color: '#3b82f6' },
+                  { key: 'F', label: '脂質', val: goalPfcF, set: setGoalPfcF, color: '#f59e0b' },
+                  { key: 'C', label: '炭水化物', val: goalPfcC, set: setGoalPfcC, color: '#22c55e' },
+                ].map(({ key, label, val, set, color }) => {
+                  const grams = key === 'P' ? Math.round((val/100)*goalCalAuto/4) : key === 'F' ? Math.round((val/100)*goalCalAuto/9) : Math.round((val/100)*goalCalAuto/4)
+                  return (
+                    <div key={key} style={{ marginBottom: '10px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: '#374151' }}>{label}</span>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color }}>{val}% ({grams}g)</span>
+                      </div>
+                      <input type="range" min={5} max={80} value={val}
+                        onChange={(e) => set(Number(e.target.value))}
+                        style={{ width: '100%', accentColor: color }} />
+                    </div>
+                  )
+                })}
+                {/* 保存後のPFC表示プレビュー */}
+                <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                  {[
+                    { lbl: 'タンパク質', g: Math.round((goalPfcP/100)*goalCalAuto/4), color: '#3b82f6' },
+                    { lbl: '脂質', g: Math.round((goalPfcF/100)*goalCalAuto/9), color: '#f59e0b' },
+                    { lbl: '炭水化物', g: Math.round((goalPfcC/100)*goalCalAuto/4), color: '#22c55e' },
+                  ].map(({ lbl, g, color }) => (
+                    <div key={lbl} style={{ flex: 1, textAlign: 'center', background: '#f9fafb', borderRadius: '8px', padding: '8px' }}>
+                      <div style={{ fontSize: '16px', fontWeight: 800, color }}>{g}g</div>
+                      <div style={{ fontSize: '10px', color: '#6b7280' }}>{lbl}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
               <button
                 onClick={handleSaveGoal}
-                style={{
-                  width: '100%', background: '#22C55E', color: 'white',
-                  fontWeight: 700, padding: '12px', borderRadius: '12px',
-                  fontSize: '15px', marginTop: '8px', border: 'none',
-                  cursor: 'pointer', fontFamily: 'inherit',
-                }}
+                style={{ width: '100%', background: '#22C55E', color: 'white', fontWeight: 700, padding: '14px', borderRadius: '12px', fontSize: '15px', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
               >
                 保存する
               </button>

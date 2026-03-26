@@ -51,9 +51,14 @@ export default function ReservePage() {
       else {
         // デフォルトスロット
         const defaults: TimeSlot[] = [
-          { id: '1', time: '09:00', label: '朝の栄養相談', maxSlots: 1, daysOfWeek: [1, 2, 3, 4, 5], enabled: true },
-          { id: '2', time: '13:00', label: '昼の栄養相談', maxSlots: 2, daysOfWeek: [1, 2, 3, 4, 5], enabled: true },
-          { id: '3', time: '17:00', label: '夕方の栄養相談', maxSlots: 1, daysOfWeek: [1, 2, 3, 4, 5], enabled: true },
+          { id: 'ts1', time: '09:00', label: '朝の栄養相談', maxSlots: 1, daysOfWeek: [1, 2, 3, 4, 5], enabled: true },
+          { id: 'ts2', time: '10:00', label: '午前の栄養相談', maxSlots: 1, daysOfWeek: [1, 2, 3, 4, 5], enabled: true },
+          { id: 'ts3', time: '11:00', label: '午前の栄養相談', maxSlots: 1, daysOfWeek: [1, 2, 3, 4, 5], enabled: true },
+          { id: 'ts4', time: '13:00', label: '午後の栄養相談', maxSlots: 1, daysOfWeek: [1, 2, 3, 4, 5], enabled: true },
+          { id: 'ts5', time: '14:00', label: '午後の栄養相談', maxSlots: 1, daysOfWeek: [1, 2, 3, 4, 5], enabled: true },
+          { id: 'ts6', time: '15:00', label: '午後の栄養相談', maxSlots: 1, daysOfWeek: [1, 2, 3, 4, 5], enabled: true },
+          { id: 'ts7', time: '16:00', label: '夕方の栄養相談', maxSlots: 1, daysOfWeek: [1, 2, 3, 4, 5], enabled: true },
+          { id: 'ts8', time: '17:00', label: '夕方の栄養相談', maxSlots: 1, daysOfWeek: [1, 2, 3, 4, 5], enabled: true },
         ]
         setTimeSlots(defaults)
       }
@@ -249,51 +254,61 @@ export default function ReservePage() {
         </div>
 
         {/* 選択日のスロット */}
-        {selectedDate && (
-          <div
-            style={{
-              background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px',
-              padding: '16px', marginBottom: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-            }}
-          >
-            <p style={{ fontSize: '14px', fontWeight: 800, color: '#111827', margin: '0 0 12px' }}>
-              {selectedDate} の空きスロット
-            </p>
-            {selectedSlots.length === 0 ? (
-              <p style={{ textAlign: 'center', color: '#9ca3af', fontSize: '12px', padding: '16px 0' }}>
-                この日は予約できる時間がありません
+        {selectedDate && (() => {
+          const d = new Date(selectedDate + 'T12:00:00')
+          const dow = d.getDay()
+          const dateLabel = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${DAY_LABELS[dow]}）`
+          return (
+            <div
+              style={{
+                background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px',
+                padding: '16px', marginBottom: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+              }}
+            >
+              <p style={{ fontSize: '14px', fontWeight: 800, color: '#111827', margin: '0 0 12px' }}>
+                {dateLabel} の空き時間
               </p>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-                {selectedSlots.map((slot) => {
-                  const booked = isSlotBooked(selectedDate, slot.time)
-                  return (
-                    <button
-                      key={slot.id}
-                      disabled={booked}
-                      onClick={() => !booked && openConfirm(selectedDate, slot.time)}
-                      style={{
-                        padding: '12px 8px', borderRadius: '10px',
-                        border: booked ? '1px solid #f0f0f0' : '1.5px solid #0ea5e9',
-                        background: booked ? '#f9fafb' : '#f0f9ff',
-                        color: booked ? '#9ca3af' : '#0369a1',
-                        fontSize: '13px', fontWeight: 700,
-                        cursor: booked ? 'not-allowed' : 'pointer',
-                        fontFamily: 'inherit',
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
-                      }}
-                    >
-                      <span>{slot.time}</span>
-                      <span style={{ fontSize: '9px', fontWeight: 600 }}>
-                        {booked ? '予約済' : '空き'}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        )}
+              {selectedSlots.length === 0 ? (
+                <p style={{ textAlign: 'center', color: '#9ca3af', fontSize: '12px', padding: '16px 0' }}>
+                  この日は予約できる時間がありません
+                </p>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                  {selectedSlots.map((slot) => {
+                    const booked = isSlotBooked(selectedDate, slot.time)
+                    const isMyBooking = reservations.some(
+                      r => r.date === selectedDate && r.time === slot.time && r.status !== 'cancelled'
+                    )
+                    const btnStyle = isMyBooking
+                      ? { border: '1.5px solid #0ea5e9', background: '#0ea5e9', color: 'white', cursor: 'not-allowed' }
+                      : booked
+                      ? { border: '1px solid #f59e0b', background: '#fef3c7', color: '#d97706', cursor: 'not-allowed' }
+                      : { border: '1.5px solid #0ea5e9', background: 'white', color: '#0284c7', cursor: 'pointer' }
+                    return (
+                      <button
+                        key={slot.id}
+                        disabled={booked}
+                        onClick={() => !booked && openConfirm(selectedDate, slot.time)}
+                        style={{
+                          padding: '10px 8px', borderRadius: '8px',
+                          fontSize: '12px', fontWeight: 700,
+                          fontFamily: 'inherit',
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px',
+                          ...btnStyle,
+                        }}
+                      >
+                        <span style={{ fontSize: '14px' }}>{slot.time}</span>
+                        <span style={{ fontSize: '10px', fontWeight: 600 }}>
+                          {isMyBooking ? '予約済み' : booked ? '満席' : slot.label}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )
+        })()}
 
         {/* 予約一覧 */}
         <div
@@ -397,7 +412,7 @@ export default function ReservePage() {
             </div>
             <div style={{ padding: '16px 20px 24px' }}>
               {[
-                { label: '日付', value: confirmSlot.date },
+                { label: '日付', value: (() => { const d = new Date(confirmSlot.date + 'T12:00:00'); return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${DAY_LABELS[d.getDay()]}）` })() },
                 { label: '時間', value: confirmSlot.time },
                 { label: '担当', value: confirmSlot.staffName },
               ].map((row) => (
