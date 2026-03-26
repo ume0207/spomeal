@@ -78,7 +78,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         'line_items[0][quantity]': '1',
         'mode': 'subscription',
         'subscription_data[trial_period_days]': '14',
-        'success_url': `${appUrl}/dashboard/?success=true`,
+        'success_url': `${appUrl}/home/?success=true`,
         'cancel_url': `${appUrl}/plans/?cancelled=true`,
       }),
     })
