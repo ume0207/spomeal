@@ -14,14 +14,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type',
 }
 
-async function getAccessToken(env: Env): Promise<string> {
+async function getAccessToken(env: Env, refreshToken: string): Promise<string> {
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       client_id: env.GOOGLE_CLIENT_ID,
       client_secret: env.GOOGLE_CLIENT_SECRET,
-      refresh_token: env.GOOGLE_REFRESH_TOKEN,
+      refresh_token: refreshToken,
       grant_type: 'refresh_token',
     }),
   })
@@ -65,7 +65,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const startDateTime = `${date}T${pad(hour)}:${pad(min)}:00+09:00`
     const endDateTime = `${date}T${pad(endHour)}:${pad(endMin)}:00+09:00`
 
-    const accessToken = await getAccessToken(env)
+    const accessToken = await getAccessToken(env, effectiveRefreshToken)
     const calendarId = env.GOOGLE_CALENDAR_ID || 'spomeal20260323@gmail.com'
 
     const event = {
