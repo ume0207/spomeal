@@ -106,7 +106,7 @@ export default function MealPage() {
   const [goal, setGoal] = useState<GoalData>(defaultGoal)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showGoalModal, setShowGoalModal] = useState(false)
-  const [currentDate, setCurrentDate] = useState(new Date())
+  const [currentDate, setCurrentDate] = useState<Date | null>(null)
   const [activeMealType, setActiveMealType] = useState<string>('lunch')
 
   // モーダルタブ
@@ -139,6 +139,11 @@ export default function MealPage() {
   // お気に入り（デモ）
   const favorites = Object.entries(FOOD_DB).slice(0, 8).map(([name, data]) => ({ name, data }))
 
+  // 日付初期化（hydration安全）
+  useEffect(() => {
+    setCurrentDate(new Date())
+  }, [])
+
   // localStorage読み込み
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -162,8 +167,8 @@ export default function MealPage() {
     }
   }, [])
 
-  // 当日フィルタ
-  const dateStr = toDateStr(currentDate)
+  // 当日フィルタ（currentDate が null の間はローディング扱い）
+  const dateStr = currentDate ? toDateStr(currentDate) : ''
   const todayRecords = records.filter(r => r.mealDate === dateStr)
 
   const totals = todayRecords.reduce(
@@ -186,16 +191,18 @@ export default function MealPage() {
   }, {} as Record<string, MealRecord[]>)
 
   const prevDay = () => {
-    const d = new Date(currentDate)
+    const d = new Date(currentDate ?? new Date())
     d.setDate(d.getDate() - 1)
     setCurrentDate(d)
   }
   const nextDay = () => {
-    const d = new Date(currentDate)
+    const d = new Date(currentDate ?? new Date())
     d.setDate(d.getDate() + 1)
     setCurrentDate(d)
   }
-  const dateLabel = `${currentDate.getFullYear()}/${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(currentDate.getDate()).padStart(2, '0')}`
+  const dateLabel = currentDate
+    ? `${currentDate.getFullYear()}/${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(currentDate.getDate()).padStart(2, '0')}`
+    : '読み込み中...'
 
   const deleteRecord = (id: string) => {
     saveRecords(records.filter(r => r.id !== id))
@@ -624,7 +631,7 @@ export default function MealPage() {
       </div>
 
       {/* ===== FAB ===== */}
-      <div style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', zIndex: 50 }}>
+      <div style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', zIndex: 200 }}>
         <button
           onClick={() => openAddModal()}
           style={{
