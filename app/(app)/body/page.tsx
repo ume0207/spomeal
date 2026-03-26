@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface BodyRecord {
   date: string
@@ -30,11 +30,62 @@ const weekWeights = demoRecords.map((r) => r.weight).reverse()
 const minW = Math.min(...weekWeights) - 0.5
 const maxW = Math.max(...weekWeights) + 0.5
 
+const CUPS_GOAL = 8 // 1日の目標コップ数（1600ml）
+
 export default function BodyPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [newWeight, setNewWeight] = useState('')
   const [newBodyFat, setNewBodyFat] = useState('')
   const [newMuscle, setNewMuscle] = useState('')
+  const [targetWeight, setTargetWeight] = useState<number | null>(null)
+  const [waterCups, setWaterCups] = useState(0)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // 目標体重の読み込み
+      try {
+        const raw = localStorage.getItem('goals_v1')
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          if (parsed['__default__']?.targetWeight != null) {
+            setTargetWeight(parsed['__default__'].targetWeight)
+          }
+        }
+      } catch {
+        // ignore
+      }
+
+      // 水分摂取量の読み込み
+      try {
+        const today = new Date().toISOString().slice(0, 10)
+        const raw = localStorage.getItem('waterLog_v1')
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          if (parsed[today] != null) {
+            setWaterCups(parsed[today])
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }, [])
+
+  const updateWaterCups = (newCount: number) => {
+    if (newCount < 0) return
+    setWaterCups(newCount)
+    if (typeof window !== 'undefined') {
+      try {
+        const today = new Date().toISOString().slice(0, 10)
+        const raw = localStorage.getItem('waterLog_v1')
+        const parsed = raw ? JSON.parse(raw) : {}
+        parsed[today] = newCount
+        localStorage.setItem('waterLog_v1', JSON.stringify(parsed))
+      } catch {
+        // ignore
+      }
+    }
+  }
 
   const latest = demoRecords[0]
   const prev = demoRecords[1]
@@ -46,6 +97,8 @@ export default function BodyPage() {
   const bmiLabel = bmi < 18.5 ? '低体重' : bmi < 25 ? '普通体重' : bmi < 30 ? '肥満(1度)' : '肥満(2度以上)'
   const bmiColor = bmi < 18.5 ? '#3b82f6' : bmi < 25 ? '#22c55e' : bmi < 30 ? '#f59e0b' : '#ef4444'
   const bmiPct = Math.min(Math.max(((bmi - 15) / (35 - 15)) * 100, 0), 100)
+
+  const diffToTarget = targetWeight != null ? (latest.weight - targetWeight).toFixed(1) : null
 
   const inputStyle: React.CSSProperties = {
     width: '100%',
@@ -82,6 +135,31 @@ export default function BodyPage() {
             <span>＋</span> データ記録
           </button>
         </div>
+
+        {/* ===== 目標体重バナー ===== */}
+        {targetWeight != null && diffToTarget != null && (
+          <div
+            style={{
+              background: '#f0fdf4', border: '1px solid #22c55e', borderRadius: '14px',
+              padding: '12px 16px', marginBottom: '16px',
+              display: 'flex', alignItems: 'center', gap: '12px',
+            }}
+          >
+            <span style={{ fontSize: '24px' }}>🎯</span>
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#15803d' }}>
+                目標体重: {targetWeight} kg
+              </div>
+              <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>
+                {parseFloat(diffToTarget) > 0
+                  ? `あと ${diffToTarget} kg 減量`
+                  : parseFloat(diffToTarget) < 0
+                    ? `目標まで ${Math.abs(parseFloat(diffToTarget))} kg 増量`
+                    : '目標達成！'}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ===== 統計グリッド（4列）===== */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '16px' }}
@@ -191,6 +269,77 @@ export default function BodyPage() {
               <span key={d} style={{ fontSize: '9px', color: '#9ca3af' }}>{d}</span>
             ))}
           </div>
+          </div>
+        </div>
+
+        {/* ===== 水分摂取量カード ===== */}
+        <div
+          style={{
+            background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '16px',
+          }}
+        >
+          <div style={{ padding: '16px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '15px', fontWeight: 700, color: '#111827' }}>💧 今日の水分摂取</span>
+            <span style={{ fontSize: '12px', color: '#06b6d4', fontWeight: 700 }}>
+              {waterCups * 200} ml / {CUPS_GOAL * 200} ml
+            </span>
+          </div>
+          <div style={{ padding: '12px 16px 16px' }}>
+            {/* コップのアイコン表示 */}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
+              {Array.from({ length: CUPS_GOAL }).map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => updateWaterCups(i < waterCups ? i : i + 1)}
+                  style={{
+                    width: '36px', height: '44px', borderRadius: '6px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '22px', background: 'none', border: 'none', cursor: 'pointer',
+                    opacity: i < waterCups ? 1 : 0.25,
+                    transition: 'opacity 0.2s',
+                  }}
+                  title={`${(i + 1) * 200} ml`}
+                >
+                  🥤
+                </button>
+              ))}
+            </div>
+            {/* プログレスバー */}
+            <div style={{ width: '100%', height: '8px', background: '#e0f7fa', borderRadius: '20px', overflow: 'hidden', marginBottom: '8px' }}>
+              <div
+                style={{
+                  height: '100%', borderRadius: '20px',
+                  width: `${Math.min((waterCups / CUPS_GOAL) * 100, 100)}%`,
+                  background: 'linear-gradient(90deg, #06b6d4, #0ea5e9)',
+                  transition: 'width 0.4s',
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => updateWaterCups(waterCups - 1)}
+                disabled={waterCups === 0}
+                style={{
+                  flex: 1, padding: '8px', borderRadius: '8px',
+                  border: '1px solid #e5e7eb', background: 'white', color: '#374151',
+                  fontWeight: 600, fontSize: '13px', cursor: waterCups === 0 ? 'not-allowed' : 'pointer',
+                  opacity: waterCups === 0 ? 0.4 : 1, fontFamily: 'inherit',
+                }}
+              >
+                − 1杯
+              </button>
+              <button
+                onClick={() => updateWaterCups(waterCups + 1)}
+                style={{
+                  flex: 1, padding: '8px', borderRadius: '8px',
+                  border: '1px solid #06b6d4', background: '#ecfeff', color: '#0e7490',
+                  fontWeight: 700, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                ＋ 1杯 (200ml)
+              </button>
+            </div>
           </div>
         </div>
 
