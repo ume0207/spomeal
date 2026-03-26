@@ -59,14 +59,8 @@ export default function LoginPage() {
           opacity: 0.15,
           pointerEvents: 'none',
           zIndex: 0,
-          overflow: 'hidden',
         }}
-      >
-        <div style={{
-          position: 'absolute', inset: 0, borderRadius: '50%',
-          background: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.25) 10px, rgba(255,255,255,0.25) 12px)',
-        }} />
-      </div>
+      />
       {/* 左下グリーン装飾ブロック */}
       <div
         style={{
@@ -80,14 +74,8 @@ export default function LoginPage() {
           opacity: 0.13,
           pointerEvents: 'none',
           zIndex: 0,
-          overflow: 'hidden',
         }}
-      >
-        <div style={{
-          position: 'absolute', inset: 0, borderRadius: '50%',
-          background: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.25) 10px, rgba(255,255,255,0.25) 12px)',
-        }} />
-      </div>
+      />
 
       <div
         style={{
