@@ -1,12 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const isPaid = searchParams.get('paid') === 'true'
+  const redirect = searchParams.get('redirect') || '/home'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -31,7 +34,7 @@ export default function LoginPage() {
       return
     }
 
-    router.push('/dashboard')
+    router.push(redirect)
     router.refresh()
   }
 
@@ -191,6 +194,15 @@ export default function LoginPage() {
               gap: '10px',
             }}
           >
+            {isPaid && (
+              <div style={{
+                background: '#f0fdf4', border: '1.5px solid #22c55e', borderRadius: '12px',
+                padding: '12px 16px', marginBottom: '16px', textAlign: 'center',
+                fontSize: '14px', color: '#16a34a', fontWeight: 700,
+              }}>
+                ✅ 決済が完了しました！ログインしてご利用ください。
+              </div>
+            )}
             <span style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
             LOGIN
             <span style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
@@ -418,5 +430,13 @@ export default function LoginPage() {
         }
       `}</style>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   )
 }

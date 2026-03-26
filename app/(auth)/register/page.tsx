@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const isPaid = searchParams.get('paid') === 'true'
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
@@ -468,22 +470,23 @@ export default function RegisterPage() {
             </p>
             <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', marginBottom: '24px' }}>
               会員登録が完了しました。<br />
-              ログインページからお入りください。
+              ログインしてプランを選択してください。
             </p>
             <Link
-              href="/login"
+              href="/plans"
               style={{
                 display: 'inline-block',
-                padding: '12px 32px',
+                padding: '14px 32px',
                 background: 'linear-gradient(135deg, #22c55e, #16a34a)',
                 color: 'white',
                 fontWeight: 800,
                 borderRadius: '12px',
                 fontSize: '15px',
                 textDecoration: 'none',
+                marginBottom: '12px',
               }}
             >
-              ログインページへ →
+              続けてプランを選択・決済する →
             </Link>
           </div>
         </div>
@@ -494,5 +497,13 @@ export default function RegisterPage() {
         <Link href="/login" style={{ color: 'rgba(255,255,255,0.5)' }}>ログインへ</Link>
       </p>
     </div>
+  )
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterForm />
+    </Suspense>
   )
 }
