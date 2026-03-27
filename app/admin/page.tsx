@@ -1,11 +1,23 @@
 'use client'
 
 import Link from 'next/link'
+import { useState, useEffect } from 'react'
 
 export default function AdminDashboardPage() {
+  const [memberCount, setMemberCount] = useState<number | null>(null)
+
+  useEffect(() => {
+    fetch('/api/admin/members')
+      .then((r) => r.json())
+      .then((data: { members?: unknown[] }) => {
+        if (data.members) setMemberCount(data.members.length)
+      })
+      .catch(() => {})
+  }, [])
+
   const stats = [
-    { label: '総会員数', value: '—', icon: '👥', color: '#2563eb' },
-    { label: 'アクティブ会員', value: '—', icon: '✅', color: '#16a34a' },
+    { label: '総会員数', value: memberCount !== null ? String(memberCount) : '—', icon: '👥', color: '#2563eb' },
+    { label: 'アクティブ会員', value: memberCount !== null ? String(memberCount) : '—', icon: '✅', color: '#16a34a' },
     { label: '今日の食事記録', value: '—', icon: '🍽', color: '#22c55e' },
     { label: '今日の体組成測定', value: '—', icon: '📊', color: '#f97316' },
   ]

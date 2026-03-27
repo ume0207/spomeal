@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface Member {
   id: string
@@ -50,6 +50,17 @@ export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>(demoMembers)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
+
+  useEffect(() => {
+    fetch('/api/admin/members')
+      .then((r) => r.json())
+      .then((data: { members?: Member[] }) => {
+        if (data.members && data.members.length > 0) {
+          setMembers(data.members.map((m) => ({ ...m, status: 'active' as const })))
+        }
+      })
+      .catch(() => {})
+  }, [])
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showDetail, setShowDetail] = useState<Member | null>(null)
