@@ -3,24 +3,32 @@
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
 
+interface Stats {
+  totalMembers: number
+  trialing: number
+  active: number
+  cancelled30d: number
+  planCount: { light: number; standard: number; premium: number }
+  newThisMonth: number
+  monthlyRevenue: number
+  churnRate: number
+  retentionRate: number
+}
+
 export default function AdminDashboardPage() {
-  const [memberCount, setMemberCount] = useState<number | null>(null)
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/admin/members')
+    fetch('/api/admin/stats')
       .then((r) => r.json())
-      .then((data: { members?: unknown[] }) => {
-        if (data.members) setMemberCount(data.members.length)
-      })
-      .catch(() => {})
+      .then((data: Stats) => { setStats(data); setLoading(false) })
+      .catch(() => setLoading(false))
   }, [])
 
-  const stats = [
-    { label: '総会員数', value: memberCount !== null ? String(memberCount) : '—', icon: '👥', color: '#2563eb' },
-    { label: 'アクティブ会員', value: memberCount !== null ? String(memberCount) : '—', icon: '✅', color: '#16a34a' },
-    { label: '今日の食事記録', value: '—', icon: '🍽', color: '#22c55e' },
-    { label: '今日の体組成測定', value: '—', icon: '📊', color: '#f97316' },
-  ]
+  const fmt = (v: number | undefined) => loading ? '…' : (v ?? 0).toLocaleString()
+  const now = new Date()
+  const monthLabel = `${now.getMonth() + 1}月`
 
   const quickLinks = [
     { label: '会員を登録', icon: '👥', color: '#2563eb', bg: '#eff6ff', href: '/admin/members' },
@@ -35,175 +43,83 @@ export default function AdminDashboardPage() {
     { label: 'シフト管理', icon: '📋', color: '#4f46e5', bg: '#eef2ff', href: '/admin/shift' },
   ]
 
+  const card = (icon: string, label: string, value: string, color: string) => (
+    <div style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: '14px', padding: '14px 16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+      <span style={{ fontSize: '20px' }}>{icon}</span>
+      <div style={{ fontSize: '24px', fontWeight: 900, color, lineHeight: 1.3, marginTop: '4px' }}>{value}</div>
+      <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>{label}</div>
+    </div>
+  )
+
   return (
     <div style={{ fontFamily: "'Helvetica Neue', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif", color: '#1a1a1a' }}>
-      {/* ページヘッダー */}
-      <div
-        style={{
-          background: '#2563eb',
-          color: 'white',
-          padding: '20px 20px 16px',
-          marginBottom: '20px',
-          borderRadius: '16px',
-        }}
-      >
-        <h1 style={{ fontSize: '20px', fontWeight: 900, margin: '0 0 4px', color: 'white' }}>
-          管理者ダッシュボード
-        </h1>
+      {/* ヘッダー */}
+      <div style={{ background: '#2563eb', color: 'white', padding: '20px 20px 16px', marginBottom: '20px', borderRadius: '16px' }}>
+        <h1 style={{ fontSize: '20px', fontWeight: 900, margin: '0 0 4px', color: 'white' }}>管理者ダッシュボード</h1>
         <p style={{ fontSize: '12px', margin: 0, color: 'rgba(255,255,255,0.7)' }}>
-          読み込み中...
+          {loading ? '読み込み中...' : `${now.getFullYear()}年${monthLabel} データ`}
         </p>
       </div>
 
-      {/* 統計グリッド */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, 1fr)',
-          gap: '10px',
-          marginBottom: '16px',
-        }}
-      >
-        {stats.map((stat) => (
-          <div
-            key={stat.label}
-            style={{
-              background: 'white',
-              border: '1px solid #f0f0f0',
-              borderRadius: '14px',
-              padding: '14px 16px',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '4px',
-            }}
-          >
-            <span style={{ fontSize: '22px' }}>{stat.icon}</span>
-            <span style={{ fontSize: '24px', fontWeight: 900, color: stat.color, lineHeight: 1.2 }}>
-              {stat.value}
-            </span>
-            <span style={{ fontSize: '11px', color: '#6b7280' }}>{stat.label}</span>
-          </div>
-        ))}
+      {/* 会員数サマリー */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '16px' }}>
+        {card('👥', '総会員数', fmt(stats?.totalMembers), '#2563eb')}
+        {card('🆓', '無料トライアル', fmt(stats?.trialing), '#f59e0b')}
+        {card('✅', 'アクティブ会員', fmt(stats?.active), '#16a34a')}
+        {card('📅', `${monthLabel}新規契約`, fmt(stats?.newThisMonth), '#8b5cf6')}
       </div>
 
-      {/* クイックアクション */}
-      <div
-        style={{
-          background: 'white',
-          border: '1px solid #f0f0f0',
-          borderRadius: '16px',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-          marginBottom: '16px',
-        }}
-      >
-        <div style={{ padding: '14px 16px 0', display: 'flex', alignItems: 'center' }}>
-          <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151' }}>⚡ クイックアクション</span>
-        </div>
-        <div
-          style={{
-            padding: '14px 16px',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: '8px',
-          }}
-        >
-          {quickLinks.map((link) => (
-            <Link
-              key={link.label}
-              href={link.href}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 12px',
-                borderRadius: '10px',
-                background: link.bg,
-                color: link.color,
-                fontWeight: 700,
-                fontSize: '12px',
-                textDecoration: 'none',
-                border: `1px solid ${link.color}22`,
-                transition: 'all 0.15s',
-              }}
-            >
-              <span style={{ fontSize: '16px' }}>{link.icon}</span>
-              {link.label}
-            </Link>
+      {/* プラン別内訳 */}
+      <div style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px', padding: '16px', marginBottom: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+        <div style={{ fontSize: '13px', fontWeight: 700, color: '#374151', marginBottom: '12px' }}>📋 プラン別契約数</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+          {[
+            { label: 'ライト', value: fmt(stats?.planCount?.light), color: '#22c55e', bg: '#f0fdf4' },
+            { label: 'スタンダード', value: fmt(stats?.planCount?.standard), color: '#2563eb', bg: '#eff6ff' },
+            { label: 'プレミアム', value: fmt(stats?.planCount?.premium), color: '#7c3aed', bg: '#f5f3ff' },
+          ].map((p) => (
+            <div key={p.label} style={{ background: p.bg, borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
+              <div style={{ fontSize: '20px', fontWeight: 900, color: p.color }}>{p.value}</div>
+              <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '2px' }}>{p.label}</div>
+            </div>
           ))}
         </div>
       </div>
 
-      {/* 会員一覧 */}
-      <div
-        style={{
-          background: 'white',
-          border: '1px solid #f0f0f0',
-          borderRadius: '16px',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-          marginBottom: '16px',
-          overflow: 'hidden',
-        }}
-      >
-        <div style={{ padding: '14px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151' }}>👥 会員一覧・活動状況</span>
-          <Link href="/admin/members" style={{ fontSize: '11px', color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>
-            会員管理へ ›
-          </Link>
+      {/* 売上・解約率 */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '16px' }}>
+        <div style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: '14px', padding: '14px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', textAlign: 'center' }}>
+          <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px' }}>💰 {monthLabel}売上</div>
+          <div style={{ fontSize: '18px', fontWeight: 900, color: '#16a34a' }}>
+            {loading ? '…' : `¥${(stats?.monthlyRevenue ?? 0).toLocaleString()}`}
+          </div>
         </div>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-            <thead>
-              <tr style={{ background: '#f9fafb', borderBottom: '1px solid #f0f0f0' }}>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 700, color: '#6b7280' }}>会員</th>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 700, color: '#6b7280' }}>ステータス</th>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 700, color: '#6b7280' }}>最終食事記録</th>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 700, color: '#6b7280' }}>アクション</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td colSpan={4} style={{ padding: '32px', textAlign: 'center', color: '#9ca3af', fontSize: '12px' }}>
-                  <div style={{ fontSize: '28px', marginBottom: '8px', opacity: 0.3 }}>👥</div>
-                  会員が登録されていません
-                  <div style={{ marginTop: '12px' }}>
-                    <Link
-                      href="/admin/members"
-                      style={{
-                        display: 'inline-block',
-                        padding: '8px 16px',
-                        background: '#2563eb',
-                        color: 'white',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                        fontWeight: 700,
-                        textDecoration: 'none',
-                      }}
-                    >
-                      最初の会員を登録する
-                    </Link>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: '14px', padding: '14px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', textAlign: 'center' }}>
+          <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px' }}>📈 継続率</div>
+          <div style={{ fontSize: '18px', fontWeight: 900, color: '#2563eb' }}>
+            {loading ? '…' : `${stats?.retentionRate ?? 0}%`}
+          </div>
+        </div>
+        <div style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: '14px', padding: '14px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', textAlign: 'center' }}>
+          <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px' }}>📉 解約率</div>
+          <div style={{ fontSize: '18px', fontWeight: 900, color: '#ef4444' }}>
+            {loading ? '…' : `${stats?.churnRate ?? 0}%`}
+          </div>
         </div>
       </div>
 
-      {/* 最近のアクティビティ */}
-      <div
-        style={{
-          background: 'white',
-          border: '1px solid #f0f0f0',
-          borderRadius: '16px',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-        }}
-      >
+      {/* クイックアクション */}
+      <div style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '16px' }}>
         <div style={{ padding: '14px 16px 0' }}>
-          <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151' }}>🕐 最近のアクティビティ</span>
+          <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151' }}>⚡ クイックアクション</span>
         </div>
-        <div style={{ padding: '16px', textAlign: 'center', color: '#9ca3af', fontSize: '12px' }}>
-          記録がありません
+        <div style={{ padding: '14px 16px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+          {quickLinks.map((link) => (
+            <Link key={link.label} href={link.href} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderRadius: '10px', background: link.bg, color: link.color, fontWeight: 700, fontSize: '12px', textDecoration: 'none', border: `1px solid ${link.color}22` }}>
+              <span style={{ fontSize: '16px' }}>{link.icon}</span>
+              {link.label}
+            </Link>
+          ))}
         </div>
       </div>
     </div>
