@@ -395,7 +395,7 @@ function LoginForm() {
           }}
         >
           <Link
-            href="/plans"
+            href="/register"
             style={{
               fontSize: '13px',
               fontWeight: 700,
