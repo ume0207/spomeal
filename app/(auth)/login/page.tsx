@@ -9,7 +9,7 @@ function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const isPaid = searchParams.get('paid') === 'true'
-  const redirect = searchParams.get('redirect') || '/home'
+  const redirect = searchParams.get('redirect') || '/dashboard'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
