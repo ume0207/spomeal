@@ -5,6 +5,7 @@ interface Env {
   STRIPE_WEBHOOK_SECRET: string
   NEXT_PUBLIC_SUPABASE_URL: string
   SUPABASE_SERVICE_ROLE_KEY: string
+  RESEND_API_KEY?: string
 }
 
 interface StripeSession {
@@ -38,6 +39,45 @@ async function verifyStripeSignature(body: string, signature: string, secret: st
   } catch {
     return false
   }
+}
+
+async function sendWelcomeEmail(
+  resendApiKey: string,
+  email: string,
+  planId: string
+) {
+  const planNames: Record<string, string> = {
+    light: 'ライト',
+    standard: 'スタンダード',
+    premium: 'プレミアム',
+  }
+  const planName = planNames[planId] || planId
+
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${resendApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: 'スポミル <noreply@spomeal.jp>',
+      to: [email],
+      subject: '【スポミル】ご登録ありがとうございます',
+      html: `
+        <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #22c55e;">スポミルへようこそ！</h2>
+          <p>この度は<strong>${planName}プラン</strong>にご登録いただきありがとうございます。</p>
+          <p>2週間の無料トライアル期間中、すべての機能をお試しいただけます。</p>
+          <a href="https://spomeal.jp/login" style="display:inline-block;background:#22c55e;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;">
+            ログインして始める →
+          </a>
+          <p style="margin-top:24px;color:#6b7280;font-size:12px;">
+            ご不明な点はお気軽にお問い合わせください。<br>スポミルサポートチーム
+          </p>
+        </div>
+      `,
+    }),
+  })
 }
 
 async function updateSupabaseProfile(
@@ -87,6 +127,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL
   const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY
+  const resendApiKey = env.RESEND_API_KEY
 
   try {
     if (event.type === 'checkout.session.completed') {
@@ -119,6 +160,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             stripe_customer_id: session.customer,
             stripe_subscription_id: session.subscription,
           })
+        }
+
+        // ウェルカムメール送信
+        if (resendApiKey && email) {
+          try {
+            await sendWelcomeEmail(resendApiKey, email, planId || 'light')
+          } catch (e) {
+            console.error('Welcome email error:', e)
+          }
         }
       }
 

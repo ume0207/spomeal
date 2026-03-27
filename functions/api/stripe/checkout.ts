@@ -64,7 +64,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       })
     }
 
-    const appUrl = env.NEXT_PUBLIC_APP_URL || 'https://spomeal.jp'
+    // www.や末尾スラッシュを除去して確実にリダイレクトが通るようにする
+    const appUrl = (env.NEXT_PUBLIC_APP_URL || 'https://spomeal.jp')
+      .replace(/^https?:\/\/www\./, 'https://')
+      .replace(/\/$/, '')
 
     const stripeRes = await fetch('https://api.stripe.com/v1/checkout/sessions', {
       method: 'POST',
