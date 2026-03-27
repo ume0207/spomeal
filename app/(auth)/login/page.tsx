@@ -5,6 +5,94 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
+function ForgotPasswordLink() {
+  const [sent, setSent] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [showInput, setShowInput] = useState(false)
+  const [email, setEmail] = useState('')
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSending(true)
+    const supabase = createClient()
+    await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://spomeal.jp/reset-password',
+    })
+    setSent(true)
+    setSending(false)
+  }
+
+  if (sent) {
+    return (
+      <div style={{ fontSize: '12px', color: '#16a34a', textAlign: 'center', marginTop: '4px' }}>
+        ✅ パスワード再設定メールを送信しました
+      </div>
+    )
+  }
+
+  if (showInput) {
+    return (
+      <form onSubmit={handleSend} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', width: '100%', maxWidth: '320px' }}>
+        <input
+          type="email"
+          placeholder="登録済みのメールアドレス"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          style={{
+            width: '100%',
+            padding: '10px 14px',
+            borderRadius: '8px',
+            border: '1.5px solid #e5e7eb',
+            fontSize: '13px',
+            outline: 'none',
+            boxSizing: 'border-box',
+          }}
+        />
+        <button
+          type="submit"
+          disabled={sending}
+          style={{
+            background: 'linear-gradient(135deg, #22c55e, #15803d)',
+            color: 'white',
+            fontWeight: 700,
+            fontSize: '13px',
+            padding: '9px 22px',
+            borderRadius: '8px',
+            border: 'none',
+            cursor: 'pointer',
+            width: '100%',
+          }}
+        >
+          {sending ? '送信中...' : '再設定メールを送る'}
+        </button>
+        <button type="button" onClick={() => setShowInput(false)} style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: '12px', cursor: 'pointer' }}>
+          キャンセル
+        </button>
+      </form>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setShowInput(true)}
+      style={{
+        background: 'none',
+        border: 'none',
+        color: '#6b7280',
+        fontSize: '12px',
+        cursor: 'pointer',
+        textDecoration: 'underline',
+        textUnderlineOffset: '2px',
+        padding: 0,
+      }}
+    >
+      パスワードをお忘れの方はこちら
+    </button>
+  )
+}
+
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -411,6 +499,7 @@ function LoginForm() {
           >
             新規会員登録
           </Link>
+          <ForgotPasswordLink />
         </div>
 
         {/* 法的情報 */}
