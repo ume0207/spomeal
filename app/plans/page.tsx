@@ -314,6 +314,11 @@ export default function PlansPage() {
             ログインへ
           </Link>
         </p>
+        <p style={{ textAlign: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '12px' }}>
+          <Link href="/tokushoho" style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'underline' }}>
+            特定商取引法に基づく表記
+          </Link>
+        </p>
       </div>
     </div>
   )
