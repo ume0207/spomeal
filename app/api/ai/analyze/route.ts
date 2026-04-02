@@ -20,47 +20,44 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No image provided' }, { status: 400 })
     }
 
+    const apiKey = process.env.GEMINI_API_KEY
+    if (!apiKey) {
+      throw new Error('GEMINI_API_KEY is not configured')
+    }
+
     let imageData: string
-    let mediaType: string = 'image/jpeg'
+    let mimeType: string = 'image/jpeg'
 
     if (image) {
       const buffer = await image.arrayBuffer()
       imageData = Buffer.from(buffer).toString('base64')
-      mediaType = image.type
+      mimeType = image.type
     } else {
-      // For URL-based images, fetch and convert to base64
       const response = await fetch(imageUrl!)
       const buffer = await response.arrayBuffer()
       imageData = Buffer.from(buffer).toString('base64')
-      mediaType = response.headers.get('content-type') || 'image/jpeg'
+      mimeType = response.headers.get('content-type') || 'image/jpeg'
     }
 
-    // Call Anthropic Claude API for food analysis
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY!,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1024,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'image',
-                source: {
-                  type: 'base64',
-                  media_type: mediaType,
-                  data: imageData,
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: mimeType,
+                    data: imageData,
+                  },
                 },
-              },
-              {
-                type: 'text',
-                text: `この食事の写真を分析して、栄養情報をJSON形式で返してください。
+                {
+                  text: `この食事の写真を分析して、栄養情報をJSON形式で返してください。
 
 以下のフォーマットで返答してください：
 {
@@ -85,25 +82,31 @@ export async function POST(request: NextRequest) {
 }
 
 JSONのみを返してください。他のテキストは不要です。`,
-              },
-            ],
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 1024,
           },
-        ],
-      }),
-    })
+        }),
+      }
+    )
 
     if (!response.ok) {
-      throw new Error(`Anthropic API error: ${response.status}`)
+      const errBody = await response.text()
+      console.error('Gemini API error:', response.status, errBody)
+      throw new Error(`Gemini API error: ${response.status}`)
     }
 
-    const claudeResponse = await response.json()
-    const content = claudeResponse.content[0]?.text
+    const geminiResponse = await response.json()
+    const content = geminiResponse.candidates?.[0]?.content?.parts?.[0]?.text
 
     if (!content) {
       throw new Error('No content in response')
     }
 
-    // Parse the JSON response
     const cleanedContent = content.trim().replace(/^```json\s*/i, '').replace(/\s*```$/i, '')
     const nutritionData = JSON.parse(cleanedContent)
 

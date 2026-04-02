@@ -18,20 +18,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No text provided' }, { status: 400 })
     }
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY!,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1024,
-        messages: [
-          {
-            role: 'user',
-            content: `あなたは管理栄養士です。以下の食事内容から各食品の栄養情報を推定してJSON形式で返してください。
+    const apiKey = process.env.GEMINI_API_KEY
+    if (!apiKey) {
+      throw new Error('GEMINI_API_KEY is not configured')
+    }
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: `あなたは管理栄養士です。以下の食事内容から各食品の栄養情報を推定してJSON形式で返してください。
 量が指定されていない場合は一般的な1人前の量を推定してください。
 
 食事内容: ${text}
@@ -57,19 +61,26 @@ export async function POST(request: NextRequest) {
 }
 
 JSONのみを返してください。他のテキストは不要です。`,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 1024,
           },
-        ],
-      }),
-    })
+        }),
+      }
+    )
 
     if (!response.ok) {
       const errBody = await response.text()
-      console.error('Anthropic API error:', response.status, errBody)
-      throw new Error(`Anthropic API error: ${response.status}`)
+      console.error('Gemini API error:', response.status, errBody)
+      throw new Error(`Gemini API error: ${response.status}`)
     }
 
-    const claudeResponse = await response.json()
-    const content = claudeResponse.content[0]?.text
+    const geminiResponse = await response.json()
+    const content = geminiResponse.candidates?.[0]?.content?.parts?.[0]?.text
 
     if (!content) {
       throw new Error('No content in response')
