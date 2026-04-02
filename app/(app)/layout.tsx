@@ -8,7 +8,6 @@ const navItems = [
   { href: '/dashboard', icon: '🏠', label: 'ホーム' },
   { href: '/meal', icon: '🍽', label: '食事' },
   { href: '/body', icon: '📊', label: '体組成' },
-  { href: '/training', icon: '💪', label: 'トレーニング' },
   { href: '/supplement', icon: '💊', label: 'サプリ' },
   { href: '/reserve', icon: '📅', label: '予約' },
 ]

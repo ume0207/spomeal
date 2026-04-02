@@ -23,8 +23,8 @@ const discountRate: Record<Period, number> = {
 
 const basePrices = {
   light: 615,
-  standard: 2560,
-  premium: 4540,
+  standard: 2980,
+  premium: 9980,
 }
 
 const plansData = [
@@ -33,12 +33,12 @@ const plansData = [
     name: 'ライト',
     popular: false,
     features: [
-      { text: 'AI食事データ分析機能', ok: true },
       { text: '食事記録・カロリー管理', ok: true },
       { text: '体組成記録', ok: true },
-      { text: 'トレーニング記録', ok: true },
+      { text: 'AI食事データ分析（1日5回）', ok: true },
       { text: 'サプリメント管理', ok: true },
-      { text: '管理栄養士オンライン面談', ok: false },
+      { text: 'ミーティング', ok: false },
+      { text: 'フィードバックコメント', ok: false },
     ],
   },
   {
@@ -46,12 +46,12 @@ const plansData = [
     name: 'スタンダード',
     popular: true,
     features: [
-      { text: 'AI食事データ分析機能', ok: true },
       { text: '食事記録・カロリー管理', ok: true },
       { text: '体組成記録', ok: true },
-      { text: 'トレーニング記録', ok: true },
+      { text: 'AI食事データ分析（1日20回）', ok: true },
       { text: 'サプリメント管理', ok: true },
-      { text: '管理栄養士オンライン面談（15分・月1回）', ok: true },
+      { text: '20分ミーティング（月1回）', ok: true },
+      { text: 'フィードバックコメント', ok: false },
     ],
   },
   {
@@ -59,12 +59,12 @@ const plansData = [
     name: 'プレミアム',
     popular: false,
     features: [
-      { text: 'AI食事データ分析機能', ok: true },
       { text: '食事記録・カロリー管理', ok: true },
       { text: '体組成記録', ok: true },
-      { text: 'トレーニング記録', ok: true },
+      { text: 'AI食事データ分析（上限解放）', ok: true },
       { text: 'サプリメント管理', ok: true },
-      { text: '管理栄養士オンライン面談（15分・月2回）', ok: true },
+      { text: 'ミーティング（月2回）', ok: true },
+      { text: '週1回フィードバックコメント', ok: true },
     ],
   },
 ]

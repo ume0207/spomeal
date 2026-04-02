@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { addMealPoint } from '@/lib/points'
 
 // ===== 食品DB (100品目以上) =====
 const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: number }> = {
@@ -51,6 +52,83 @@ const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: number }>
   'えのき': { kcal: 22, p: 2.7, f: 0.2, c: 7.6 }, 'わかめ': { kcal: 24, p: 1.9, f: 0.2, c: 5.6 },
   'コーヒー': { kcal: 4, p: 0.2, f: 0.0, c: 0.7 }, 'スポーツドリンク': { kcal: 25, p: 0.0, f: 0.0, c: 6.2 },
   'オレンジジュース': { kcal: 42, p: 0.7, f: 0.1, c: 10.4 },
+
+  // ===== コンビニ =====
+  'おにぎり（ツナマヨ）': { kcal: 232, p: 5.8, f: 7.5, c: 36.0 },
+  'おにぎり（鮭）': { kcal: 188, p: 5.2, f: 2.0, c: 38.0 },
+  'おにぎり（明太子）': { kcal: 175, p: 4.5, f: 1.5, c: 36.5 },
+  'おにぎり（梅）': { kcal: 168, p: 3.5, f: 0.8, c: 37.0 },
+  'おにぎり（昆布）': { kcal: 173, p: 3.8, f: 0.6, c: 38.0 },
+  'サンドイッチ（ハムレタス）': { kcal: 260, p: 10.0, f: 10.5, c: 32.0 },
+  'サンドイッチ（たまご）': { kcal: 310, p: 11.0, f: 15.0, c: 33.0 },
+  'サンドイッチ（ツナ）': { kcal: 290, p: 9.5, f: 13.0, c: 34.0 },
+  'コンビニサラダ': { kcal: 45, p: 1.5, f: 0.5, c: 9.0 },
+  'コンビニ唐揚げ弁当': { kcal: 750, p: 28.0, f: 28.0, c: 95.0 },
+  'コンビニ幕の内弁当': { kcal: 680, p: 22.0, f: 20.0, c: 98.0 },
+  'コンビニのり弁当': { kcal: 620, p: 18.0, f: 15.0, c: 100.0 },
+  'コンビニチキン': { kcal: 250, p: 16.0, f: 16.0, c: 10.0 },
+  'ファミチキ': { kcal: 252, p: 12.7, f: 15.7, c: 14.8 },
+  'Lチキ': { kcal: 218, p: 14.0, f: 11.5, c: 14.5 },
+  'からあげクン': { kcal: 220, p: 14.0, f: 14.0, c: 9.0 },
+  'コンビニ肉まん': { kcal: 240, p: 8.0, f: 9.0, c: 32.0 },
+  'コンビニおでん（大根）': { kcal: 12, p: 0.5, f: 0.1, c: 2.8 },
+  'コンビニおでん（卵）': { kcal: 80, p: 6.5, f: 5.5, c: 0.5 },
+  'コンビニおでん（こんにゃく）': { kcal: 8, p: 0.1, f: 0.0, c: 2.3 },
+  'カップヌードル': { kcal: 353, p: 10.7, f: 14.6, c: 44.5 },
+  'カップヌードルPRO': { kcal: 274, p: 15.2, f: 12.0, c: 27.6 },
+
+  // ===== ファストフード（牛丼チェーン） =====
+  '吉野家 牛丼（並）': { kcal: 635, p: 20.0, f: 20.4, c: 89.0 },
+  '吉野家 牛丼（大盛）': { kcal: 846, p: 25.7, f: 25.6, c: 120.0 },
+  '吉野家 牛丼（特盛）': { kcal: 1013, p: 32.2, f: 37.0, c: 125.0 },
+  '吉野家 牛丼（小盛）': { kcal: 488, p: 16.3, f: 16.6, c: 66.0 },
+  '吉野家 豚丼（並）': { kcal: 604, p: 19.0, f: 16.5, c: 92.0 },
+  '松屋 牛めし（並）': { kcal: 692, p: 22.5, f: 22.0, c: 96.0 },
+  '松屋 牛めし（大盛）': { kcal: 920, p: 28.0, f: 28.0, c: 128.0 },
+  'すき家 牛丼（並）': { kcal: 638, p: 18.9, f: 20.2, c: 91.0 },
+  'すき家 牛丼（大盛）': { kcal: 863, p: 24.0, f: 26.0, c: 123.0 },
+  'すき家 牛丼（メガ）': { kcal: 1143, p: 39.0, f: 54.0, c: 118.0 },
+
+  // ===== ファストフード（ハンバーガー） =====
+  'マック ハンバーガー': { kcal: 256, p: 12.8, f: 9.4, c: 30.3 },
+  'マック チーズバーガー': { kcal: 307, p: 15.8, f: 13.4, c: 30.8 },
+  'マック ビッグマック': { kcal: 525, p: 26.0, f: 28.3, c: 41.8 },
+  'マック てりやきバーガー': { kcal: 478, p: 15.5, f: 24.0, c: 49.0 },
+  'マック チキンマックナゲット5個': { kcal: 270, p: 15.8, f: 16.3, c: 13.1 },
+  'マック マックフライポテトM': { kcal: 410, p: 5.3, f: 20.6, c: 51.0 },
+  'マック マックフライポテトL': { kcal: 517, p: 6.7, f: 25.9, c: 64.3 },
+
+  // ===== ファストフード（その他） =====
+  'CoCo壱 ポークカレー': { kcal: 755, p: 18.0, f: 20.0, c: 120.0 },
+  'CoCo壱 チキンカツカレー': { kcal: 1073, p: 36.0, f: 38.0, c: 140.0 },
+  '天下一品 こってりラーメン': { kcal: 949, p: 32.0, f: 52.0, c: 84.0 },
+  '丸亀製麺 かけうどん（並）': { kcal: 299, p: 8.0, f: 1.5, c: 62.0 },
+  '丸亀製麺 釜揚げうどん（並）': { kcal: 306, p: 8.5, f: 1.3, c: 63.0 },
+  'かつや カツ丼（梅）': { kcal: 890, p: 35.0, f: 30.0, c: 115.0 },
+  'すき家 牛丼ライト': { kcal: 365, p: 17.0, f: 20.0, c: 28.0 },
+
+  // ===== プロテイン商品 =====
+  'ザバス ホエイプロテイン（1食）': { kcal: 111, p: 20.0, f: 1.5, c: 4.2 },
+  'マイプロ インパクトホエイ（1食）': { kcal: 103, p: 21.0, f: 1.9, c: 1.0 },
+  'ゴールドスタンダード（1食）': { kcal: 120, p: 24.0, f: 1.0, c: 3.0 },
+  'ビーレジェンド（1食）': { kcal: 113, p: 20.9, f: 1.5, c: 4.9 },
+  'DNS ホエイ100（1食）': { kcal: 142, p: 24.2, f: 2.9, c: 5.6 },
+  'inゼリー プロテイン': { kcal: 90, p: 10.0, f: 0.0, c: 12.5 },
+  'ザバス MILK PROTEIN': { kcal: 102, p: 15.0, f: 0.0, c: 10.0 },
+  'タンパクオトメ（1食）': { kcal: 56, p: 11.1, f: 0.5, c: 1.7 },
+  'プロテインバー（一本満足）': { kcal: 183, p: 15.0, f: 8.5, c: 12.1 },
+  'BASE BREAD チョコ': { kcal: 255, p: 13.5, f: 7.8, c: 29.1 },
+  'BASE BREAD プレーン': { kcal: 205, p: 13.5, f: 5.4, c: 23.9 },
+  'oikos（オイコス）': { kcal: 71, p: 12.0, f: 0.2, c: 5.1 },
+  'ギリシャヨーグルト': { kcal: 59, p: 10.0, f: 0.0, c: 4.5 },
+
+  // ===== コンビニ健康系 =====
+  'サラダチキン（プレーン）': { kcal: 109, p: 24.0, f: 1.5, c: 0.5 },
+  'サラダチキン（スモーク）': { kcal: 118, p: 23.0, f: 2.5, c: 1.0 },
+  'サラダチキン（ハーブ）': { kcal: 115, p: 23.5, f: 2.0, c: 1.0 },
+  'ゆで卵（コンビニ）': { kcal: 66, p: 6.0, f: 4.6, c: 0.3 },
+  'ブランパン（ローソン）': { kcal: 65, p: 5.9, f: 2.2, c: 5.4 },
+  'もち麦おにぎり': { kcal: 182, p: 3.8, f: 1.0, c: 39.0 },
 }
 
 // ===== 型定義 =====
@@ -142,7 +220,7 @@ export default function MealPage() {
   const [activeMealType, setActiveMealType] = useState<string>('lunch')
 
   // モーダルタブ
-  const [activeTab, setActiveTab] = useState<'search' | 'fav' | 'manual'>('search')
+  const [activeTab, setActiveTab] = useState<'search' | 'fav' | 'history' | 'manual'>('search')
 
   // 検索
   const [searchQuery, setSearchQuery] = useState('')
@@ -346,6 +424,16 @@ export default function MealPage() {
       items: cartItems,
     }
     saveRecords([...records, newRecord])
+    // ポイント付与
+    const mealTypeEn = activeMealType || 'lunch'
+    const result = addMealPoint(dateStr, mealTypeEn)
+    if (result.pointsAdded > 0) {
+      // ポイント獲得通知（簡易）
+      setTimeout(() => {
+        const bonusMsg = result.pointsAdded > 1 ? `（3食コンプリートボーナス +1pt!）` : ''
+        alert(`🎉 +${result.pointsAdded}pt 獲得！${bonusMsg}\n累計: ${result.totalPoints}pt`)
+      }, 300)
+    }
     setShowAddModal(false)
   }
 
@@ -865,6 +953,7 @@ export default function MealPage() {
                 <div style={{ display: 'flex', background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
                   {[
                     { key: 'search' as const, label: '🔍 検索' },
+                    { key: 'history' as const, label: '🕐 履歴' },
                     { key: 'fav' as const, label: '⭐ お気に入り' },
                     { key: 'manual' as const, label: '✏️ 手動' },
                   ].map((tab) => (
@@ -940,6 +1029,69 @@ export default function MealPage() {
                       </div>
                     </>
                   )}
+
+                  {/* 履歴タブ */}
+                  {activeTab === 'history' && (() => {
+                    // 過去の記録から食品名を重複除去・頻度順に並べる
+                    const foodFreq: Record<string, { count: number; item: MealItem }> = {}
+                    records.forEach(r => {
+                      if (r.items && r.items.length > 0) {
+                        r.items.forEach(item => {
+                          const key = item.foodName
+                          if (!foodFreq[key]) {
+                            foodFreq[key] = { count: 0, item }
+                          }
+                          foodFreq[key].count++
+                        })
+                      } else if (r.foodName) {
+                        const key = r.foodName
+                        if (!foodFreq[key]) {
+                          foodFreq[key] = { count: 0, item: { foodName: r.foodName, caloriesKcal: r.caloriesKcal, proteinG: r.proteinG, fatG: r.fatG, carbsG: r.carbsG } }
+                        }
+                        foodFreq[key].count++
+                      }
+                    })
+                    const sorted = Object.values(foodFreq).sort((a, b) => b.count - a.count).slice(0, 30)
+                    return sorted.length === 0 ? (
+                      <p style={{ textAlign: 'center', color: '#9ca3af', fontSize: '12px', padding: '20px 0' }}>
+                        まだ記録がありません
+                      </p>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <p style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '4px' }}>よく記録する食品（頻度順）</p>
+                        {sorted.map((entry) => (
+                          <div
+                            key={entry.item.foodName}
+                            style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                              padding: '8px 10px', borderRadius: '8px', background: '#f9fafb',
+                              border: '1px solid #f0f0f0',
+                            }}
+                          >
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: '13px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.item.foodName}</div>
+                              <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '1px' }}>
+                                {Math.round(entry.item.caloriesKcal)}kcal · P{entry.item.proteinG.toFixed(1)}g · F{entry.item.fatG.toFixed(1)}g · C{entry.item.carbsG.toFixed(1)}g
+                                <span style={{ marginLeft: '6px', color: '#22c55e', fontWeight: 700 }}>×{entry.count}回</span>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => setCartItems(prev => [...prev, { ...entry.item }])}
+                              style={{
+                                width: '28px', height: '28px', borderRadius: '50%',
+                                background: '#22c55e', color: 'white',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: '18px', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                                flexShrink: 0,
+                              }}
+                            >
+                              ＋
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })()}
 
                   {/* お気に入りタブ */}
                   {activeTab === 'fav' && (

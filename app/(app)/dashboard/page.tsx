@@ -2,6 +2,8 @@
 
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
+import { getPointsData, getTodayPoints, doLottery, getAvailableLotteries, getLotteryHistory, getRarityColor, getRarityLabel } from '@/lib/points'
+import type { LotteryResult } from '@/lib/points'
 
 const nutrition = {
   calories: { current: 1420, target: 2000 },
@@ -15,10 +17,6 @@ const supplements = [
   { name: 'クレアチン', timing: 'トレーニング前', done: true },
   { name: 'BCAA', timing: 'トレーニング中', done: false },
   { name: 'マルチビタミン', timing: '朝食後', done: true },
-]
-
-const trainingItems = [
-  { name: '胸・三頭筋', cat: '筋トレ', detail: '65分 · 320kcal', catColor: '#7c3aed', catBg: '#ede9fe' },
 ]
 
 interface GoalData {
@@ -51,6 +49,16 @@ export default function DashboardPage() {
   const [goal, setGoal] = useState<GoalData | null>(null)
   const [nextReservation, setNextReservation] = useState<Reservation | null>(null)
 
+  // ポイントシステム
+  const [totalPoints, setTotalPoints] = useState(0)
+  const [todayEarned, setTodayEarned] = useState(0)
+  const [todayMeals, setTodayMeals] = useState({ breakfast: false, lunch: false, dinner: false, snack: false, bonus: false })
+  const [availableLotteries, setAvailableLotteries] = useState(0)
+  const [showLotteryModal, setShowLotteryModal] = useState(false)
+  const [lotteryResult, setLotteryResult] = useState<LotteryResult | null>(null)
+  const [isSpinning, setIsSpinning] = useState(false)
+  const [lotteryHistory, setLotteryHistory] = useState<LotteryResult[]>([])
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -64,6 +72,24 @@ export default function DashboardPage() {
       } catch {
         // ignore
       }
+
+      // ポイントデータ読み込み
+      const ptData = getPointsData()
+      setTotalPoints(ptData.totalPoints)
+      setAvailableLotteries(getAvailableLotteries())
+      const today = new Date().toISOString().slice(0, 10)
+      const todayPt = getTodayPoints(today)
+      setTodayEarned(todayPt.earned)
+      if (todayPt.record) {
+        setTodayMeals({
+          breakfast: todayPt.record.breakfast,
+          lunch: todayPt.record.lunch,
+          dinner: todayPt.record.dinner,
+          snack: todayPt.record.snack,
+          bonus: todayPt.record.bonus,
+        })
+      }
+      setLotteryHistory(getLotteryHistory().results.slice(0, 10))
 
       try {
         const raw = localStorage.getItem('reservations_v1')
@@ -165,7 +191,7 @@ export default function DashboardPage() {
             </span>
           </div>
           <div style={{ padding: '14px 16px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
               <Link
                 href="/meal"
                 style={{
@@ -191,19 +217,6 @@ export default function DashboardPage() {
               >
                 <span style={{ fontSize: '24px' }}>📊</span>
                 体組成を測定
-              </Link>
-              <Link
-                href="/training"
-                style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                  gap: '6px', padding: '16px 8px', borderRadius: '14px',
-                  border: '1.5px solid #a855f7', color: '#9333ea',
-                  fontWeight: 700, fontSize: '12px', transition: 'all 0.2s',
-                  textAlign: 'center', background: 'white', cursor: 'pointer', textDecoration: 'none',
-                }}
-              >
-                <span style={{ fontSize: '24px' }}>💪</span>
-                トレーニング
               </Link>
               <Link
                 href="/supplement"
@@ -396,46 +409,85 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ===== 今日のトレーニング ===== */}
+        {/* ===== ポイント & 抽選 ===== */}
         <div
           style={{
-            background: 'white',
-            border: '1px solid #f0f0f0',
+            background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+            border: '1.5px solid #f59e0b',
             borderRadius: '16px',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+            boxShadow: '0 2px 8px rgba(245,158,11,0.2)',
             marginBottom: '12px',
           }}
         >
           <div style={{ padding: '14px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              💪 今日のトレーニング
+            <span style={{ fontSize: '13px', fontWeight: 700, color: '#92400e', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              🎯 ポイント＆抽選
             </span>
-            <Link href="/training" style={{ fontSize: '11px', color: '#22c55e', fontWeight: 600, textDecoration: 'none' }}>詳細 ›</Link>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#92400e' }}>
+              今日 {todayEarned}/5pt
+            </span>
           </div>
-          <div style={{ padding: '14px 16px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {trainingItems.map((item, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '10px',
-                    padding: '8px 0', borderBottom: '1px solid #f3f4f6',
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: '10px', fontWeight: 700, padding: '2px 8px',
-                      borderRadius: '20px', background: item.catBg, color: item.catColor,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {item.cat}
-                  </span>
-                  <span style={{ flex: 1, fontSize: '13px', fontWeight: 600 }}>{item.name}</span>
-                  <span style={{ fontSize: '11px', color: '#9ca3af' }}>{item.detail}</span>
+          <div style={{ padding: '12px 16px' }}>
+            {/* 累計ポイント */}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '8px' }}>
+              <span style={{ fontSize: '36px', fontWeight: 900, color: '#92400e', lineHeight: 1 }}>{totalPoints}</span>
+              <span style={{ fontSize: '14px', fontWeight: 600, color: '#b45309' }}>pt</span>
+              {availableLotteries > 0 && (
+                <span style={{ fontSize: '11px', fontWeight: 800, background: '#ef4444', color: 'white', padding: '2px 8px', borderRadius: '20px', marginLeft: '8px' }}>
+                  抽選{availableLotteries}回可能!
+                </span>
+              )}
+            </div>
+            {/* 100ptプログレスバー */}
+            <div style={{ marginBottom: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#92400e', marginBottom: '3px' }}>
+                <span>次の抽選まで</span>
+                <span>{totalPoints % 100}/100pt</span>
+              </div>
+              <div style={{ width: '100%', height: '10px', background: 'rgba(255,255,255,0.5)', borderRadius: '20px', overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%', borderRadius: '20px', width: `${(totalPoints % 100)}%`,
+                  background: 'linear-gradient(90deg, #f59e0b, #ef4444)',
+                  transition: 'width 0.5s',
+                }} />
+              </div>
+            </div>
+            {/* 今日の獲得状況 */}
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
+              {[
+                { label: '朝食', done: todayMeals.breakfast, icon: '🌅' },
+                { label: '昼食', done: todayMeals.lunch, icon: '☀️' },
+                { label: '夕食', done: todayMeals.dinner, icon: '🌙' },
+                { label: '間食', done: todayMeals.snack, icon: '🍪' },
+                { label: 'ボーナス', done: todayMeals.bonus, icon: '⭐' },
+              ].map(m => (
+                <div key={m.label} style={{
+                  flex: 1, textAlign: 'center', padding: '6px 2px', borderRadius: '8px',
+                  background: m.done ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.4)',
+                  border: m.done ? '1px solid #22c55e' : '1px solid rgba(0,0,0,0.05)',
+                }}>
+                  <div style={{ fontSize: '14px' }}>{m.icon}</div>
+                  <div style={{ fontSize: '9px', fontWeight: 700, color: m.done ? '#16a34a' : '#9ca3af' }}>
+                    {m.done ? '+1' : '—'}
+                  </div>
                 </div>
               ))}
             </div>
+            {/* 抽選ボタン */}
+            <button
+              onClick={() => { setLotteryResult(null); setShowLotteryModal(true) }}
+              disabled={availableLotteries === 0}
+              style={{
+                width: '100%', padding: '12px', borderRadius: '12px', fontSize: '14px',
+                fontWeight: 800, border: 'none', cursor: availableLotteries > 0 ? 'pointer' : 'not-allowed',
+                fontFamily: 'inherit', transition: 'all 0.2s',
+                background: availableLotteries > 0 ? 'linear-gradient(90deg, #ef4444, #f59e0b)' : '#d1d5db',
+                color: 'white',
+                boxShadow: availableLotteries > 0 ? '0 4px 12px rgba(239,68,68,0.3)' : 'none',
+              }}
+            >
+              {availableLotteries > 0 ? `🎰 抽選する（${availableLotteries}回）` : '🎰 100pt で抽選（あと' + (100 - totalPoints % 100) + 'pt）'}
+            </button>
           </div>
         </div>
 
@@ -488,6 +540,156 @@ export default function DashboardPage() {
         </div>
 
       </div>
+
+      {/* ===== 抽選モーダル ===== */}
+      {showLotteryModal && (
+        <div
+          style={{
+            display: 'flex', position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,0.6)', zIndex: 300,
+            alignItems: 'center', justifyContent: 'center',
+          }}
+          onClick={() => setShowLotteryModal(false)}
+        >
+          <div
+            style={{
+              background: 'white', width: '90%', maxWidth: '380px',
+              borderRadius: '24px', overflow: 'hidden',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{
+              background: 'linear-gradient(135deg, #ef4444, #f59e0b)',
+              padding: '24px 20px', textAlign: 'center',
+            }}>
+              <div style={{ fontSize: '40px', marginBottom: '8px' }}>🎰</div>
+              <h2 style={{ fontSize: '20px', fontWeight: 900, color: 'white', margin: 0 }}>スポミル抽選</h2>
+              <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.8)', margin: '4px 0 0' }}>100pt で1回抽選できます</p>
+            </div>
+            <div style={{ padding: '20px' }}>
+              {!lotteryResult ? (
+                <>
+                  <p style={{ fontSize: '13px', color: '#6b7280', textAlign: 'center', marginBottom: '12px' }}>
+                    残りポイント: <strong>{totalPoints}pt</strong>（{availableLotteries}回抽選可能）
+                  </p>
+                  <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '16px' }}>
+                    <p style={{ fontWeight: 700, marginBottom: '6px' }}>景品一覧:</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {[
+                        { icon: '💳', name: 'クオカード500円', rarity: 'スーパーレア' },
+                        { icon: '🏆', name: 'リカバリープロ', rarity: 'ウルトラレア' },
+                        { icon: '👕', name: 'スポミルTシャツ', rarity: 'レア' },
+                        { icon: '💪', name: 'プロテイン1kg', rarity: 'レア' },
+                        { icon: '🎫', name: 'スポミルステッカー', rarity: 'コモン' },
+                      ].map(p => (
+                        <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
+                          <span style={{ fontSize: '16px' }}>{p.icon}</span>
+                          <span style={{ flex: 1, fontSize: '12px' }}>{p.name}</span>
+                          <span style={{ fontSize: '10px', fontWeight: 700, color: '#f59e0b' }}>{p.rarity}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setIsSpinning(true)
+                      setTimeout(() => {
+                        const result = doLottery()
+                        if (result) {
+                          setLotteryResult(result)
+                          const ptData = getPointsData()
+                          setTotalPoints(ptData.totalPoints)
+                          setAvailableLotteries(getAvailableLotteries())
+                          setLotteryHistory(getLotteryHistory().results.slice(0, 10))
+                        }
+                        setIsSpinning(false)
+                      }, 1500)
+                    }}
+                    disabled={availableLotteries === 0 || isSpinning}
+                    style={{
+                      width: '100%', padding: '14px', borderRadius: '12px', fontSize: '15px',
+                      fontWeight: 800, border: 'none', fontFamily: 'inherit',
+                      cursor: (availableLotteries > 0 && !isSpinning) ? 'pointer' : 'not-allowed',
+                      background: (availableLotteries > 0 && !isSpinning) ? 'linear-gradient(90deg, #ef4444, #f59e0b)' : '#d1d5db',
+                      color: 'white',
+                      animation: isSpinning ? 'pulse 0.5s infinite' : 'none',
+                    }}
+                  >
+                    {isSpinning ? '🎰 抽選中...' : '100pt 使って抽選する！'}
+                  </button>
+                </>
+              ) : (
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{
+                    fontSize: '64px', marginBottom: '12px',
+                    animation: 'bounce 0.5s',
+                  }}>
+                    {lotteryResult.icon}
+                  </div>
+                  {lotteryResult.rarity !== 'miss' && (
+                    <div style={{
+                      fontSize: '12px', fontWeight: 800,
+                      color: getRarityColor(lotteryResult.rarity),
+                      marginBottom: '4px',
+                    }}>
+                      {getRarityLabel(lotteryResult.rarity)}
+                    </div>
+                  )}
+                  <h3 style={{
+                    fontSize: '20px', fontWeight: 900, color: '#111827', margin: '0 0 8px',
+                  }}>
+                    {lotteryResult.prize}
+                  </h3>
+                  <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '16px' }}>
+                    残りポイント: {totalPoints}pt
+                  </p>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={() => setShowLotteryModal(false)}
+                      style={{
+                        flex: 1, padding: '11px', borderRadius: '10px', fontSize: '13px',
+                        fontWeight: 600, border: '1px solid #e5e7eb', background: 'white',
+                        color: '#6b7280', cursor: 'pointer', fontFamily: 'inherit',
+                      }}
+                    >
+                      閉じる
+                    </button>
+                    {availableLotteries > 0 && (
+                      <button
+                        onClick={() => setLotteryResult(null)}
+                        style={{
+                          flex: 1, padding: '11px', borderRadius: '10px', fontSize: '13px',
+                          fontWeight: 700, border: 'none',
+                          background: 'linear-gradient(90deg, #ef4444, #f59e0b)',
+                          color: 'white', cursor: 'pointer', fontFamily: 'inherit',
+                        }}
+                      >
+                        もう1回！
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* 抽選履歴 */}
+              {lotteryHistory.length > 0 && (
+                <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #f3f4f6' }}>
+                  <p style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px' }}>最近の抽選結果</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                    {lotteryHistory.slice(0, 5).map((r, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#6b7280' }}>
+                        <span>{r.icon}</span>
+                        <span style={{ flex: 1, fontWeight: 600, color: getRarityColor(r.rarity) }}>{r.prize}</span>
+                        <span style={{ fontSize: '10px' }}>{new Date(r.date).toLocaleDateString('ja-JP')}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
