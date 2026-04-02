@@ -29,12 +29,12 @@ function toDateKey(y: number, m: number, d: number) {
   return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
 }
 
-// 9:00〜18:45 を15分刻みで生成（計40スロット、最後のミーティングは19:00終了）
+// 9:00〜18:40 を20分刻みで生成（最後のミーティングは19:00終了）
 function generateDefaultTimeSlots(): TimeSlot[] {
   const slots: TimeSlot[] = []
   let id = 1
   for (let h = 9; h <= 18; h++) {
-    for (let m = 0; m < 60; m += 15) {
+    for (let m = 0; m < 60; m += 20) {
       const time = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
       const label = h < 12 ? '午前の栄養相談' : h < 17 ? '午後の栄養相談' : '夕方の栄養相談'
       slots.push({ id: `ts${id++}`, time, label, maxSlots: 1, daysOfWeek: [1, 2, 3, 4, 5], enabled: true })
