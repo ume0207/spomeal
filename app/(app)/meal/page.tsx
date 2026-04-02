@@ -233,6 +233,12 @@ export default function MealPage() {
   const [manualFat, setManualFat] = useState('')
   const [manualCarbs, setManualCarbs] = useState('')
 
+  // AI分析
+  const [aiText, setAiText] = useState('')
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiPhotoLoading, setAiPhotoLoading] = useState(false)
+  const [aiError, setAiError] = useState('')
+
   // カートに追加した食品リスト
   const [cartItems, setCartItems] = useState<MealItem[]>([])
 
@@ -246,6 +252,70 @@ export default function MealPage() {
   const [goalPfcF, setGoalPfcF] = useState(20)
   const [goalPfcC, setGoalPfcC] = useState(55)
   const [goalCalAuto, setGoalCalAuto] = useState(2000)
+
+  // AI テキスト分析
+  const handleAiTextAnalyze = async () => {
+    if (!aiText.trim() || aiLoading) return
+    setAiLoading(true)
+    setAiError('')
+    try {
+      const res = await fetch('/api/ai/analyze-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: aiText.trim() }),
+      })
+      if (!res.ok) throw new Error(`API error: ${res.status}`)
+      const data = await res.json()
+      if (data.foods && Array.isArray(data.foods)) {
+        const newItems: MealItem[] = data.foods.map((f: { name: string; calories: number; protein: number; fat: number; carbs: number }) => ({
+          foodName: f.name,
+          caloriesKcal: f.calories,
+          proteinG: f.protein,
+          fatG: f.fat,
+          carbsG: f.carbs,
+        }))
+        setCartItems(prev => [...prev, ...newItems])
+        setAiText('')
+      }
+    } catch (e) {
+      setAiError('AI分析に失敗しました。もう一度お試しください。')
+      console.error(e)
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  // AI 写真分析
+  const handleAiPhotoAnalyze = async (file: File) => {
+    if (aiPhotoLoading) return
+    setAiPhotoLoading(true)
+    setAiError('')
+    try {
+      const formData = new FormData()
+      formData.append('image', file)
+      const res = await fetch('/api/ai/analyze', {
+        method: 'POST',
+        body: formData,
+      })
+      if (!res.ok) throw new Error(`API error: ${res.status}`)
+      const data = await res.json()
+      if (data.foods && Array.isArray(data.foods)) {
+        const newItems: MealItem[] = data.foods.map((f: { name: string; calories: number; protein: number; fat: number; carbs: number }) => ({
+          foodName: f.name,
+          caloriesKcal: f.calories,
+          proteinG: f.protein,
+          fatG: f.fat,
+          carbsG: f.carbs,
+        }))
+        setCartItems(prev => [...prev, ...newItems])
+      }
+    } catch (e) {
+      setAiError('写真の分析に失敗しました。もう一度お試しください。')
+      console.error(e)
+    } finally {
+      setAiPhotoLoading(false)
+    }
+  }
 
   // お気に入り（デモ）
   const favorites = Object.entries(FOOD_DB).slice(0, 8).map(([name, data]) => ({ name, data }))
@@ -926,6 +996,8 @@ export default function MealPage() {
                   ✨ AI栄養自動計算
                 </p>
                 <textarea
+                  value={aiText}
+                  onChange={(e) => setAiText(e.target.value)}
                   placeholder="食事内容を打ち込んでください（例：白ゴハン150g、鶏胸肉のグリル200g、サラダ）"
                   rows={3}
                   style={{
@@ -935,17 +1007,47 @@ export default function MealPage() {
                     fontFamily: 'inherit', boxSizing: 'border-box',
                   }}
                 />
-                <button
-                  style={{
-                    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    gap: '6px', background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
-                    color: 'white', fontWeight: 700, padding: '11px', borderRadius: '10px',
-                    fontSize: '13px', transition: 'all 0.2s', border: 'none', cursor: 'pointer',
-                    marginTop: '8px', fontFamily: 'inherit',
-                  }}
-                >
-                  ✨ AIで栄養素を自動計算
-                </button>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                  <button
+                    onClick={handleAiTextAnalyze}
+                    disabled={aiLoading || !aiText.trim()}
+                    style={{
+                      flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      gap: '6px', background: aiLoading || !aiText.trim() ? '#c4b5fd' : 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+                      color: 'white', fontWeight: 700, padding: '11px', borderRadius: '10px',
+                      fontSize: '13px', transition: 'all 0.2s', border: 'none',
+                      cursor: aiLoading || !aiText.trim() ? 'not-allowed' : 'pointer',
+                      opacity: aiLoading ? 0.7 : 1, fontFamily: 'inherit',
+                    }}
+                  >
+                    {aiLoading ? '⏳ 分析中...' : '✨ AIで自動計算'}
+                  </button>
+                  <label
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      gap: '4px', background: aiPhotoLoading ? '#93c5fd' : 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                      color: 'white', fontWeight: 700, padding: '11px 16px', borderRadius: '10px',
+                      fontSize: '13px', cursor: aiPhotoLoading ? 'not-allowed' : 'pointer',
+                      opacity: aiPhotoLoading ? 0.7 : 1, fontFamily: 'inherit',
+                    }}
+                  >
+                    {aiPhotoLoading ? '⏳' : '📷'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleAiPhotoAnalyze(file)
+                        e.target.value = ''
+                      }}
+                    />
+                  </label>
+                </div>
+                {aiError && (
+                  <p style={{ fontSize: '11px', color: '#dc2626', marginTop: '6px' }}>{aiError}</p>
+                )}
               </div>
 
               {/* 3タブ：検索/お気に入り/手動 */}
