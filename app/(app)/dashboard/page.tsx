@@ -12,12 +12,6 @@ const nutrition = {
   carbs: { current: 165, target: 250 },
 }
 
-const supplements = [
-  { name: 'ホエイプロテイン', timing: 'トレーニング後', done: true },
-  { name: 'クレアチン', timing: 'トレーニング前', done: true },
-  { name: 'BCAA', timing: 'トレーニング中', done: false },
-  { name: 'マルチビタミン', timing: '朝食後', done: true },
-]
 
 interface GoalData {
   cal: number
@@ -45,7 +39,6 @@ interface Reservation {
 export default function DashboardPage() {
   const calPct = Math.min((nutrition.calories.current / nutrition.calories.target) * 100, 100)
   const isOver = nutrition.calories.current > nutrition.calories.target
-  const [suppState, setSuppState] = useState(supplements.map(s => s.done))
   const [goal, setGoal] = useState<GoalData | null>(null)
   const [nextReservation, setNextReservation] = useState<Reservation | null>(null)
 
@@ -217,19 +210,6 @@ export default function DashboardPage() {
               >
                 <span style={{ fontSize: '24px' }}>📊</span>
                 体組成を測定
-              </Link>
-              <Link
-                href="/supplement"
-                style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                  gap: '6px', padding: '16px 8px', borderRadius: '14px',
-                  border: '1.5px solid #f97316', color: '#ea580c',
-                  fontWeight: 700, fontSize: '12px', transition: 'all 0.2s',
-                  textAlign: 'center', background: 'white', cursor: 'pointer', textDecoration: 'none',
-                }}
-              >
-                <span style={{ fontSize: '24px' }}>💊</span>
-                サプリを記録
               </Link>
             </div>
           </div>
@@ -491,53 +471,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ===== 今日のサプリ ===== */}
-        <div
-          style={{
-            background: 'white',
-            border: '1px solid #f0f0f0',
-            borderRadius: '16px',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-            marginBottom: '12px',
-          }}
-        >
-          <div style={{ padding: '14px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              💊 今日のサプリ
-            </span>
-            <Link href="/supplement" style={{ fontSize: '11px', color: '#22c55e', fontWeight: 600, textDecoration: 'none' }}>詳細 ›</Link>
-          </div>
-          <div style={{ padding: '14px 16px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {supplements.map((s, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '10px',
-                    padding: '8px 10px', borderRadius: '10px', background: '#fafafa',
-                  }}
-                >
-                  <div
-                    onClick={() => setSuppState(prev => prev.map((v, idx) => idx === i ? !v : v))}
-                    style={{
-                      width: '24px', height: '24px', borderRadius: '50%',
-                      border: suppState[i] ? 'none' : '2px solid #d1d5db',
-                      background: suppState[i] ? '#22c55e' : 'transparent',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '12px', flexShrink: 0, cursor: 'pointer',
-                      color: suppState[i] ? 'white' : '#9ca3af',
-                      transition: 'all 0.2s',
-                    }}
-                  >
-                    {suppState[i] ? '✓' : ''}
-                  </div>
-                  <span style={{ flex: 1, fontSize: '13px', fontWeight: 600 }}>{s.name}</span>
-                  <span style={{ fontSize: '10px', color: '#9ca3af' }}>{s.timing}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
 
       </div>
 
