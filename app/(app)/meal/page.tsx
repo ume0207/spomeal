@@ -264,8 +264,8 @@ export default function MealPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: aiText.trim() }),
       })
-      if (!res.ok) throw new Error(`API error: ${res.status}`)
       const data = await res.json()
+      if (!res.ok) throw new Error(data.error || `API error: ${res.status}`)
       if (data.foods && Array.isArray(data.foods)) {
         const newItems: MealItem[] = data.foods.map((f: { name: string; calories: number; protein: number; fat: number; carbs: number }) => ({
           foodName: f.name,
@@ -278,7 +278,8 @@ export default function MealPage() {
         setAiText('')
       }
     } catch (e) {
-      setAiError('AI分析に失敗しました。もう一度お試しください。')
+      const msg = e instanceof Error ? e.message : 'Unknown error'
+      setAiError(`AI分析に失敗: ${msg}`)
       console.error(e)
     } finally {
       setAiLoading(false)
@@ -297,8 +298,8 @@ export default function MealPage() {
         method: 'POST',
         body: formData,
       })
-      if (!res.ok) throw new Error(`API error: ${res.status}`)
       const data = await res.json()
+      if (!res.ok) throw new Error(data.error || `API error: ${res.status}`)
       if (data.foods && Array.isArray(data.foods)) {
         const newItems: MealItem[] = data.foods.map((f: { name: string; calories: number; protein: number; fat: number; carbs: number }) => ({
           foodName: f.name,
@@ -310,7 +311,8 @@ export default function MealPage() {
         setCartItems(prev => [...prev, ...newItems])
       }
     } catch (e) {
-      setAiError('写真の分析に失敗しました。もう一度お試しください。')
+      const msg = e instanceof Error ? e.message : 'Unknown error'
+      setAiError(`写真分析に失敗: ${msg}`)
       console.error(e)
     } finally {
       setAiPhotoLoading(false)
@@ -1035,7 +1037,6 @@ export default function MealPage() {
                     <input
                       type="file"
                       accept="image/*"
-                      capture="environment"
                       style={{ display: 'none' }}
                       onChange={(e) => {
                         const file = e.target.files?.[0]
