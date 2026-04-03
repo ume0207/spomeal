@@ -1050,13 +1050,13 @@ export default function MealPage() {
                   )}
                 </div>
 
-                {/* AI解析結果（カード内） */}
+                {/* AI解析結果（カード内・編集可能） */}
                 {aiResult && (
                   <div style={{
                     background: 'white', border: '1px solid #ddd6fe', borderRadius: '10px',
                     padding: '12px', marginBottom: '12px',
                   }}>
-                    {/* 合計サマリー */}
+                    {/* 合計サマリー（items合計から自動計算） */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', marginBottom: '10px' }}>
                       {[
                         { label: 'kcal', value: Math.round(aiResult.calories), color: '#EA580C' },
@@ -1071,24 +1071,127 @@ export default function MealPage() {
                       ))}
                     </div>
 
-                    {/* 食品詳細リスト */}
+                    {/* 食品詳細リスト（編集可能） */}
                     {aiResult.items && aiResult.items.length > 0 && (
                       <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: '8px', marginBottom: '8px' }}>
-                        <p style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px', margin: '0 0 6px' }}>食品内訳</p>
+                        <p style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px', margin: '0 0 6px' }}>📝 食品内訳（タップして編集可能）</p>
                         {aiResult.items.map((item, i) => (
                           <div key={i} style={{
-                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                            padding: '6px 0', borderBottom: i < (aiResult.items?.length || 0) - 1 ? '1px solid #f3f4f6' : 'none',
+                            padding: '8px', marginBottom: '6px', background: '#fafafa', borderRadius: '8px',
+                            border: '1px solid #f3f4f6',
                           }}>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>{item.name}</div>
-                              <div style={{ fontSize: '11px', color: '#9ca3af' }}>{item.amount}</div>
+                            {/* 食品名・量 */}
+                            <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
+                              <input
+                                type="text"
+                                value={item.name}
+                                onChange={(e) => {
+                                  const newItems = [...(aiResult.items || [])]
+                                  newItems[i] = { ...newItems[i], name: e.target.value }
+                                  setAiResult({ ...aiResult, items: newItems })
+                                }}
+                                style={{
+                                  flex: 1, fontSize: '13px', fontWeight: 600, color: '#374151',
+                                  border: '1px solid #e5e7eb', borderRadius: '6px', padding: '4px 8px',
+                                  background: 'white', outline: 'none', minWidth: 0,
+                                }}
+                                placeholder="食品名"
+                              />
+                              <input
+                                type="text"
+                                value={item.amount}
+                                onChange={(e) => {
+                                  const newItems = [...(aiResult.items || [])]
+                                  newItems[i] = { ...newItems[i], amount: e.target.value }
+                                  setAiResult({ ...aiResult, items: newItems })
+                                }}
+                                style={{
+                                  width: '80px', fontSize: '12px', color: '#6b7280',
+                                  border: '1px solid #e5e7eb', borderRadius: '6px', padding: '4px 8px',
+                                  background: 'white', outline: 'none', textAlign: 'right',
+                                }}
+                                placeholder="量"
+                              />
                             </div>
-                            <div style={{ display: 'flex', gap: '8px', fontSize: '11px', flexShrink: 0 }}>
-                              <span style={{ color: '#EA580C', fontWeight: 700 }}>{item.kcal}kcal</span>
-                              <span style={{ color: '#2563EB' }}>P{item.protein}g</span>
-                              <span style={{ color: '#CA8A04' }}>F{item.fat}g</span>
-                              <span style={{ color: '#16A34A' }}>C{item.carbs}g</span>
+                            {/* 栄養素（編集可能） */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '4px' }}>
+                              {[
+                                { key: 'kcal' as const, label: 'kcal', color: '#EA580C' },
+                                { key: 'protein' as const, label: 'P(g)', color: '#2563EB' },
+                                { key: 'fat' as const, label: 'F(g)', color: '#CA8A04' },
+                                { key: 'carbs' as const, label: 'C(g)', color: '#16A34A' },
+                              ].map((n) => (
+                                <div key={n.key} style={{ textAlign: 'center' }}>
+                                  <input
+                                    type="number"
+                                    inputMode="decimal"
+                                    value={item[n.key]}
+                                    onChange={(e) => {
+                                      const val = parseFloat(e.target.value) || 0
+                                      const newItems = [...(aiResult.items || [])]
+                                      newItems[i] = { ...newItems[i], [n.key]: val }
+                                      // 合計を再計算
+                                      const totals = newItems.reduce((acc, it) => ({
+                                        kcal: acc.kcal + (it.kcal || 0),
+                                        protein: acc.protein + (it.protein || 0),
+                                        fat: acc.fat + (it.fat || 0),
+                                        carbs: acc.carbs + (it.carbs || 0),
+                                      }), { kcal: 0, protein: 0, fat: 0, carbs: 0 })
+                                      const updated = {
+                                        ...aiResult,
+                                        items: newItems,
+                                        calories: totals.kcal,
+                                        protein: totals.protein,
+                                        fat: totals.fat,
+                                        carbs: totals.carbs,
+                                      }
+                                      setAiResult(updated)
+                                      setManualKcal(String(Math.round(totals.kcal)))
+                                      setManualProtein(String(totals.protein.toFixed(1)))
+                                      setManualFat(String(totals.fat.toFixed(1)))
+                                      setManualCarbs(String(totals.carbs.toFixed(1)))
+                                    }}
+                                    style={{
+                                      width: '100%', fontSize: '12px', fontWeight: 700, color: n.color,
+                                      border: '1px solid #e5e7eb', borderRadius: '6px', padding: '3px 4px',
+                                      background: 'white', outline: 'none', textAlign: 'center',
+                                      WebkitAppearance: 'none', MozAppearance: 'textfield',
+                                    }}
+                                  />
+                                  <span style={{ fontSize: '9px', color: '#9ca3af' }}>{n.label}</span>
+                                </div>
+                              ))}
+                            </div>
+                            {/* 削除ボタン */}
+                            <div style={{ textAlign: 'right', marginTop: '4px' }}>
+                              <button
+                                onClick={() => {
+                                  const newItems = (aiResult.items || []).filter((_, idx) => idx !== i)
+                                  const totals = newItems.reduce((acc, it) => ({
+                                    kcal: acc.kcal + (it.kcal || 0),
+                                    protein: acc.protein + (it.protein || 0),
+                                    fat: acc.fat + (it.fat || 0),
+                                    carbs: acc.carbs + (it.carbs || 0),
+                                  }), { kcal: 0, protein: 0, fat: 0, carbs: 0 })
+                                  const updated = {
+                                    ...aiResult,
+                                    items: newItems,
+                                    calories: totals.kcal,
+                                    protein: totals.protein,
+                                    fat: totals.fat,
+                                    carbs: totals.carbs,
+                                  }
+                                  setAiResult(updated)
+                                  setManualKcal(String(Math.round(totals.kcal)))
+                                  setManualProtein(String(totals.protein.toFixed(1)))
+                                  setManualFat(String(totals.fat.toFixed(1)))
+                                  setManualCarbs(String(totals.carbs.toFixed(1)))
+                                }}
+                                style={{
+                                  fontSize: '11px', color: '#EF4444', background: 'none', border: 'none',
+                                  cursor: 'pointer', padding: '2px 6px',
+                                }}
+                              >🗑 削除</button>
                             </div>
                           </div>
                         ))}
@@ -1120,7 +1223,7 @@ export default function MealPage() {
                           img.onload = () => {
                             try {
                               const canvas = document.createElement('canvas')
-                              const MAX_SIZE = 1024
+                              const MAX_SIZE = 512
                               let w = img.width, h = img.height
                               if (w > MAX_SIZE || h > MAX_SIZE) {
                                 if (w > h) { h = Math.round(h * MAX_SIZE / w); w = MAX_SIZE }
@@ -1131,7 +1234,7 @@ export default function MealPage() {
                               const ctx = canvas.getContext('2d')
                               if (!ctx) { reject(new Error('Canvas not supported')); return }
                               ctx.drawImage(img, 0, 0, w, h)
-                              const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
+                              const dataUrl = canvas.toDataURL('image/jpeg', 0.6)
                               resolve(dataUrl.split(',')[1])
                             } catch (e) { reject(e) }
                           }
