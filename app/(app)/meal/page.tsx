@@ -252,7 +252,7 @@ export default function MealPage() {
 
   // Gemini API共通（環境変数から取得 - Cloudflare Pagesで設定）
   const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || ''
-  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`
+  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`
 
   const parseGeminiResponse = (geminiData: { candidates?: { content?: { parts?: { text?: string }[] } }[] }) => {
     const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || ''
@@ -1271,32 +1271,6 @@ export default function MealPage() {
                               temperature: 0.1,
                               maxOutputTokens: 2048,
                               responseMimeType: 'application/json',
-                              responseSchema: {
-                                type: 'object',
-                                properties: {
-                                  items: {
-                                    type: 'array',
-                                    items: {
-                                      type: 'object',
-                                      properties: {
-                                        name: { type: 'string' },
-                                        amount: { type: 'string' },
-                                        kcal: { type: 'number' },
-                                        protein: { type: 'number' },
-                                        fat: { type: 'number' },
-                                        carbs: { type: 'number' },
-                                      },
-                                      required: ['name', 'amount', 'kcal', 'protein', 'fat', 'carbs'],
-                                    },
-                                  },
-                                  calories: { type: 'number' },
-                                  protein: { type: 'number' },
-                                  fat: { type: 'number' },
-                                  carbs: { type: 'number' },
-                                  comment: { type: 'string' },
-                                },
-                                required: ['items', 'calories', 'protein', 'fat', 'carbs', 'comment'],
-                              },
                             },
                           }),
                         })
