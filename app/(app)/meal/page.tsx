@@ -227,20 +227,15 @@ export default function MealPage() {
   const [searchResults, setSearchResults] = useState<Array<{ name: string; data: typeof FOOD_DB[string] }>>([])
 
   // 手動入力
-  const [manualName, setManualName] = useState('')
-  const [manualKcal, setManualKcal] = useState('')
-  const [manualProtein, setManualProtein] = useState('')
-  const [manualFat, setManualFat] = useState('')
-  const [manualCarbs, setManualCarbs] = useState('')
+  const [manualInput, setManualInput] = useState({ calories: 0, protein: 0, fat: 0, carbs: 0 })
 
   // AI分析
   const [aiText, setAiText] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
-  const [aiPhotoLoading, setAiPhotoLoading] = useState(false)
   const [aiError, setAiError] = useState('')
-  const [photos, setPhotos] = useState<{file: File; preview: string}[]>([])
-  const [aiFoods, setAiFoods] = useState<{name: string; amount: string; calories: number; protein: number; fat: number; carbs: number}[]>([])
-  const [aiExtras, setAiExtras] = useState<{fiber?: number; salt?: number; vitC?: number; vitD?: number; vitB1?: number; vitB2?: number; calcium?: number; iron?: number; zinc?: number; magnesium?: number}>({})
+  const [photo, setPhoto] = useState<{file: File; preview: string} | null>(null)
+  const [aiResult, setAiResult] = useState<{calories: number; protein: number; fat: number; carbs: number; comment: string} | null>(null)
+  const [showSuggestions, setShowSuggestions] = useState(false)
 
   // カートに追加した食品リスト
   const [cartItems, setCartItems] = useState<MealItem[]>([])
@@ -266,95 +261,21 @@ export default function MealPage() {
     return JSON.parse(cleaned)
   }
 
-  // AI テキスト分析
-  const handleAiTextAnalyze = async () => {
-    if (!aiText.trim() || aiLoading) return
-    if (!GEMINI_API_KEY) { setAiError('APIキーが設定されていません'); return }
-    setAiLoading(true)
-    setAiError('')
-    try {
-      const res = await fetch(GEMINI_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: `あなたは管理栄養士です。以下の食事内容から各食品の栄養情報を推定してJSON形式で返してください。
-量が指定されていない場合は一般的な1人前の量を推定してください。
-
-食事内容: ${aiText.trim()}
-
-以下のフォーマットで返答してください：
-{"foods":[{"name":"食品名","amount":"量","calories":数値,"protein":数値,"fat":数値,"carbs":数値}],"total":{"calories":数値,"protein":数値,"fat":数値,"carbs":数値},"extras":{"fiber":食物繊維g,"salt":食塩g,"vitC":ビタミンCmg,"vitD":ビタミンDμg,"vitB1":ビタミンB1mg,"vitB2":ビタミンB2mg,"calcium":カルシウムmg,"iron":鉄mg,"zinc":亜鉛mg,"magnesium":マグネシウムmg}}
-
-JSONのみを返してください。` }] }],
-          generationConfig: { temperature: 0.2, maxOutputTokens: 1024 },
-        }),
-      })
-      if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message || `API error: ${res.status}`) }
-      const data = parseGeminiResponse(await res.json())
-      if (data.foods && Array.isArray(data.foods)) {
-        setAiFoods(data.foods.map((f: any) => ({ name: f.name, amount: f.amount || '', calories: f.calories, protein: f.protein, fat: f.fat, carbs: f.carbs })))
-        if (data.extras) setAiExtras(data.extras)
-        setAiText('')
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Unknown error'
-      setAiError(`AI分析に失敗: ${msg}`)
-      console.error(e)
-    } finally {
-      setAiLoading(false)
-    }
-  }
-
-  // AI 写真分析
-  const handleAiPhotoAnalyze = async (file: File) => {
-    if (aiPhotoLoading) return
-    if (!GEMINI_API_KEY) { setAiError('APIキーが設定されていません'); return }
-    setAiPhotoLoading(true)
-    setAiError('')
-    try {
-      // FileReaderでbase64変換（大きなファイルでも安全）
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => {
-          const result = reader.result as string
-          // "data:image/jpeg;base64,..." から base64部分だけ取り出す
-          resolve(result.split(',')[1])
+  const getMealHistorySuggestions = (query: string) => {
+    const foodCounts: Record<string, number> = {}
+    records.forEach(rec => {
+      rec.items.forEach(item => {
+        if (item.foodName.toLowerCase().includes(query.toLowerCase())) {
+          foodCounts[item.foodName] = (foodCounts[item.foodName] || 0) + 1
         }
-        reader.onerror = reject
-        reader.readAsDataURL(file)
       })
-      const mimeType = file.type || 'image/jpeg'
-
-      const res = await fetch(GEMINI_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [
-            { inlineData: { mimeType, data: base64 } },
-            { text: `この食事の写真を分析して、栄養情報をJSON形式で返してください。
-
-以下のフォーマットで返答してください：
-{"foods":[{"name":"食品名","amount":"量","calories":数値,"protein":数値,"fat":数値,"carbs":数値}],"total":{"calories":数値,"protein":数値,"fat":数値,"carbs":数値},"extras":{"fiber":食物繊維g,"salt":食塩g,"vitC":ビタミンCmg,"vitD":ビタミンDμg,"vitB1":ビタミンB1mg,"vitB2":ビタミンB2mg,"calcium":カルシウムmg,"iron":鉄mg,"zinc":亜鉛mg,"magnesium":マグネシウムmg}}
-
-JSONのみを返してください。` },
-          ] }],
-          generationConfig: { temperature: 0.2, maxOutputTokens: 1024 },
-        }),
-      })
-      if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message || `API error: ${res.status}`) }
-      const data = parseGeminiResponse(await res.json())
-      if (data.foods && Array.isArray(data.foods)) {
-        setAiFoods(data.foods.map((f: any) => ({ name: f.name, amount: f.amount || '', calories: f.calories, protein: f.protein, fat: f.fat, carbs: f.carbs })))
-        if (data.extras) setAiExtras(data.extras)
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Unknown error'
-      setAiError(`写真分析に失敗: ${msg}`)
-      console.error(e)
-    } finally {
-      setAiPhotoLoading(false)
-    }
+    })
+    return Object.entries(foodCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, count]) => ({ foodName: name, count }))
   }
+
 
   // お気に入り（デモ）
   const favorites = Object.entries(FOOD_DB).slice(0, 8).map(([name, data]) => ({ name, data }))
@@ -476,22 +397,6 @@ JSONのみを返してください。` },
     }])
   }
 
-  // 手動追加
-  const addManualToCart = () => {
-    if (!manualName.trim()) return
-    setCartItems(prev => [...prev, {
-      foodName: manualName,
-      caloriesKcal: parseFloat(manualKcal) || 0,
-      proteinG: parseFloat(manualProtein) || 0,
-      fatG: parseFloat(manualFat) || 0,
-      carbsG: parseFloat(manualCarbs) || 0,
-    }])
-    setManualName('')
-    setManualKcal('')
-    setManualProtein('')
-    setManualFat('')
-    setManualCarbs('')
-  }
 
   const removeFromCart = (index: number) => {
     setCartItems(prev => prev.filter((_, i) => i !== index))
@@ -502,11 +407,12 @@ JSONのみを返してください。` },
     setCartItems([])
     setSearchQuery('')
     setSearchResults([])
-    setManualName('')
-    setManualKcal('')
-    setManualProtein('')
-    setManualFat('')
-    setManualCarbs('')
+    setAiText('')
+    setPhoto(null)
+    setAiResult(null)
+    setAiError('')
+    setShowSuggestions(false)
+    setManualInput({ calories: 0, protein: 0, fat: 0, carbs: 0 })
     setActiveTab('search')
     setShowAddModal(true)
   }
@@ -1027,214 +933,270 @@ JSONのみを返してください。` },
               {/* 写真セクション */}
               <div style={{ marginBottom: '14px' }}>
                 <label style={{ fontSize: '12px', fontWeight: 700, color: '#4b5563', marginBottom: '6px', display: 'block' }}>
-                  写真（複数選択可）
+                  写真
                 </label>
-                {photos.length > 0 && (
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
-                    {photos.map((p, i) => (
-                      <div key={i} style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '8px', overflow: 'hidden' }}>
-                        <img src={p.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        <button
-                          onClick={() => setPhotos(prev => prev.filter((_, idx) => idx !== i))}
-                          style={{
-                            position: 'absolute', top: '2px', right: '2px', width: '20px', height: '20px',
-                            borderRadius: '50%', background: 'rgba(0,0,0,0.6)', color: 'white',
-                            border: 'none', cursor: 'pointer', fontSize: '10px',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          }}
-                        >✕</button>
-                      </div>
-                    ))}
+                {photo ? (
+                  <div style={{ position: 'relative', marginBottom: '8px' }}>
+                    <img src={photo.preview} alt="" style={{ width: '100%', height: '112px', objectFit: 'cover', borderRadius: '8px' }} />
+                    <button
+                      onClick={() => setPhoto(null)}
+                      style={{
+                        position: 'absolute', top: '6px', right: '6px', width: '28px', height: '28px',
+                        borderRadius: '50%', background: 'rgba(0,0,0,0.7)', color: 'white',
+                        border: 'none', cursor: 'pointer', fontSize: '16px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold',
+                      }}
+                    >✕</button>
                   </div>
-                )}
+                ) : null}
                 <label style={{
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                   gap: '6px', padding: '20px', border: '2px dashed #d1d5db', borderRadius: '12px',
-                  cursor: 'pointer', background: '#fafafa',
+                  cursor: 'pointer', background: '#fafafa', height: photo ? undefined : '112px',
                 }}>
                   <span style={{ fontSize: '28px' }}>📷</span>
-                  <span style={{ fontSize: '12px', color: '#9ca3af' }}>フォルダから選択（複数可）</span>
+                  <span style={{ fontSize: '12px', color: '#9ca3af' }}>写真を追加（カメラ撮影可）</span>
                   <input
                     type="file"
                     accept="image/*"
-                    multiple
                     style={{ display: 'none' }}
                     onChange={(e) => {
-                      const files = Array.from(e.target.files || [])
-                      const newPhotos = files.map(file => ({ file, preview: URL.createObjectURL(file) }))
-                      setPhotos(prev => [...prev, ...newPhotos])
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        setPhoto({ file, preview: URL.createObjectURL(file) })
+                      }
                       e.target.value = ''
                     }}
                   />
                 </label>
               </div>
 
-              {/* AI栄養自動計算カード */}
+              {/* 食事説明と自動計算カード */}
               <div
                 style={{
-                  background: 'linear-gradient(135deg, #faf5ff, #eef2ff)',
-                  border: '1px solid #e9d5ff', borderRadius: '12px', padding: '12px', marginBottom: '12px',
+                  background: 'linear-gradient(135deg, #f0fdf4, #f5fdf5)',
+                  border: '1px solid #bbf7d0', borderRadius: '12px', padding: '12px', marginBottom: '12px',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <p style={{ fontSize: '13px', fontWeight: 700, color: '#7c3aed' }}>✨ AI栄養自動計算</p>
-                  <button onClick={() => setActiveTab('history')} style={{ fontSize: '11px', color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '4px' }}>🕐 履歴から選ぶ</button>
+                <div style={{ marginBottom: '10px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#4b5563', marginBottom: '6px', display: 'block' }}>
+                    食事の説明
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <textarea
+                      value={aiText}
+                      onChange={(e) => { setAiText(e.target.value); setShowSuggestions(false) }}
+                      onFocus={() => setShowSuggestions(true)}
+                      placeholder="例：白ゴハン150g、鶏胸肉200g"
+                      rows={3}
+                      style={{
+                        width: '100%', border: '1px solid #d1fae5', borderRadius: '8px',
+                        padding: '8px 10px', fontSize: '12px', resize: 'none',
+                        background: 'white', outline: 'none', color: '#374151',
+                        fontFamily: 'inherit', boxSizing: 'border-box',
+                      }}
+                    />
+                    {showSuggestions && aiText && (
+                      <div style={{
+                        position: 'absolute', top: '100%', left: 0, right: 0,
+                        background: 'white', border: '1px solid #d1fae5', borderRadius: '8px',
+                        marginTop: '2px', maxHeight: '120px', overflowY: 'auto', zIndex: 10,
+                      }}>
+                        {getMealHistorySuggestions(aiText).map((meal, i) => (
+                          <div
+                            key={i}
+                            onClick={() => {
+                              setAiText(meal.foodName)
+                              setShowSuggestions(false)
+                            }}
+                            style={{
+                              padding: '8px 10px', cursor: 'pointer',
+                              borderBottom: i < getMealHistorySuggestions(aiText).length - 1 ? '1px solid #e8f5e9' : 'none',
+                              fontSize: '12px', color: '#374151',
+                            }}
+                          >
+                            {meal.foodName}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <textarea
-                  value={aiText}
-                  onChange={(e) => setAiText(e.target.value)}
-                  placeholder="食事内容を打ち込んでください（例：白ゴハン150g、鶏胸肉のグリル200g、サラダ）"
-                  rows={3}
-                  style={{
-                    width: '100%', border: '1px solid #d8b4fe', borderRadius: '8px',
-                    padding: '8px 10px', fontSize: '12px', resize: 'none',
-                    background: 'white', outline: 'none', color: '#374151',
-                    fontFamily: 'inherit', boxSizing: 'border-box',
+
+                {/* AI分析結果 */}
+                {aiResult ? (
+                  <div style={{
+                    background: 'white', border: '1px solid #bbf7d0', borderRadius: '8px',
+                    padding: '10px', marginBottom: '10px',
+                  }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', marginBottom: '6px' }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <span style={{ fontSize: '10px', color: '#6b7280' }}>カロリー</span>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#ef4444' }}>{Math.round(aiResult.calories)}</div>
+                        <span style={{ fontSize: '10px', color: '#9ca3af' }}>kcal</span>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <span style={{ fontSize: '10px', color: '#6b7280' }}>タンパク質</span>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#f59e0b' }}>{Math.round(aiResult.protein * 10) / 10}</div>
+                        <span style={{ fontSize: '10px', color: '#9ca3af' }}>g</span>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <span style={{ fontSize: '10px', color: '#6b7280' }}>脂質</span>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#ec4899' }}>{Math.round(aiResult.fat * 10) / 10}</div>
+                        <span style={{ fontSize: '10px', color: '#9ca3af' }}>g</span>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <span style={{ fontSize: '10px', color: '#6b7280' }}>炭水化物</span>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#3b82f6' }}>{Math.round(aiResult.carbs * 10) / 10}</div>
+                        <span style={{ fontSize: '10px', color: '#9ca3af' }}>g</span>
+                      </div>
+                    </div>
+                    {aiResult.comment && (
+                      <p style={{ fontSize: '11px', color: '#6b7280', marginTop: '6px', fontStyle: 'italic' }}>
+                        {aiResult.comment}
+                      </p>
+                    )}
+                  </div>
+                ) : null}
+
+                {/* AI分析ボタン */}
+                <button
+                  onClick={async () => {
+                    if (!GEMINI_API_KEY || !aiText.trim()) return
+                    setAiLoading(true)
+                    setAiError('')
+                    try {
+                      const parts: any[] = [{ text: `あなたは管理栄養士です。以下の食事内容から栄養情報を推定してJSON形式で返してください。
+
+食事内容: ${aiText}
+
+以下のフォーマットで返答してください：
+{"calories":数値,"protein":数値,"fat":数値,"carbs":数値,"comment":"簡潔なコメント"}
+
+JSONのみを返してください。` }]
+
+                      if (photo) {
+                        const reader = new FileReader()
+                        reader.onload = async () => {
+                          const base64 = (reader.result as string).split(',')[1]
+                          parts.push({
+                            inlineData: {
+                              mimeType: photo.file.type,
+                              data: base64,
+                            }
+                          })
+
+                          try {
+                            const res = await fetch(GEMINI_URL, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                contents: [{ parts }],
+                                generationConfig: { temperature: 0.2, maxOutputTokens: 512 },
+                              }),
+                            })
+                            if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message || `API error: ${res.status}`) }
+                            const data = parseGeminiResponse(await res.json())
+                            setAiResult(data)
+                          } catch (e) {
+                            const msg = e instanceof Error ? e.message : 'Unknown error'
+                            setAiError(`分析失敗: ${msg}`)
+                          } finally {
+                            setAiLoading(false)
+                          }
+                        }
+                        reader.readAsDataURL(photo.file)
+                      } else {
+                        const res = await fetch(GEMINI_URL, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            contents: [{ parts }],
+                            generationConfig: { temperature: 0.2, maxOutputTokens: 512 },
+                          }),
+                        })
+                        if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message || `API error: ${res.status}`) }
+                        const data = parseGeminiResponse(await res.json())
+                        setAiResult(data)
+                      }
+                    } catch (e) {
+                      const msg = e instanceof Error ? e.message : 'Unknown error'
+                      setAiError(`分析失敗: ${msg}`)
+                      setAiLoading(false)
+                    }
                   }}
-                />
-                <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                  <button
-                    onClick={handleAiTextAnalyze}
-                    disabled={aiLoading || !aiText.trim()}
-                    style={{
-                      flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      gap: '6px', background: aiLoading || !aiText.trim() ? '#c4b5fd' : 'linear-gradient(135deg, #8b5cf6, #6366f1)',
-                      color: 'white', fontWeight: 700, padding: '11px', borderRadius: '10px',
-                      fontSize: '13px', transition: 'all 0.2s', border: 'none',
-                      cursor: aiLoading || !aiText.trim() ? 'not-allowed' : 'pointer',
-                      opacity: aiLoading ? 0.7 : 1, fontFamily: 'inherit',
-                    }}
-                  >
-                    {aiLoading ? '⏳ 分析中...' : '✨ AIで自動計算'}
-                  </button>
-                  <button
-                    onClick={() => { if (photos.length > 0) handleAiPhotoAnalyze(photos[0].file) }}
-                    disabled={aiPhotoLoading || photos.length === 0}
-                    style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      gap: '4px', background: aiPhotoLoading || photos.length === 0 ? '#93c5fd' : 'linear-gradient(135deg, #3b82f6, #2563eb)',
-                      color: 'white', fontWeight: 700, padding: '11px 16px', borderRadius: '10px',
-                      fontSize: '13px', cursor: aiPhotoLoading || photos.length === 0 ? 'not-allowed' : 'pointer',
-                      opacity: aiPhotoLoading ? 0.7 : 1, fontFamily: 'inherit', border: 'none',
-                    }}
-                  >
-                    {aiPhotoLoading ? '⏳' : '📷'}
-                  </button>
-                </div>
+                  disabled={aiLoading || !aiText.trim()}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    gap: '6px', background: aiLoading || !aiText.trim() ? '#d1fae5' : 'linear-gradient(135deg, #10b981, #059669)',
+                    color: 'white', fontWeight: 700, padding: '11px', borderRadius: '10px',
+                    fontSize: '13px', transition: 'all 0.2s', border: 'none',
+                    cursor: aiLoading || !aiText.trim() ? 'not-allowed' : 'pointer',
+                    opacity: aiLoading ? 0.7 : 1, fontFamily: 'inherit',
+                  }}
+                >
+                  {aiLoading ? '⏳ 分析中...' : '✨ AIで自動計算'}
+                </button>
                 {aiError && (
                   <p style={{ fontSize: '11px', color: '#dc2626', marginTop: '6px' }}>{aiError}</p>
                 )}
+              </div>
 
-                {/* AI結果セクション */}
-                {aiFoods.length > 0 && (
-                  <div style={{ marginTop: '10px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                      <p style={{ fontSize: '12px', fontWeight: 700, color: '#6b21a8', display: 'flex', alignItems: 'center', gap: '4px' }}>🍽 食事内容（編集可）</p>
-                      <button
-                        onClick={() => {
-                          const newItems: MealItem[] = aiFoods.map(f => ({ foodName: f.name, caloriesKcal: f.calories, proteinG: f.protein, fatG: f.fat, carbsG: f.carbs }))
-                          setCartItems(prev => [...prev, ...newItems])
-                          setAiFoods([])
-                          setAiExtras({})
-                        }}
-                        style={{ fontSize: '11px', color: '#7c3aed', background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: '6px', padding: '4px 10px', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit' }}
-                      >
-                        ＋ 追加
-                      </button>
-                    </div>
-                    {aiFoods.map((food, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                        <span style={{ color: '#9ca3af', fontSize: '10px' }}>•</span>
-                        <input
-                          value={food.name}
-                          onChange={(e) => { const updated = [...aiFoods]; updated[i] = {...updated[i], name: e.target.value}; setAiFoods(updated) }}
-                          style={{ flex: 1, fontSize: '12px', border: '1px solid #e9d5ff', borderRadius: '6px', padding: '6px 8px', background: 'white', fontFamily: 'inherit', outline: 'none' }}
-                        />
-                        <button
-                          onClick={() => setAiFoods(prev => prev.filter((_, idx) => idx !== i))}
-                          style={{ fontSize: '14px', color: '#d1d5db', background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}
-                        >✕</button>
-                      </div>
-                    ))}
-                    <button
-                      onClick={async () => {
-                        const text = aiFoods.map(f => f.name).join('、')
-                        setAiText(text)
-                        setAiFoods([])
-                        setAiExtras({})
-                        if (!GEMINI_API_KEY || !text.trim()) return
-                        setAiLoading(true)
-                        setAiError('')
-                        try {
-                          const res = await fetch(GEMINI_URL, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              contents: [{ parts: [{ text: `あなたは管理栄養士です。以下の食事内容から各食品の栄養情報を推定してJSON形式で返してください。量が指定されていない場合は一般的な1人前の量を推定してください。
-
-食事内容: ${text}
-
-以下のフォーマットで返答してください：
-{"foods":[{"name":"食品名","amount":"量","calories":数値,"protein":数値,"fat":数値,"carbs":数値}],"total":{"calories":数値,"protein":数値,"fat":数値,"carbs":数値},"extras":{"fiber":食物繊維g,"salt":食塩g,"vitC":ビタミンCmg,"vitD":ビタミンDμg,"vitB1":ビタミンB1mg,"vitB2":ビタミンB2mg,"calcium":カルシウムmg,"iron":鉄mg,"zinc":亜鉛mg,"magnesium":マグネシウムmg}}
-
-JSONのみを返してください。` }] }],
-                              generationConfig: { temperature: 0.2, maxOutputTokens: 1024 },
-                            }),
-                          })
-                          if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message || `API error: ${res.status}`) }
-                          const data = parseGeminiResponse(await res.json())
-                          if (data.foods) setAiFoods(data.foods.map((f: any) => ({ name: f.name, amount: f.amount || '', calories: f.calories, protein: f.protein, fat: f.fat, carbs: f.carbs })))
-                          if (data.extras) setAiExtras(data.extras)
-                          setAiText('')
-                        } catch (e) {
-                          const msg = e instanceof Error ? e.message : 'Unknown error'
-                          setAiError(`再計算に失敗: ${msg}`)
-                        } finally {
-                          setAiLoading(false)
-                        }
-                      }}
+              {/* 手動入力栄養値 */}
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: '#4b5563', marginBottom: '6px', display: 'block' }}>
+                  栄養値（手動入力）
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <div>
+                    <label style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px', display: 'block' }}>カロリー（kcal）</label>
+                    <input
+                      type="number"
+                      value={manualInput.calories}
+                      onChange={(e) => setManualInput(prev => ({ ...prev, calories: parseFloat(e.target.value) || 0 }))}
                       style={{
-                        width: '100%', padding: '9px', borderRadius: '8px', marginTop: '6px',
-                        background: 'white', border: '1px solid #ddd6fe',
-                        color: '#7c3aed', fontWeight: 700, fontSize: '12px',
-                        cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                        width: '100%', border: '1px solid #d1d5db', borderRadius: '6px', padding: '6px 8px',
+                        fontSize: '12px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
                       }}
-                    >
-                      🔄 編集内容で再計算
-                    </button>
+                    />
                   </div>
-                )}
-
-                {/* 追加栄養素セクション */}
-                {Object.keys(aiExtras).length > 0 && (
-                  <div style={{ marginTop: '10px', padding: '10px', background: '#faf5ff', borderRadius: '8px', border: '1px solid #e9d5ff' }}>
-                    <p style={{ fontSize: '12px', fontWeight: 700, color: '#6b21a8', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>📊 追加栄養素</p>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                      {[
-                        { label: '食物繊維', value: aiExtras.fiber, unit: 'g' },
-                        { label: '食塩', value: aiExtras.salt, unit: 'g', warn: (aiExtras.salt || 0) > 7 },
-                        { label: 'ビタミンC', value: aiExtras.vitC, unit: 'mg' },
-                        { label: 'ビタミンD', value: aiExtras.vitD, unit: 'μg' },
-                        { label: 'ビタミンB1', value: aiExtras.vitB1, unit: 'mg' },
-                        { label: 'ビタミンB2', value: aiExtras.vitB2, unit: 'mg' },
-                        { label: 'カルシウム', value: aiExtras.calcium, unit: 'mg' },
-                        { label: '鉄', value: aiExtras.iron, unit: 'mg' },
-                        { label: '亜鉛', value: aiExtras.zinc, unit: 'mg' },
-                        { label: 'Mg', value: aiExtras.magnesium, unit: 'mg' },
-                      ].map((n, i) => (
-                        <div key={i} style={{
-                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                          padding: '6px 10px', background: 'white', borderRadius: '6px', border: '1px solid #f0e7ff',
-                        }}>
-                          <span style={{ fontSize: '11px', color: '#6b7280' }}>{n.label}</span>
-                          <span style={{ fontSize: '13px', fontWeight: 700, color: n.warn ? '#dc2626' : '#7c3aed' }}>
-                            {n.value !== undefined ? `${n.value.toFixed(n.unit === 'g' ? 1 : n.unit === 'mg' ? 1 : 1)}${n.unit}` : '-'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                  <div>
+                    <label style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px', display: 'block' }}>タンパク質（g）</label>
+                    <input
+                      type="number"
+                      value={manualInput.protein}
+                      onChange={(e) => setManualInput(prev => ({ ...prev, protein: parseFloat(e.target.value) || 0 }))}
+                      style={{
+                        width: '100%', border: '1px solid #d1d5db', borderRadius: '6px', padding: '6px 8px',
+                        fontSize: '12px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+                      }}
+                    />
                   </div>
-                )}
+                  <div>
+                    <label style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px', display: 'block' }}>脂質（g）</label>
+                    <input
+                      type="number"
+                      value={manualInput.fat}
+                      onChange={(e) => setManualInput(prev => ({ ...prev, fat: parseFloat(e.target.value) || 0 }))}
+                      style={{
+                        width: '100%', border: '1px solid #d1d5db', borderRadius: '6px', padding: '6px 8px',
+                        fontSize: '12px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px', display: 'block' }}>炭水化物（g）</label>
+                    <input
+                      type="number"
+                      value={manualInput.carbs}
+                      onChange={(e) => setManualInput(prev => ({ ...prev, carbs: parseFloat(e.target.value) || 0 }))}
+                      style={{
+                        width: '100%', border: '1px solid #d1d5db', borderRadius: '6px', padding: '6px 8px',
+                        fontSize: '12px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* 3タブ：検索/お気に入り/手動 */}
@@ -1419,59 +1381,79 @@ JSONのみを返してください。` }] }],
 
                   {/* 手動タブ */}
                   {activeTab === 'manual' && (
-                    <div>
-                      <div style={{ marginBottom: '8px' }}>
-                        <input
-                          value={manualName}
-                          onChange={(e) => setManualName(e.target.value)}
-                          placeholder="食品名"
-                          style={{ ...inputStyle, marginBottom: '6px' }}
-                        />
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '6px' }}>
+                    <div style={{ padding: '12px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                        <div>
+                          <label style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px', display: 'block' }}>カロリー（kcal）</label>
                           <input
-                            value={manualKcal}
-                            onChange={(e) => setManualKcal(e.target.value)}
-                            placeholder="kcal"
                             type="number"
-                            style={inputStyle}
-                          />
-                          <input
-                            value={manualProtein}
-                            onChange={(e) => setManualProtein(e.target.value)}
-                            placeholder="たんぱく質 (g)"
-                            type="number"
-                            step="0.1"
-                            style={inputStyle}
-                          />
-                          <input
-                            value={manualFat}
-                            onChange={(e) => setManualFat(e.target.value)}
-                            placeholder="脂質 (g)"
-                            type="number"
-                            step="0.1"
-                            style={inputStyle}
-                          />
-                          <input
-                            value={manualCarbs}
-                            onChange={(e) => setManualCarbs(e.target.value)}
-                            placeholder="炭水化物 (g)"
-                            type="number"
-                            step="0.1"
-                            style={inputStyle}
+                            value={manualInput.calories}
+                            onChange={(e) => setManualInput(prev => ({ ...prev, calories: parseFloat(e.target.value) || 0 }))}
+                            style={{
+                              width: '100%', border: '1px solid #d1d5db', borderRadius: '6px', padding: '6px 8px',
+                              fontSize: '12px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+                            }}
                           />
                         </div>
-                        <button
-                          onClick={addManualToCart}
-                          style={{
-                            width: '100%', padding: '9px', borderRadius: '8px',
-                            background: '#f0fdf4', border: '1px solid #22c55e',
-                            color: '#16a34a', fontWeight: 700, fontSize: '13px',
-                            cursor: 'pointer', fontFamily: 'inherit',
-                          }}
-                        >
-                          リストに追加
-                        </button>
+                        <div>
+                          <label style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px', display: 'block' }}>タンパク質（g）</label>
+                          <input
+                            type="number"
+                            value={manualInput.protein}
+                            onChange={(e) => setManualInput(prev => ({ ...prev, protein: parseFloat(e.target.value) || 0 }))}
+                            style={{
+                              width: '100%', border: '1px solid #d1d5db', borderRadius: '6px', padding: '6px 8px',
+                              fontSize: '12px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px', display: 'block' }}>脂質（g）</label>
+                          <input
+                            type="number"
+                            value={manualInput.fat}
+                            onChange={(e) => setManualInput(prev => ({ ...prev, fat: parseFloat(e.target.value) || 0 }))}
+                            style={{
+                              width: '100%', border: '1px solid #d1d5db', borderRadius: '6px', padding: '6px 8px',
+                              fontSize: '12px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px', display: 'block' }}>炭水化物（g）</label>
+                          <input
+                            type="number"
+                            value={manualInput.carbs}
+                            onChange={(e) => setManualInput(prev => ({ ...prev, carbs: parseFloat(e.target.value) || 0 }))}
+                            style={{
+                              width: '100%', border: '1px solid #d1d5db', borderRadius: '6px', padding: '6px 8px',
+                              fontSize: '12px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+                            }}
+                          />
+                        </div>
                       </div>
+                      <button
+                        onClick={() => {
+                          if (manualInput.calories > 0) {
+                            setCartItems(prev => [...prev, {
+                              foodName: '手動入力',
+                              caloriesKcal: manualInput.calories,
+                              proteinG: manualInput.protein,
+                              fatG: manualInput.fat,
+                              carbsG: manualInput.carbs,
+                            }])
+                            setManualInput({ calories: 0, protein: 0, fat: 0, carbs: 0 })
+                          }
+                        }}
+                        style={{
+                          width: '100%', padding: '9px', borderRadius: '8px',
+                          background: '#f0fdf4', border: '1px solid #22c55e',
+                          color: '#16a34a', fontWeight: 700, fontSize: '13px',
+                          cursor: 'pointer', fontFamily: 'inherit',
+                        }}
+                      >
+                        リストに追加
+                      </button>
                     </div>
                   )}
                 </div>
