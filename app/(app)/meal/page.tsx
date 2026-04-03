@@ -252,8 +252,8 @@ export default function MealPage() {
   const [goalCalAuto, setGoalCalAuto] = useState(2000)
 
   // Gemini API共通（環境変数から取得 - Cloudflare Pagesで設定）
-  const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || ''
-  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`
+  // AI分析はCloudflare Pages Function経由（OpenAI GPT-4o mini）
+  const AI_ANALYZE_URL = '/api/ai/analyze-meal'
 
   const parseGeminiResponse = (geminiData: { candidates?: { content?: { parts?: { text?: string }[] } }[] }) => {
     const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || ''
@@ -1205,18 +1205,16 @@ export default function MealPage() {
                   onClick={async () => {
                     const desc = aiText.trim()
                     if (!desc && photos.length === 0) { setAiError('食事の説明または写真が必要です'); return }
-                    if (!GEMINI_API_KEY) { setAiError('APIキーが設定されていません。管理者にお問い合わせください。'); return }
                     setAiLoading(true)
                     setAiError('')
                     try {
-                      const parts: any[] = []
                       let base64Data = ''
+                      let imageMimeType = 'image/jpeg'
 
                       if (photos.length > 0) {
                         // 画像をリサイズしてbase64に変換（HEIC/高画質写真対応）
                         const photoFile = photos[0].file
                         try {
-                          // 方法1: createImageBitmap（HEIC対応が良い）→ Canvas でJPEGに変換
                           const bitmap = await createImageBitmap(photoFile)
                           const canvas = document.createElement('canvas')
                           const MAX_SIZE = 512
@@ -1232,10 +1230,10 @@ export default function MealPage() {
                           bitmap.close()
                           const dataUrl = canvas.toDataURL('image/jpeg', 0.6)
                           base64Data = dataUrl.split(',')[1]
-                          console.log(`画像リサイズ: ${bitmap.width || '?'}x${bitmap.height || '?'} → ${w}x${h}, base64: ${Math.round(base64Data.length/1024)}KB`)
+                          imageMimeType = 'image/jpeg'
+                          console.log(`画像リサイズ: → ${w}x${h}, base64: ${Math.round(base64Data.length/1024)}KB`)
                         } catch (bitmapErr) {
                           console.warn('createImageBitmap失敗、FileReader使用:', bitmapErr)
-                          // 方法2: FileReaderで直接base64読み取り（リサイズなし）
                           base64Data = await new Promise<string>((resolve, reject) => {
                             const reader = new FileReader()
                             reader.onload = () => {
@@ -1245,97 +1243,56 @@ export default function MealPage() {
                             reader.onerror = () => reject(new Error('ファイルの読み込みに失敗'))
                             reader.readAsDataURL(photoFile)
                           })
-                          console.log(`FileReader読み取り: base64: ${Math.round(base64Data.length/1024)}KB`)
+                          imageMimeType = photoFile.type || 'image/jpeg'
+                          if (imageMimeType === 'image/heic' || imageMimeType === 'image/heif') {
+                            imageMimeType = 'image/jpeg'
+                          }
                         }
-                        // MIMEタイプを判定（HEIC→jpeg変換済みの場合はjpeg）
-                        const mimeType = photoFile.type === 'image/heic' || photoFile.type === 'image/heif'
-                          ? (base64Data.startsWith('/9j') ? 'image/jpeg' : photoFile.type)
-                          : (photoFile.type || 'image/jpeg')
-                        parts.push({ inlineData: { mimeType: mimeType === 'image/heic' || mimeType === 'image/heif' ? 'image/jpeg' : mimeType, data: base64Data } })
                       }
 
-                      parts.push({ text: `あなたは管理栄養士です。${desc ? `食事: ${desc}` : 'この写真の食事'}の栄養素をJSON形式で返してください。各食品のグラム数(grams)も推定してください。
+                      // サーバーサイドAPI呼び出し（リトライ機能付き）
+                      const callAI = async (retryCount: number): Promise<any> => {
+                        const body: any = {}
+                        if (base64Data) {
+                          body.image = base64Data
+                          body.mimeType = imageMimeType
+                        }
+                        if (desc) {
+                          body.text = desc
+                        }
 
-回答はこのJSON形式のみ（他のテキスト不要）:
-{"items":[{"name":"食品名","amount":"量の説明","grams":200,"kcal":0,"protein":0,"fat":0,"carbs":0}],"calories":0,"protein":0,"fat":0,"carbs":0,"comment":"アドバイス"}` })
-
-                      // Gemini API呼び出し（リトライ機能付き）
-                      const callGemini = async (retryCount: number): Promise<any> => {
-                        const res = await fetch(GEMINI_URL, {
+                        const res = await fetch(AI_ANALYZE_URL, {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            contents: [{ parts }],
-                            generationConfig: {
-                              temperature: 0.2,
-                              maxOutputTokens: 2048,
-                            },
-                          }),
+                          body: JSON.stringify(body),
                         })
+
                         if (!res.ok) {
                           const err = await res.json().catch(() => ({}))
-                          const errMsg = err.error?.message || `API error: ${res.status}`
-                          console.error('Gemini API error:', res.status, errMsg)
+                          const errMsg = (err as any).error || `API error: ${res.status}`
+                          console.error('AI API error:', res.status, errMsg)
                           if (retryCount > 0) {
                             console.log(`リトライ中... 残り${retryCount}回`)
-                            await new Promise(r => setTimeout(r, 1000))
-                            return callGemini(retryCount - 1)
+                            await new Promise(r => setTimeout(r, 2000))
+                            return callAI(retryCount - 1)
                           }
                           throw new Error(errMsg)
                         }
-                        const geminiData = await res.json()
-                        const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || ''
-                        console.log('Gemini raw response:', rawText.substring(0, 500))
 
-                        if (!rawText) {
+                        const result = await res.json()
+                        if (!(result as any).items && !(result as any).calories) {
                           if (retryCount > 0) {
-                            console.log('空レスポンス、リトライ中...')
-                            await new Promise(r => setTimeout(r, 1000))
-                            return callGemini(retryCount - 1)
+                            console.log('不完全なレスポンス、リトライ中...')
+                            await new Promise(r => setTimeout(r, 2000))
+                            return callAI(retryCount - 1)
                           }
-                          throw new Error('AIから応答がありませんでした')
+                          throw new Error('栄養データを取得できませんでした')
                         }
-
-                        // JSONパース（複数方法で試行）
-                        try {
-                          return JSON.parse(rawText)
-                        } catch {
-                          // フォールバック: マークダウンやゴミを除去してリトライ
-                          let jsonStr = rawText.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim()
-                          const firstBrace = jsonStr.indexOf('{')
-                          const lastBrace = jsonStr.lastIndexOf('}')
-                          if (firstBrace !== -1 && lastBrace > firstBrace) {
-                            jsonStr = jsonStr.slice(firstBrace, lastBrace + 1)
-                          }
-                          jsonStr = jsonStr.replace(/,\s*([}\]])/g, '$1')
-                          try {
-                            return JSON.parse(jsonStr)
-                          } catch {
-                            // 最終手段: 正規表現で数値を抽出
-                            const calMatch = rawText.match(/"calories"\s*:\s*(\d+\.?\d*)/)
-                            if (calMatch) {
-                              const proMatch = rawText.match(/"protein"\s*:\s*(\d+\.?\d*)/)
-                              const fatMatch = rawText.match(/"fat"\s*:\s*(\d+\.?\d*)/)
-                              const carbMatch = rawText.match(/"carbs"\s*:\s*(\d+\.?\d*)/)
-                              return {
-                                calories: parseFloat(calMatch[1]),
-                                protein: proMatch ? parseFloat(proMatch[1]) : 0,
-                                fat: fatMatch ? parseFloat(fatMatch[1]) : 0,
-                                carbs: carbMatch ? parseFloat(carbMatch[1]) : 0,
-                                comment: '', items: [],
-                              }
-                            }
-                            if (retryCount > 0) {
-                              console.log('JSONパース失敗、リトライ中...')
-                              await new Promise(r => setTimeout(r, 1000))
-                              return callGemini(retryCount - 1)
-                            }
-                            throw new Error('栄養データを取得できませんでした')
-                          }
-                        }
+                        console.log('AI response:', JSON.stringify(result).substring(0, 300))
+                        return result
                       }
 
-                      const data = await callGemini(2) // 最大2回リトライ
+                      const data = await callAI(2) // 最大2回リトライ
 
                       // 各itemにDB栄養値を補完＋base値を保存
                       const itemsWithBase = (data.items || []).map((item: any) => {
