@@ -1294,13 +1294,13 @@ export default function MealPage() {
 
                       const data = await callAI(2) // 最大2回リトライ
 
-                      // 各itemにDB栄養値を補完＋base値を保存
+                      // 各itemにDB栄養値を補完＋base値を保存（AIは食品名+グラム数のみ返す）
                       const itemsWithBase = (data.items || []).map((item: any) => {
                         // DBから栄養値を検索（食品名で照合）
                         const dbResults = searchFoodDB(item.name)
                         const dbMatch = dbResults.length > 0 ? dbResults[0] : null
 
-                        let kcal = item.kcal, protein = item.protein, fat = item.fat, carbs = item.carbs
+                        let kcal = item.kcal || 0, protein = item.protein || 0, fat = item.fat || 0, carbs = item.carbs || 0
                         let grams = item.grams || 100
 
                         if (dbMatch) {
@@ -1311,6 +1311,15 @@ export default function MealPage() {
                           fat = Math.round(dbMatch.f * ratio * 10) / 10
                           carbs = Math.round(dbMatch.c * ratio * 10) / 10
                           console.log(`DB照合: ${item.name} → ${dbMatch.name} (${dbMatch.g}gあたり ${dbMatch.kcal}kcal, ${grams}gで${kcal}kcal)`)
+                        } else {
+                          // DBにない場合: AIが栄養値を返していなければ概算（100gあたり150kcal）
+                          if (!kcal) {
+                            kcal = Math.round(grams * 1.5)
+                            protein = Math.round(grams * 0.1 * 10) / 10
+                            fat = Math.round(grams * 0.05 * 10) / 10
+                            carbs = Math.round(grams * 0.2 * 10) / 10
+                          }
+                          console.log(`DB未ヒット: ${item.name} (${grams}g, 概算${kcal}kcal)`)
                         }
 
                         return {

@@ -41,21 +41,25 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         type: 'image_url',
         image_url: {
           url: `data:${mime};base64,${image}`,
-          detail: 'auto',  // 精度重視: autoでOpenAIが最適解像度を選択
+          detail: 'auto',
         },
       })
     }
 
+    // 軽量プロンプト: 食品名とグラム数の特定のみ（栄養計算はクライアント側DBで行う）
     const foodDesc = text ? `食事: ${text}` : 'この写真の食事'
     content.push({
       type: 'text',
-      text: `あなたは管理栄養士です。${foodDesc}の栄養素を分析してください。各食品のグラム数(grams)も推定してください。
+      text: `${foodDesc}に含まれる食品を特定してください。
 
-回答はこのJSON形式のみ（他のテキスト不要）:
-{"items":[{"name":"食品名","amount":"量の説明","grams":200,"kcal":0,"protein":0,"fat":0,"carbs":0}],"calories":0,"protein":0,"fat":0,"carbs":0,"comment":"簡潔な栄養アドバイス"}`,
+各食品の「名前」と「推定グラム数」だけをJSON形式で返してください。栄養計算は不要です。
+日本の一般的な食品名で回答してください（例: 白米、鶏むね肉、味噌汁）。
+
+回答形式（JSONのみ、他のテキスト不要）:
+{"items":[{"name":"食品名","amount":"量の説明","grams":200}],"comment":"一言コメント"}`,
     })
 
-    // OpenAI API呼び出し（GPT-4o mini）
+    // OpenAI API呼び出し（GPT-4o）
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -63,16 +67,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
-            content: 'あなたは管理栄養士です。食事の栄養素を正確に分析し、指定されたJSON形式のみで回答してください。JSONのみ返してください。説明文やマークダウンは不要です。',
+            content: '写真や説明から食品を特定する専門家です。各食品の名前と推定グラム数をJSON形式で返してください。栄養素の計算は不要です。日本語の一般的な食品名を使ってください。JSONのみ返してください。',
           },
           { role: 'user', content },
         ],
         temperature: 0.2,
-        max_tokens: 2048,
+        max_tokens: 512,  // 食品名+グラム数だけなので短くてOK
         response_format: { type: 'json_object' },
       }),
     })
@@ -96,7 +100,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
       result = JSON.parse(rawText)
     } catch {
-      // マークダウンやゴミを除去
       let jsonStr = rawText.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim()
       const firstBrace = jsonStr.indexOf('{')
       const lastBrace = jsonStr.lastIndexOf('}')
@@ -107,27 +110,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       try {
         result = JSON.parse(jsonStr)
       } catch {
-        const calMatch = rawText.match(/"calories"\s*:\s*(\d+\.?\d*)/)
-        if (calMatch) {
-          const proMatch = rawText.match(/"protein"\s*:\s*(\d+\.?\d*)/)
-          const fatMatch = rawText.match(/"fat"\s*:\s*(\d+\.?\d*)/)
-          const carbMatch = rawText.match(/"carbs"\s*:\s*(\d+\.?\d*)/)
-          result = {
-            calories: parseFloat(calMatch[1]),
-            protein: proMatch ? parseFloat(proMatch[1]) : 0,
-            fat: fatMatch ? parseFloat(fatMatch[1]) : 0,
-            carbs: carbMatch ? parseFloat(carbMatch[1]) : 0,
-            comment: '', items: [],
-          }
-        } else {
-          return new Response(JSON.stringify({
-            error: '栄養データを取得できませんでした',
-            raw: rawText.substring(0, 500),
-          }), {
-            status: 422,
-            headers: { 'Content-Type': 'application/json', ...corsHeaders },
-          })
-        }
+        return new Response(JSON.stringify({
+          error: '食品データを取得できませんでした',
+          raw: rawText.substring(0, 500),
+        }), {
+          status: 422,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        })
       }
     }
 
