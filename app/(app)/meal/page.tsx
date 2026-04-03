@@ -153,6 +153,7 @@ interface MealRecord {
   fiberG: number
   saltG: number
   items: MealItem[]
+  photoUrl?: string
 }
 
 interface GoalData {
@@ -234,6 +235,10 @@ export default function MealPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [favorites, setFavorites] = useState<string[]>([])
 
+  // 写真ビューアとエディット
+  const [viewPhoto, setViewPhoto] = useState<string | null>(null)
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null)
+
   // 手動入力フィールド
   const [manualKcal, setManualKcal] = useState('')
   const [manualProtein, setManualProtein] = useState('')
@@ -312,10 +317,10 @@ export default function MealPage() {
 
   const totals = todayRecords.reduce(
     (acc, r) => ({
-      calories: acc.calories + r.caloriesKcal,
-      protein: acc.protein + r.proteinG,
-      fat: acc.fat + r.fatG,
-      carbs: acc.carbs + r.carbsG,
+      calories: acc.calories + (r.caloriesKcal || 0),
+      protein: acc.protein + (r.proteinG || 0),
+      fat: acc.fat + (r.fatG || 0),
+      carbs: acc.carbs + (r.carbsG || 0),
     }),
     { calories: 0, protein: 0, fat: 0, carbs: 0 }
   )
@@ -371,28 +376,54 @@ export default function MealPage() {
   }
 
 
-  const openAddModal = (cat?: string) => {
-    if (cat) setActiveMealType(mealTypeReverseMap[cat] ?? 'lunch')
-    const now = new Date(currentDate ?? new Date())
-    now.setHours(8, 0, 0, 0)
-    const localStr = now.toISOString().slice(0, 16)
-    setMealDate(localStr)
-    setAiText('')
-    setPhotos([])
-    setAiResult(null)
-    setAiError('')
-    setShowSuggestions(false)
-    setBottomTab('search')
-    setSearchQuery('')
-    setManualKcal('')
-    setManualProtein('')
-    setManualFat('')
-    setManualCarbs('')
+  const openAddModal = (cat?: string, recordId?: string) => {
+    if (recordId) {
+      // Edit mode
+      const record = records.find(r => r.id === recordId)
+      if (record) {
+        setEditingRecordId(recordId)
+        setActiveMealType(mealTypeReverseMap[record.mealType] ?? 'lunch')
+        const dt = new Date(record.mealDate + 'T00:00:00')
+        dt.setHours(8, 0, 0, 0)
+        const localStr = dt.toISOString().slice(0, 16)
+        setMealDate(localStr)
+        setAiText(record.foodName)
+        setPhotos(record.photoUrl ? [{ file: new File([''], ''), preview: record.photoUrl }] : [])
+        setAiResult(null)
+        setAiError('')
+        setShowSuggestions(false)
+        setBottomTab('manual')
+        setSearchQuery('')
+        setManualKcal(String(Math.round(record.caloriesKcal)))
+        setManualProtein(String(record.proteinG.toFixed(1)))
+        setManualFat(String(record.fatG.toFixed(1)))
+        setManualCarbs(String(record.carbsG.toFixed(1)))
+      }
+    } else {
+      // New record mode
+      setEditingRecordId(null)
+      if (cat) setActiveMealType(mealTypeReverseMap[cat] ?? 'lunch')
+      const now = new Date(currentDate ?? new Date())
+      now.setHours(8, 0, 0, 0)
+      const localStr = now.toISOString().slice(0, 16)
+      setMealDate(localStr)
+      setAiText('')
+      setPhotos([])
+      setAiResult(null)
+      setAiError('')
+      setShowSuggestions(false)
+      setBottomTab('search')
+      setSearchQuery('')
+      setManualKcal('')
+      setManualProtein('')
+      setManualFat('')
+      setManualCarbs('')
+    }
     setShowAddModal(true)
   }
 
-  // 記録する（新しいAI中心フロー）
-  const handleRecord = () => {
+  // 記録する（新しいAI中心フロー、写真をbase64保存対応 + エディット対応）
+  const handleRecord = async () => {
     const catName = mealTypeMap[activeMealType] ?? '昼食'
     const kcal = Number(manualKcal) || 0
     const protein = Number(manualProtein) || 0
@@ -403,8 +434,28 @@ export default function MealPage() {
     const mealDateObj = new Date(mealDate)
     const mealDateStr = mealDateObj.toISOString().slice(0, 10)
 
+    // Save photo as base64 thumbnail
+    let photoUrl = ''
+    if (photos.length > 0 && photos[0].file.size > 0) {
+      try {
+        const bitmap = await createImageBitmap(photos[0].file)
+        const canvas = document.createElement('canvas')
+        const MAX = 200
+        let w = bitmap.width, h = bitmap.height
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX }
+          else { w = Math.round(w * MAX / h); h = MAX }
+        }
+        canvas.width = w; canvas.height = h
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(bitmap, 0, 0, w, h)
+        bitmap.close()
+        photoUrl = canvas.toDataURL('image/jpeg', 0.5)
+      } catch { /* ignore */ }
+    }
+
     const newRecord: MealRecord = {
-      id: Date.now().toString(),
+      id: editingRecordId || Date.now().toString(),
       mealDate: mealDateStr,
       mealType: catName,
       foodName: foodName,
@@ -421,18 +472,32 @@ export default function MealPage() {
         fatG: fat,
         carbsG: carbs,
       }],
+      photoUrl: photoUrl || undefined,
     }
-    saveRecords([...records, newRecord])
-    // ポイント付与
-    const mealTypeEn = activeMealType || 'lunch'
-    const result = addMealPoint(mealDateStr, mealTypeEn)
-    if (result.pointsAdded > 0) {
-      setTimeout(() => {
-        const bonusMsg = result.pointsAdded > 1 ? `（3食コンプリートボーナス +1pt!）` : ''
-        alert(`🎉 +${result.pointsAdded}pt 獲得！${bonusMsg}\n累計: ${result.totalPoints}pt`)
-      }, 300)
+
+    let updatedRecords: MealRecord[]
+    if (editingRecordId) {
+      // Update existing record
+      updatedRecords = records.map(r => r.id === editingRecordId ? newRecord : r)
+    } else {
+      // Create new record
+      updatedRecords = [...records, newRecord]
+    }
+    saveRecords(updatedRecords)
+
+    // ポイント付与（新規記録のみ）
+    if (!editingRecordId) {
+      const mealTypeEn = activeMealType || 'lunch'
+      const result = addMealPoint(mealDateStr, mealTypeEn)
+      if (result.pointsAdded > 0) {
+        setTimeout(() => {
+          const bonusMsg = result.pointsAdded > 1 ? `（3食コンプリートボーナス +1pt!）` : ''
+          alert(`🎉 +${result.pointsAdded}pt 獲得！${bonusMsg}\n累計: ${result.totalPoints}pt`)
+        }, 300)
+      }
     }
     setShowAddModal(false)
+    setEditingRecordId(null)
   }
 
   // PFC変更時にカロリー比率を再計算
@@ -763,17 +828,31 @@ export default function MealPage() {
                         padding: '10px 16px', borderBottom: '1px solid #f8f8f8', gap: '8px',
                       }}
                     >
+                      {record.photoUrl && (
+                        <img
+                          onClick={() => setViewPhoto(record.photoUrl || null)}
+                          src={record.photoUrl}
+                          alt="meal"
+                          style={{
+                            width: '48px', height: '48px', borderRadius: '8px', objectFit: 'cover',
+                            cursor: 'pointer', flexShrink: 0,
+                          }}
+                        />
+                      )}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div
                           style={{
                             fontSize: '13px', fontWeight: 600, color: '#1f2937',
                             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            cursor: 'pointer',
                           }}
+                          onClick={() => openAddModal(undefined, record.id)}
+                          title="クリックで編集"
                         >
                           {record.foodName}
                         </div>
                         <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '2px' }}>
-                          P:{record.proteinG.toFixed(1)}g · F:{record.fatG.toFixed(1)}g · C:{record.carbsG.toFixed(1)}g
+                          P:{(record.proteinG || 0).toFixed(1)}g · F:{(record.fatG || 0).toFixed(1)}g · C:{(record.carbsG || 0).toFixed(1)}g
                         </div>
                       </div>
                       <span
@@ -859,7 +938,9 @@ export default function MealPage() {
               }}
             >
               <div>
-                <p style={{ fontWeight: 700, color: '#111827', fontSize: '15px' }}>食事を記録する</p>
+                <p style={{ fontWeight: 700, color: '#111827', fontSize: '15px' }}>
+                  {editingRecordId ? '食事を編集する' : '食事を記録する'}
+                </p>
               </div>
               <button
                 onClick={() => setShowAddModal(false)}
@@ -1295,7 +1376,7 @@ export default function MealPage() {
                       const data = await callAI(2) // 最大2回リトライ
 
                       // 各itemにDB栄養値を補完＋base値を保存（AIは食品名+グラム数のみ返す）
-                      const itemsWithBase = (data.items || []).map((item: any) => {
+                      const itemsWithBase = ((data?.items) || []).map((item: any) => {
                         // DBから栄養値を検索（食品名で照合）
                         const dbResults = searchFoodDB(item.name)
                         const dbMatch = dbResults.length > 0 ? dbResults[0] : null
@@ -1564,7 +1645,7 @@ export default function MealPage() {
                               }}
                             >
                               <div>{rec.foodName}</div>
-                              <div style={{ fontSize: '13px', color: '#9ca3af', fontWeight: 400, marginTop: '2px' }}>{rec.caloriesKcal}kcal · P{rec.proteinG}g · F{rec.fatG}g · C{rec.carbsG}g</div>
+                              <div style={{ fontSize: '13px', color: '#9ca3af', fontWeight: 400, marginTop: '2px' }}>{Math.round(rec.caloriesKcal || 0)}kcal · P{(rec.proteinG || 0).toFixed(1)}g · F{(rec.fatG || 0).toFixed(1)}g · C{(rec.carbsG || 0).toFixed(1)}g</div>
                             </button>
                           ))}
                         </div>
@@ -1605,10 +1686,32 @@ export default function MealPage() {
                   fontFamily: 'inherit', transition: 'all 0.2s',
                 }}
               >
-                記録する
+                {editingRecordId ? '更新する' : '記録する'}
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ===== 写真ビューアモーダル ===== */}
+      {viewPhoto && (
+        <div
+          style={{
+            display: 'flex', position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,0.9)', zIndex: 400,
+            alignItems: 'center', justifyContent: 'center',
+          }}
+          onClick={() => setViewPhoto(null)}
+        >
+          <img
+            src={viewPhoto}
+            alt="meal"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: '90%', maxHeight: '90%', borderRadius: '12px',
+              objectFit: 'contain',
+            }}
+          />
         </div>
       )}
 
