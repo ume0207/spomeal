@@ -253,19 +253,41 @@ export default function MealPage() {
   const [goalPfcC, setGoalPfcC] = useState(55)
   const [goalCalAuto, setGoalCalAuto] = useState(2000)
 
+  // Gemini API共通
+  const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || ''
+  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`
+
+  const parseGeminiResponse = (geminiData: { candidates?: { content?: { parts?: { text?: string }[] } }[] }) => {
+    const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || ''
+    const cleaned = text.trim().replace(/^```json\s*/i, '').replace(/\s*```$/i, '')
+    return JSON.parse(cleaned)
+  }
+
   // AI テキスト分析
   const handleAiTextAnalyze = async () => {
     if (!aiText.trim() || aiLoading) return
+    if (!GEMINI_API_KEY) { setAiError('APIキーが設定されていません'); return }
     setAiLoading(true)
     setAiError('')
     try {
-      const res = await fetch('/api/ai/analyze-text', {
+      const res = await fetch(GEMINI_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: aiText.trim() }),
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: `あなたは管理栄養士です。以下の食事内容から各食品の栄養情報を推定してJSON形式で返してください。
+量が指定されていない場合は一般的な1人前の量を推定してください。
+
+食事内容: ${aiText.trim()}
+
+以下のフォーマットで返答してください：
+{"foods":[{"name":"食品名","amount":"量","calories":数値,"protein":数値,"fat":数値,"carbs":数値}],"total":{"calories":数値,"protein":数値,"fat":数値,"carbs":数値}}
+
+JSONのみを返してください。` }] }],
+          generationConfig: { temperature: 0.2, maxOutputTokens: 1024 },
+        }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || `API error: ${res.status}`)
+      if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message || `API error: ${res.status}`) }
+      const data = parseGeminiResponse(await res.json())
       if (data.foods && Array.isArray(data.foods)) {
         const newItems: MealItem[] = data.foods.map((f: { name: string; calories: number; protein: number; fat: number; carbs: number }) => ({
           foodName: f.name,
@@ -289,17 +311,32 @@ export default function MealPage() {
   // AI 写真分析
   const handleAiPhotoAnalyze = async (file: File) => {
     if (aiPhotoLoading) return
+    if (!GEMINI_API_KEY) { setAiError('APIキーが設定されていません'); return }
     setAiPhotoLoading(true)
     setAiError('')
     try {
-      const formData = new FormData()
-      formData.append('image', file)
-      const res = await fetch('/api/ai/analyze', {
+      const buffer = await file.arrayBuffer()
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)))
+      const mimeType = file.type || 'image/jpeg'
+
+      const res = await fetch(GEMINI_URL, {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [
+            { inlineData: { mimeType, data: base64 } },
+            { text: `この食事の写真を分析して、栄養情報をJSON形式で返してください。
+
+以下のフォーマットで返答してください：
+{"foods":[{"name":"食品名","amount":"量","calories":数値,"protein":数値,"fat":数値,"carbs":数値}],"total":{"calories":数値,"protein":数値,"fat":数値,"carbs":数値}}
+
+JSONのみを返してください。` },
+          ] }],
+          generationConfig: { temperature: 0.2, maxOutputTokens: 1024 },
+        }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || `API error: ${res.status}`)
+      if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message || `API error: ${res.status}`) }
+      const data = parseGeminiResponse(await res.json())
       if (data.foods && Array.isArray(data.foods)) {
         const newItems: MealItem[] = data.foods.map((f: { name: string; calories: number; protein: number; fat: number; carbs: number }) => ({
           foodName: f.name,
