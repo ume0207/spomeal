@@ -224,7 +224,7 @@ export default function MealPage() {
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState('')
   const [photos, setPhotos] = useState<{file: File; preview: string}[]>([])
-  const [aiResult, setAiResult] = useState<{calories: number; protein: number; fat: number; carbs: number; comment: string; items?: {name: string; amount: string; kcal: number; protein: number; fat: number; carbs: number}[]} | null>(null)
+  const [aiResult, setAiResult] = useState<{calories: number; protein: number; fat: number; carbs: number; comment: string; items?: {name: string; amount: string; grams: number; kcal: number; protein: number; fat: number; carbs: number; baseGrams?: number; baseKcal?: number; baseProtein?: number; baseFat?: number; baseCarbs?: number}[]} | null>(null)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [mealDate, setMealDate] = useState('')
 
@@ -1074,14 +1074,30 @@ export default function MealPage() {
                     {/* 食品詳細リスト（編集可能） */}
                     {aiResult.items && aiResult.items.length > 0 && (
                       <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: '8px', marginBottom: '8px' }}>
-                        <p style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px', margin: '0 0 6px' }}>📝 食品内訳（タップして編集可能）</p>
-                        {aiResult.items.map((item, i) => (
+                        <p style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px', margin: '0 0 6px' }}>📝 食品内訳（グラム数を変更すると栄養素が自動計算されます）</p>
+                        {aiResult.items.map((item, i) => {
+                          // 合計再計算ヘルパー
+                          const recalcTotals = (newItems: typeof aiResult.items) => {
+                            const totals = (newItems || []).reduce((acc, it) => ({
+                              kcal: acc.kcal + (it.kcal || 0),
+                              protein: acc.protein + (it.protein || 0),
+                              fat: acc.fat + (it.fat || 0),
+                              carbs: acc.carbs + (it.carbs || 0),
+                            }), { kcal: 0, protein: 0, fat: 0, carbs: 0 })
+                            const updated = { ...aiResult, items: newItems, calories: totals.kcal, protein: totals.protein, fat: totals.fat, carbs: totals.carbs }
+                            setAiResult(updated)
+                            setManualKcal(String(Math.round(totals.kcal)))
+                            setManualProtein(String(totals.protein.toFixed(1)))
+                            setManualFat(String(totals.fat.toFixed(1)))
+                            setManualCarbs(String(totals.carbs.toFixed(1)))
+                          }
+                          return (
                           <div key={i} style={{
                             padding: '8px', marginBottom: '6px', background: '#fafafa', borderRadius: '8px',
                             border: '1px solid #f3f4f6',
                           }}>
-                            {/* 食品名・量 */}
-                            <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
+                            {/* 食品名 */}
+                            <div style={{ display: 'flex', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
                               <input
                                 type="text"
                                 value={item.name}
@@ -1097,23 +1113,51 @@ export default function MealPage() {
                                 }}
                                 placeholder="食品名"
                               />
-                              <input
-                                type="text"
-                                value={item.amount}
-                                onChange={(e) => {
-                                  const newItems = [...(aiResult.items || [])]
-                                  newItems[i] = { ...newItems[i], amount: e.target.value }
-                                  setAiResult({ ...aiResult, items: newItems })
+                              <button
+                                onClick={() => {
+                                  const newItems = (aiResult.items || []).filter((_, idx) => idx !== i)
+                                  recalcTotals(newItems)
                                 }}
                                 style={{
-                                  width: '80px', fontSize: '12px', color: '#6b7280',
-                                  border: '1px solid #e5e7eb', borderRadius: '6px', padding: '4px 8px',
-                                  background: 'white', outline: 'none', textAlign: 'right',
+                                  fontSize: '16px', color: '#EF4444', background: 'none', border: 'none',
+                                  cursor: 'pointer', padding: '0 4px', lineHeight: 1,
                                 }}
-                                placeholder="量"
-                              />
+                              >×</button>
                             </div>
-                            {/* 栄養素（編集可能） */}
+                            {/* グラム数入力 + 量の説明 */}
+                            <div style={{ display: 'flex', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  value={item.grams || ''}
+                                  onChange={(e) => {
+                                    const newGrams = parseFloat(e.target.value) || 0
+                                    const baseG = item.baseGrams || item.grams || 100
+                                    const ratio = baseG > 0 ? newGrams / baseG : 1
+                                    const newItems = [...(aiResult.items || [])]
+                                    newItems[i] = {
+                                      ...newItems[i],
+                                      grams: newGrams,
+                                      kcal: Math.round((item.baseKcal || item.kcal) * ratio),
+                                      protein: Math.round((item.baseProtein || item.protein) * ratio * 10) / 10,
+                                      fat: Math.round((item.baseFat || item.fat) * ratio * 10) / 10,
+                                      carbs: Math.round((item.baseCarbs || item.carbs) * ratio * 10) / 10,
+                                    }
+                                    recalcTotals(newItems)
+                                  }}
+                                  style={{
+                                    width: '70px', fontSize: '14px', fontWeight: 700, color: '#7C3AED',
+                                    border: '2px solid #c4b5fd', borderRadius: '8px', padding: '4px 8px',
+                                    background: '#faf5ff', outline: 'none', textAlign: 'center',
+                                    WebkitAppearance: 'none', MozAppearance: 'textfield',
+                                  }}
+                                />
+                                <span style={{ fontSize: '13px', fontWeight: 600, color: '#7C3AED' }}>g</span>
+                              </div>
+                              <span style={{ fontSize: '11px', color: '#9ca3af' }}>({item.amount})</span>
+                            </div>
+                            {/* 栄養素（表示・直接編集も可能） */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '4px' }}>
                               {[
                                 { key: 'kcal' as const, label: 'kcal', color: '#EA580C' },
@@ -1130,26 +1174,7 @@ export default function MealPage() {
                                       const val = parseFloat(e.target.value) || 0
                                       const newItems = [...(aiResult.items || [])]
                                       newItems[i] = { ...newItems[i], [n.key]: val }
-                                      // 合計を再計算
-                                      const totals = newItems.reduce((acc, it) => ({
-                                        kcal: acc.kcal + (it.kcal || 0),
-                                        protein: acc.protein + (it.protein || 0),
-                                        fat: acc.fat + (it.fat || 0),
-                                        carbs: acc.carbs + (it.carbs || 0),
-                                      }), { kcal: 0, protein: 0, fat: 0, carbs: 0 })
-                                      const updated = {
-                                        ...aiResult,
-                                        items: newItems,
-                                        calories: totals.kcal,
-                                        protein: totals.protein,
-                                        fat: totals.fat,
-                                        carbs: totals.carbs,
-                                      }
-                                      setAiResult(updated)
-                                      setManualKcal(String(Math.round(totals.kcal)))
-                                      setManualProtein(String(totals.protein.toFixed(1)))
-                                      setManualFat(String(totals.fat.toFixed(1)))
-                                      setManualCarbs(String(totals.carbs.toFixed(1)))
+                                      recalcTotals(newItems)
                                     }}
                                     style={{
                                       width: '100%', fontSize: '12px', fontWeight: 700, color: n.color,
@@ -1162,39 +1187,9 @@ export default function MealPage() {
                                 </div>
                               ))}
                             </div>
-                            {/* 削除ボタン */}
-                            <div style={{ textAlign: 'right', marginTop: '4px' }}>
-                              <button
-                                onClick={() => {
-                                  const newItems = (aiResult.items || []).filter((_, idx) => idx !== i)
-                                  const totals = newItems.reduce((acc, it) => ({
-                                    kcal: acc.kcal + (it.kcal || 0),
-                                    protein: acc.protein + (it.protein || 0),
-                                    fat: acc.fat + (it.fat || 0),
-                                    carbs: acc.carbs + (it.carbs || 0),
-                                  }), { kcal: 0, protein: 0, fat: 0, carbs: 0 })
-                                  const updated = {
-                                    ...aiResult,
-                                    items: newItems,
-                                    calories: totals.kcal,
-                                    protein: totals.protein,
-                                    fat: totals.fat,
-                                    carbs: totals.carbs,
-                                  }
-                                  setAiResult(updated)
-                                  setManualKcal(String(Math.round(totals.kcal)))
-                                  setManualProtein(String(totals.protein.toFixed(1)))
-                                  setManualFat(String(totals.fat.toFixed(1)))
-                                  setManualCarbs(String(totals.carbs.toFixed(1)))
-                                }}
-                                style={{
-                                  fontSize: '11px', color: '#EF4444', background: 'none', border: 'none',
-                                  cursor: 'pointer', padding: '2px 6px',
-                                }}
-                              >🗑 削除</button>
-                            </div>
                           </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     )}
 
@@ -1258,10 +1253,10 @@ export default function MealPage() {
                         parts.push({ inlineData: { mimeType: mimeType === 'image/heic' || mimeType === 'image/heif' ? 'image/jpeg' : mimeType, data: base64Data } })
                       }
 
-                      parts.push({ text: `あなたは管理栄養士です。${desc ? `食事: ${desc}` : 'この写真の食事'}の栄養素をJSON形式で返してください。
+                      parts.push({ text: `あなたは管理栄養士です。${desc ? `食事: ${desc}` : 'この写真の食事'}の栄養素をJSON形式で返してください。各食品のグラム数(grams)も推定してください。
 
 回答はこのJSON形式のみ（他のテキスト不要）:
-{"items":[{"name":"食品名","amount":"量","kcal":0,"protein":0,"fat":0,"carbs":0}],"calories":0,"protein":0,"fat":0,"carbs":0,"comment":"アドバイス"}` })
+{"items":[{"name":"食品名","amount":"量の説明","grams":200,"kcal":0,"protein":0,"fat":0,"carbs":0}],"calories":0,"protein":0,"fat":0,"carbs":0,"comment":"アドバイス"}` })
 
                       // Gemini API呼び出し（リトライ機能付き）
                       const callGemini = async (retryCount: number): Promise<any> => {
@@ -1341,10 +1336,20 @@ export default function MealPage() {
 
                       const data = await callGemini(2) // 最大2回リトライ
 
+                      // 各itemにbase値を保存（グラム変更時の比例計算用）
+                      const itemsWithBase = (data.items || []).map((item: any) => ({
+                        ...item,
+                        grams: item.grams || 100,
+                        baseGrams: item.grams || 100,
+                        baseKcal: item.kcal,
+                        baseProtein: item.protein,
+                        baseFat: item.fat,
+                        baseCarbs: item.carbs,
+                      }))
                       setAiResult({
                         calories: data.calories, protein: data.protein, fat: data.fat, carbs: data.carbs,
                         comment: data.comment || '',
-                        items: data.items || [],
+                        items: itemsWithBase,
                       })
                       setManualKcal(String(Math.round(data.calories)))
                       setManualProtein(String(Number(data.protein).toFixed(1)))
