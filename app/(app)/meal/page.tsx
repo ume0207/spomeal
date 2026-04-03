@@ -252,7 +252,7 @@ export default function MealPage() {
 
   // Gemini API共通（環境変数から取得 - Cloudflare Pagesで設定）
   const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || ''
-  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`
+  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`
 
   const parseGeminiResponse = (geminiData: { candidates?: { content?: { parts?: { text?: string }[] } }[] }) => {
     const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || ''
@@ -1212,13 +1212,13 @@ export default function MealPage() {
                     if (!GEMINI_API_KEY) { setAiError('APIキーが設定されていません。管理者にお問い合わせください。'); return }
                     setAiLoading(true)
                     setAiError('')
-                    let geminiRaw = ''
                     try {
                       const parts: any[] = []
+                      let base64Data = ''
 
                       if (photos.length > 0) {
                         // 画像をリサイズしてbase64に変換（スマホの大きい写真対応）
-                        const base64 = await new Promise<string>((resolve, reject) => {
+                        base64Data = await new Promise<string>((resolve, reject) => {
                           const img = new Image()
                           img.onload = () => {
                             try {
@@ -1235,72 +1235,123 @@ export default function MealPage() {
                               if (!ctx) { reject(new Error('Canvas not supported')); return }
                               ctx.drawImage(img, 0, 0, w, h)
                               const dataUrl = canvas.toDataURL('image/jpeg', 0.6)
-                              resolve(dataUrl.split(',')[1])
+                              const b64 = dataUrl.split(',')[1]
+                              console.log(`画像リサイズ: ${img.width}x${img.height} → ${w}x${h}, base64: ${Math.round(b64.length/1024)}KB`)
+                              resolve(b64)
                             } catch (e) { reject(e) }
                           }
                           img.onerror = () => reject(new Error('画像の読み込みに失敗しました'))
                           img.src = photos[0].preview
                         })
-                        parts.push({ inlineData: { mimeType: 'image/jpeg', data: base64 } })
+                        parts.push({ inlineData: { mimeType: 'image/jpeg', data: base64Data } })
                       }
 
-                      parts.push({ text: `あなたは管理栄養士です。${desc ? `食事: ${desc}` : 'この写真の食事'}の栄養素をJSON形式で返してください。
+                      parts.push({ text: `あなたは管理栄養士です。${desc ? `食事: ${desc}` : 'この写真の食事'}の栄養素を分析してください。` })
 
-回答はこのJSON形式のみ（他のテキスト不要）:
-{"items":[{"name":"食品名","amount":"量","kcal":0,"protein":0,"fat":0,"carbs":0}],"calories":0,"protein":0,"fat":0,"carbs":0,"comment":"アドバイス"}` })
-
-                      const res = await fetch(GEMINI_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          contents: [{ parts }],
-                          generationConfig: { temperature: 0.2, maxOutputTokens: 2048 },
-                        }),
-                      })
-                      if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message || `API error: ${res.status}`) }
-                      const geminiData = await res.json()
-                      const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || ''
-                      geminiRaw = rawText
-
-                      // JSONを抽出して解析（複数の方法で試行）
-                      let data: any = null
-                      try {
-                        // 方法1: マークダウンを除去してJSON抽出
-                        let jsonStr = rawText.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim()
-                        const firstBrace = jsonStr.indexOf('{')
-                        const lastBrace = jsonStr.lastIndexOf('}')
-                        if (firstBrace !== -1 && lastBrace > firstBrace) {
-                          jsonStr = jsonStr.slice(firstBrace, lastBrace + 1)
-                        }
-                        jsonStr = jsonStr.replace(/,\s*([}\]])/g, '$1')
-                        data = JSON.parse(jsonStr)
-                      } catch {
-                        // 方法2: 正規表現でcaloriesとPFCを直接抽出
-                        const calMatch = rawText.match(/"calories"\s*:\s*(\d+\.?\d*)/)
-                        const proMatch = rawText.match(/"protein"\s*:\s*(\d+\.?\d*)/)
-                        const fatMatch = rawText.match(/"fat"\s*:\s*(\d+\.?\d*)/)
-                        const carbMatch = rawText.match(/"carbs"\s*:\s*(\d+\.?\d*)/)
-                        if (calMatch) {
-                          data = {
-                            calories: parseFloat(calMatch[1]),
-                            protein: proMatch ? parseFloat(proMatch[1]) : 0,
-                            fat: fatMatch ? parseFloat(fatMatch[1]) : 0,
-                            carbs: carbMatch ? parseFloat(carbMatch[1]) : 0,
-                            comment: '',
-                            items: [],
+                      // Gemini API呼び出し（JSON出力を強制 + リトライ機能）
+                      const callGemini = async (retryCount: number): Promise<any> => {
+                        const res = await fetch(GEMINI_URL, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            contents: [{ parts }],
+                            generationConfig: {
+                              temperature: 0.1,
+                              maxOutputTokens: 2048,
+                              responseMimeType: 'application/json',
+                              responseSchema: {
+                                type: 'object',
+                                properties: {
+                                  items: {
+                                    type: 'array',
+                                    items: {
+                                      type: 'object',
+                                      properties: {
+                                        name: { type: 'string' },
+                                        amount: { type: 'string' },
+                                        kcal: { type: 'number' },
+                                        protein: { type: 'number' },
+                                        fat: { type: 'number' },
+                                        carbs: { type: 'number' },
+                                      },
+                                      required: ['name', 'amount', 'kcal', 'protein', 'fat', 'carbs'],
+                                    },
+                                  },
+                                  calories: { type: 'number' },
+                                  protein: { type: 'number' },
+                                  fat: { type: 'number' },
+                                  carbs: { type: 'number' },
+                                  comment: { type: 'string' },
+                                },
+                                required: ['items', 'calories', 'protein', 'fat', 'carbs', 'comment'],
+                              },
+                            },
+                          }),
+                        })
+                        if (!res.ok) {
+                          const err = await res.json().catch(() => ({}))
+                          const errMsg = err.error?.message || `API error: ${res.status}`
+                          console.error('Gemini API error:', res.status, errMsg)
+                          if (retryCount > 0) {
+                            console.log(`リトライ中... 残り${retryCount}回`)
+                            await new Promise(r => setTimeout(r, 1000))
+                            return callGemini(retryCount - 1)
                           }
-                          // itemsも抽出を試みる
+                          throw new Error(errMsg)
+                        }
+                        const geminiData = await res.json()
+                        const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || ''
+                        console.log('Gemini raw response:', rawText.substring(0, 500))
+
+                        if (!rawText) {
+                          if (retryCount > 0) {
+                            console.log('空レスポンス、リトライ中...')
+                            await new Promise(r => setTimeout(r, 1000))
+                            return callGemini(retryCount - 1)
+                          }
+                          throw new Error('AIから応答がありませんでした')
+                        }
+
+                        // responseMimeType: 'application/json' なので直接パースできるはず
+                        try {
+                          return JSON.parse(rawText)
+                        } catch {
+                          // フォールバック: マークダウンやゴミを除去してリトライ
+                          let jsonStr = rawText.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim()
+                          const firstBrace = jsonStr.indexOf('{')
+                          const lastBrace = jsonStr.lastIndexOf('}')
+                          if (firstBrace !== -1 && lastBrace > firstBrace) {
+                            jsonStr = jsonStr.slice(firstBrace, lastBrace + 1)
+                          }
+                          jsonStr = jsonStr.replace(/,\s*([}\]])/g, '$1')
                           try {
-                            const itemsMatch = rawText.match(/"items"\s*:\s*(\[[\s\S]*?\])\s*[,}]/)
-                            if (itemsMatch) {
-                              const itemsStr = itemsMatch[1].replace(/,\s*([}\]])/g, '$1')
-                              data.items = JSON.parse(itemsStr)
+                            return JSON.parse(jsonStr)
+                          } catch {
+                            // 最終手段: 正規表現で数値を抽出
+                            const calMatch = rawText.match(/"calories"\s*:\s*(\d+\.?\d*)/)
+                            if (calMatch) {
+                              const proMatch = rawText.match(/"protein"\s*:\s*(\d+\.?\d*)/)
+                              const fatMatch = rawText.match(/"fat"\s*:\s*(\d+\.?\d*)/)
+                              const carbMatch = rawText.match(/"carbs"\s*:\s*(\d+\.?\d*)/)
+                              return {
+                                calories: parseFloat(calMatch[1]),
+                                protein: proMatch ? parseFloat(proMatch[1]) : 0,
+                                fat: fatMatch ? parseFloat(fatMatch[1]) : 0,
+                                carbs: carbMatch ? parseFloat(carbMatch[1]) : 0,
+                                comment: '', items: [],
+                              }
                             }
-                          } catch { /* items抽出失敗は無視 */ }
-                        } else {
-                          throw new Error('栄養データを取得できませんでした。もう一度お試しください。')
+                            if (retryCount > 0) {
+                              console.log('JSONパース失敗、リトライ中...')
+                              await new Promise(r => setTimeout(r, 1000))
+                              return callGemini(retryCount - 1)
+                            }
+                            throw new Error('栄養データを取得できませんでした')
+                          }
                         }
                       }
+
+                      const data = await callGemini(2) // 最大2回リトライ
 
                       setAiResult({
                         calories: data.calories, protein: data.protein, fat: data.fat, carbs: data.carbs,
@@ -1314,8 +1365,7 @@ export default function MealPage() {
                     } catch (e) {
                       const msg = e instanceof Error ? e.message : 'Unknown error'
                       setAiError(`AI分析に失敗: ${msg}`)
-                      console.error('AI raw response:', geminiRaw)
-                      console.error(e)
+                      console.error('AI error:', e)
                     } finally {
                       setAiLoading(false)
                     }
