@@ -1344,13 +1344,34 @@ export default function MealPage() {
 
                       setAiResult({
                         calories: totals.kcal, protein: totals.protein, fat: totals.fat, carbs: totals.carbs,
-                        comment: data.comment || '',
+                        comment: data.comment || 'アドバイスを取得中...',
                         items: itemsWithBase,
                       })
                       setManualKcal(String(Math.round(totals.kcal)))
                       setManualProtein(String(totals.protein.toFixed(1)))
                       setManualFat(String(totals.fat.toFixed(1)))
                       setManualCarbs(String(totals.carbs.toFixed(1)))
+
+                      // GPT-4oでアドバイスを非同期取得（メイン結果は先に表示）
+                      fetch('/api/ai/advice', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          items: itemsWithBase.map((it: any) => ({
+                            name: it.name, grams: it.grams, kcal: it.kcal,
+                            protein: it.protein, fat: it.fat, carbs: it.carbs,
+                          })),
+                          totals,
+                          goal: calGoal ? { kcal: calGoal, protein: goal.protein, fat: goal.fat, carbs: goal.carbs } : undefined,
+                        }),
+                      })
+                        .then(r => r.json())
+                        .then((adviceData: any) => {
+                          if (adviceData.advice) {
+                            setAiResult(prev => prev ? { ...prev, comment: adviceData.advice } : prev)
+                          }
+                        })
+                        .catch(err => console.warn('アドバイス取得失敗:', err))
                     } catch (e) {
                       const msg = e instanceof Error ? e.message : 'Unknown error'
                       setAiError(`AI分析に失敗: ${msg}`)

@@ -1,8 +1,9 @@
+// 写真解析用: Gemini 2.5 Flash（食品名+グラム数の特定のみ）
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type PagesFunction<Env = Record<string, unknown>> = (context: { request: Request; env: Env; params: Record<string, string>; next: () => Promise<Response> }) => Promise<Response> | Response
 
 interface Env {
-  OPENAI_API_KEY: string
+  NEXT_PUBLIC_GEMINI_API_KEY: string
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -25,75 +26,71 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       })
     }
 
-    const apiKey = context.env.OPENAI_API_KEY
+    const apiKey = context.env.NEXT_PUBLIC_GEMINI_API_KEY
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'APIキーが設定されていません' }), {
+      return new Response(JSON.stringify({ error: 'Gemini APIキーが設定されていません' }), {
         status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders },
       })
     }
 
-    // メッセージ構築（OpenAI Vision形式）
-    const content: any[] = []
+    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`
+
+    // Gemini用パーツ構築
+    const parts: any[] = []
 
     if (image) {
       const mime = mimeType || 'image/jpeg'
-      content.push({
-        type: 'image_url',
-        image_url: {
-          url: `data:${mime};base64,${image}`,
-          detail: 'auto',
+      parts.push({
+        inlineData: {
+          mimeType: mime,
+          data: image,
         },
       })
     }
 
-    // 軽量プロンプト: 食品名とグラム数の特定のみ（栄養計算はクライアント側DBで行う）
     const foodDesc = text ? `食事: ${text}` : 'この写真の食事'
-    content.push({
-      type: 'text',
+    parts.push({
       text: `${foodDesc}に含まれる食品を特定してください。
 
 各食品の「名前」と「推定グラム数」だけをJSON形式で返してください。栄養計算は不要です。
 日本の一般的な食品名で回答してください（例: 白米、鶏むね肉、味噌汁）。
 
-回答形式（JSONのみ、他のテキスト不要）:
+回答はこのJSON形式のみ（他のテキスト不要）:
 {"items":[{"name":"食品名","amount":"量の説明","grams":200}],"comment":"一言コメント"}`,
     })
 
-    // OpenAI API呼び出し（GPT-4o）
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    // Gemini API呼び出し
+    const res = await fetch(GEMINI_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: '写真や説明から食品を特定する専門家です。各食品の名前と推定グラム数をJSON形式で返してください。栄養素の計算は不要です。日本語の一般的な食品名を使ってください。JSONのみ返してください。',
-          },
-          { role: 'user', content },
-        ],
-        temperature: 0.2,
-        max_tokens: 512,  // 食品名+グラム数だけなので短くてOK
-        response_format: { type: 'json_object' },
+        contents: [{ parts }],
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 512,
+        },
       }),
     })
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({})) as any
-      console.error('OpenAI API error:', res.status, err)
+      console.error('Gemini API error:', res.status, err)
       return new Response(JSON.stringify({
-        error: err.error?.message || `API error: ${res.status}`,
+        error: err.error?.message || `Gemini API error: ${res.status}`,
       }), {
         status: res.status,
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       })
     }
 
-    const data = await res.json() as any
-    const rawText = data.choices?.[0]?.message?.content || ''
+    const geminiData = await res.json() as any
+    const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || ''
+
+    if (!rawText) {
+      return new Response(JSON.stringify({ error: 'AIから応答がありませんでした' }), {
+        status: 422, headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      })
+    }
 
     // JSON抽出
     let result: any = null
