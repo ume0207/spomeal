@@ -946,28 +946,51 @@ export default function MealPage() {
                     ))}
                   </div>
                 )}
-                <label style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  gap: '8px', height: '100px', border: '2px dashed #d1d5db', borderRadius: '14px',
-                  cursor: 'pointer', color: '#9ca3af', background: '#fafafa',
-                }}>
-                  <span style={{ fontSize: '28px' }}>📷</span>
-                  <span style={{ fontSize: '13px' }}>フォルダから選択（複数可）</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    style={{ display: 'none' }}
-                    onChange={(e) => {
-                      const files = e.target.files
-                      if (files) {
-                        const newPhotos = Array.from(files).map(f => ({ file: f, preview: URL.createObjectURL(f) }))
-                        setPhotos(prev => [...prev, ...newPhotos])
-                      }
-                      e.target.value = ''
-                    }}
-                  />
-                </label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <label style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    gap: '6px', flex: 1, height: '90px', border: '2px dashed #d1d5db', borderRadius: '14px',
+                    cursor: 'pointer', color: '#9ca3af', background: '#fafafa',
+                  }}>
+                    <span style={{ fontSize: '26px' }}>📸</span>
+                    <span style={{ fontSize: '11px' }}>カメラで撮影</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          setPhotos(prev => [...prev, { file, preview: URL.createObjectURL(file) }])
+                        }
+                        e.target.value = ''
+                      }}
+                    />
+                  </label>
+                  <label style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    gap: '6px', flex: 1, height: '90px', border: '2px dashed #d1d5db', borderRadius: '14px',
+                    cursor: 'pointer', color: '#9ca3af', background: '#fafafa',
+                  }}>
+                    <span style={{ fontSize: '26px' }}>🖼️</span>
+                    <span style={{ fontSize: '11px' }}>フォルダから選択</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const files = e.target.files
+                        if (files) {
+                          const newPhotos = Array.from(files).map(f => ({ file: f, preview: URL.createObjectURL(f) }))
+                          setPhotos(prev => [...prev, ...newPhotos])
+                        }
+                        e.target.value = ''
+                      }}
+                    />
+                  </label>
+                </div>
               </div>
 
               {/* AI栄養自動計算カード（紫/ラベンダー） */}
@@ -1090,13 +1113,31 @@ export default function MealPage() {
                       const parts: any[] = []
 
                       if (photos.length > 0) {
+                        // 画像をリサイズしてbase64に変換（スマホの大きい写真対応）
                         const base64 = await new Promise<string>((resolve, reject) => {
-                          const reader = new FileReader()
-                          reader.onload = () => resolve((reader.result as string).split(',')[1])
-                          reader.onerror = reject
-                          reader.readAsDataURL(photos[0].file)
+                          const img = new Image()
+                          img.onload = () => {
+                            try {
+                              const canvas = document.createElement('canvas')
+                              const MAX_SIZE = 1024
+                              let w = img.width, h = img.height
+                              if (w > MAX_SIZE || h > MAX_SIZE) {
+                                if (w > h) { h = Math.round(h * MAX_SIZE / w); w = MAX_SIZE }
+                                else { w = Math.round(w * MAX_SIZE / h); h = MAX_SIZE }
+                              }
+                              canvas.width = w
+                              canvas.height = h
+                              const ctx = canvas.getContext('2d')
+                              if (!ctx) { reject(new Error('Canvas not supported')); return }
+                              ctx.drawImage(img, 0, 0, w, h)
+                              const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
+                              resolve(dataUrl.split(',')[1])
+                            } catch (e) { reject(e) }
+                          }
+                          img.onerror = () => reject(new Error('画像の読み込みに失敗しました'))
+                          img.src = photos[0].preview
                         })
-                        parts.push({ inlineData: { mimeType: photos[0].file.type || 'image/jpeg', data: base64 } })
+                        parts.push({ inlineData: { mimeType: 'image/jpeg', data: base64 } })
                       }
 
                       parts.push({ text: `あなたはスポーツ栄養に詳しい管理栄養士です。${desc ? `以下の食事内容` : `この写真の食事`}を分析して、各食品ごとの栄養素を詳細にJSON形式で返してください。
