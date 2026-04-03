@@ -246,7 +246,7 @@ export default function MealPage() {
   const [goalCalAuto, setGoalCalAuto] = useState(2000)
 
   // Gemini API共通
-  const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || ''
+  const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || 'AIzaSyBOksoqCUd65vJrMcW43OqcMgcByiO6GnY'
   const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`
 
   const parseGeminiResponse = (geminiData: { candidates?: { content?: { parts?: { text?: string }[] } }[] }) => {
