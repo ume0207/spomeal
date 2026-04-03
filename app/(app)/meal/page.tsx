@@ -315,8 +315,17 @@ JSONのみを返してください。` }] }],
     setAiPhotoLoading(true)
     setAiError('')
     try {
-      const buffer = await file.arrayBuffer()
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)))
+      // FileReaderでbase64変換（大きなファイルでも安全）
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          const result = reader.result as string
+          // "data:image/jpeg;base64,..." から base64部分だけ取り出す
+          resolve(result.split(',')[1])
+        }
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
       const mimeType = file.type || 'image/jpeg'
 
       const res = await fetch(GEMINI_URL, {
