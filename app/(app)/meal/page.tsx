@@ -454,6 +454,23 @@ export default function MealPage() {
       } catch { /* ignore */ }
     }
 
+    // AI分析結果のアイテムがあればそれを使う
+    const recordItems = (aiResult && aiResult.items && aiResult.items.length > 0)
+      ? aiResult.items.map((it: any) => ({
+          foodName: it.name || foodName,
+          caloriesKcal: it.kcal || 0,
+          proteinG: it.protein || 0,
+          fatG: it.fat || 0,
+          carbsG: it.carbs || 0,
+        }))
+      : [{
+          foodName: foodName,
+          caloriesKcal: kcal,
+          proteinG: protein,
+          fatG: fat,
+          carbsG: carbs,
+        }]
+
     const newRecord: MealRecord = {
       id: editingRecordId || Date.now().toString(),
       mealDate: mealDateStr,
@@ -465,13 +482,7 @@ export default function MealPage() {
       carbsG: carbs,
       fiberG: 0,
       saltG: 0,
-      items: [{
-        foodName: foodName,
-        caloriesKcal: kcal,
-        proteinG: protein,
-        fatG: fat,
-        carbsG: carbs,
-      }],
+      items: recordItems,
       photoUrl: photoUrl || undefined,
     }
 
@@ -1432,6 +1443,9 @@ export default function MealPage() {
                       setManualProtein(String(totals.protein.toFixed(1)))
                       setManualFat(String(totals.fat.toFixed(1)))
                       setManualCarbs(String(totals.carbs.toFixed(1)))
+                      // AI分析結果の食品名をセット
+                      const foodNames = itemsWithBase.map((it: any) => it.name).join('、')
+                      setAiText(foodNames)
 
                       // GPT-4oでアドバイスを非同期取得（メイン結果は先に表示）
                       fetch('/api/ai/advice', {

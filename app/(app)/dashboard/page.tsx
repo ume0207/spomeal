@@ -5,11 +5,30 @@ import { useState, useEffect } from 'react'
 import { getPointsData, getTodayPoints, doLottery, getAvailableLotteries, getLotteryHistory, getRarityColor, getRarityLabel } from '@/lib/points'
 import type { LotteryResult } from '@/lib/points'
 
-const nutrition = {
-  calories: { current: 1420, target: 2000 },
-  protein: { current: 98, target: 160 },
-  fat: { current: 42, target: 60 },
-  carbs: { current: 165, target: 250 },
+// 食事記録の型定義
+interface MealRecord {
+  id: string
+  mealDate: string
+  mealType: string
+  foodName: string
+  caloriesKcal: number
+  proteinG: number
+  fatG: number
+  carbsG: number
+  fiberG: number
+  saltG: number
+  items: { name: string; grams: number; kcal: number; protein: number; fat: number; carbs: number }[]
+  photoUrl?: string
+}
+
+// 体組成の型定義
+interface BodyRecord {
+  id: string
+  date: string
+  weight?: number
+  bodyFat?: number
+  muscleMass?: number
+  [key: string]: unknown
 }
 
 
@@ -37,10 +56,11 @@ interface Reservation {
 }
 
 export default function DashboardPage() {
-  const calPct = Math.min((nutrition.calories.current / nutrition.calories.target) * 100, 100)
-  const isOver = nutrition.calories.current > nutrition.calories.target
   const [goal, setGoal] = useState<GoalData | null>(null)
   const [nextReservation, setNextReservation] = useState<Reservation | null>(null)
+  const [todayNutrition, setTodayNutrition] = useState({ calories: 0, protein: 0, fat: 0, carbs: 0 })
+  const [todayMealRecords, setTodayMealRecords] = useState<MealRecord[]>([])
+  const [latestBody, setLatestBody] = useState<{ weight: string; bodyFat: string; muscle: string; weightChange: string; fatChange: string; muscleChange: string } | null>(null)
 
   // ポイントシステム
   const [totalPoints, setTotalPoints] = useState(0)
@@ -60,6 +80,58 @@ export default function DashboardPage() {
           const parsed = JSON.parse(raw)
           if (parsed['__default__']) {
             setGoal(parsed['__default__'])
+          }
+        }
+      } catch {
+        // ignore
+      }
+
+      // 食事記録データ読み込み
+      try {
+        const mealRaw = localStorage.getItem('mealRecords_v1')
+        if (mealRaw) {
+          const allRecords: MealRecord[] = JSON.parse(mealRaw)
+          const today = new Date().toISOString().slice(0, 10)
+          const todayRecs = allRecords.filter(r => r.mealDate === today)
+          setTodayMealRecords(todayRecs)
+          const totals = todayRecs.reduce((acc, r) => ({
+            calories: acc.calories + (r.caloriesKcal || 0),
+            protein: acc.protein + (r.proteinG || 0),
+            fat: acc.fat + (r.fatG || 0),
+            carbs: acc.carbs + (r.carbsG || 0),
+          }), { calories: 0, protein: 0, fat: 0, carbs: 0 })
+          setTodayNutrition(totals)
+        }
+      } catch {
+        // ignore
+      }
+
+      // 体組成データ読み込み
+      try {
+        const bodyRaw = localStorage.getItem('bodyRecords_v1')
+        if (bodyRaw) {
+          const allBody: BodyRecord[] = JSON.parse(bodyRaw)
+          const sorted = [...allBody].sort((a, b) => b.date.localeCompare(a.date))
+          if (sorted.length > 0) {
+            const latest = sorted[0]
+            const prev = sorted.length > 1 ? sorted[1] : null
+            const wChange = prev && latest.weight != null && prev.weight != null
+              ? (latest.weight - prev.weight).toFixed(1)
+              : '—'
+            const fChange = prev && latest.bodyFat != null && prev.bodyFat != null
+              ? (latest.bodyFat - prev.bodyFat).toFixed(1)
+              : '—'
+            const mChange = prev && latest.muscleMass != null && prev.muscleMass != null
+              ? (latest.muscleMass - prev.muscleMass).toFixed(1)
+              : '—'
+            setLatestBody({
+              weight: latest.weight != null ? latest.weight.toFixed(1) : '—',
+              bodyFat: latest.bodyFat != null ? latest.bodyFat.toFixed(1) : '—',
+              muscle: latest.muscleMass != null ? latest.muscleMass.toFixed(1) : '—',
+              weightChange: wChange !== '—' ? (Number(wChange) >= 0 ? '+' + wChange : wChange) : '—',
+              fatChange: fChange !== '—' ? (Number(fChange) >= 0 ? '+' + fChange : fChange) : '—',
+              muscleChange: mChange !== '—' ? (Number(mChange) >= 0 ? '+' + mChange : mChange) : '—',
+            })
           }
         }
       } catch {
@@ -292,66 +364,104 @@ export default function DashboardPage() {
         )}
 
         {/* ===== 今日の栄養 ===== */}
-        <div
-          style={{
-            background: 'white',
-            border: '1px solid #f0f0f0',
-            borderRadius: '16px',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-            marginBottom: '12px',
-          }}
-        >
-          <div style={{ padding: '14px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              🍽 今日の栄養
-            </span>
-            <Link href="/meal" style={{ fontSize: '11px', color: '#22c55e', fontWeight: 600, textDecoration: 'none', cursor: 'pointer' }}>
-              詳細 ›
-            </Link>
-          </div>
-          <div style={{ padding: '14px 16px' }}>
-            <p style={{ fontSize: '11px', color: '#6b7280' }}>カロリー</p>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', margin: '2px 0' }}>
-              <span style={{ fontSize: '32px', fontWeight: 900, color: '#111827', lineHeight: 1 }}>
-                {nutrition.calories.current.toLocaleString()}
-              </span>
-              <span style={{ fontSize: '13px', color: '#9ca3af' }}>
-                / {nutrition.calories.target.toLocaleString()} kcal
-              </span>
-            </div>
-            {/* プログレスバー */}
-            <div style={{ width: '100%', height: '10px', background: '#f3f4f6', borderRadius: '20px', overflow: 'hidden', margin: '8px 0' }}>
-              <div
-                style={{
-                  height: '100%',
-                  borderRadius: '20px',
-                  width: `${calPct}%`,
-                  background: isOver
-                    ? 'linear-gradient(90deg, #22c55e, #f59e0b, #ef4444)'
-                    : 'linear-gradient(90deg, #22c55e, #4ade80)',
-                  transition: 'width 0.6s',
-                }}
-              />
-            </div>
-            {/* PFCグリッド */}
-            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-              {[
-                { label: 'たんぱく質', value: nutrition.protein.current, target: nutrition.protein.target, unit: 'g', color: '#3B82F6' },
-                { label: '脂質', value: nutrition.fat.current, target: nutrition.fat.target, unit: 'g', color: '#F59E0B' },
-                { label: '炭水化物', value: nutrition.carbs.current, target: nutrition.carbs.target, unit: 'g', color: '#10B981' },
-              ].map((pfc) => (
-                <div key={pfc.label} style={{ minWidth: '70px' }}>
-                  <div style={{ fontSize: '10px', color: '#9ca3af', marginBottom: '1px' }}>{pfc.label}</div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
-                    <span style={{ fontSize: '15px', fontWeight: 800, color: pfc.color }}>{pfc.value}</span>
-                    <span style={{ fontSize: '10px', color: '#9ca3af' }}>{pfc.unit}</span>
-                  </div>
-                  <div style={{ fontSize: '10px', color: '#9ca3af' }}>目標 {pfc.target}{pfc.unit}</div>
+        {(() => {
+          const calTarget = goal?.cal || 2000
+          const pTarget = goal?.protein || 160
+          const fTarget = goal?.fat || 60
+          const cTarget = goal?.carbs || 250
+          const calPct = Math.min((todayNutrition.calories / calTarget) * 100, 100)
+          const isOver = todayNutrition.calories > calTarget
+          return (
+            <div
+              style={{
+                background: 'white',
+                border: '1px solid #f0f0f0',
+                borderRadius: '16px',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+                marginBottom: '12px',
+              }}
+            >
+              <div style={{ padding: '14px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  🍽 今日の栄養
+                </span>
+                <Link href="/meal" style={{ fontSize: '11px', color: '#22c55e', fontWeight: 600, textDecoration: 'none', cursor: 'pointer' }}>
+                  詳細 ›
+                </Link>
+              </div>
+              <div style={{ padding: '14px 16px' }}>
+                <p style={{ fontSize: '11px', color: '#6b7280' }}>カロリー</p>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', margin: '2px 0' }}>
+                  <span style={{ fontSize: '32px', fontWeight: 900, color: '#111827', lineHeight: 1 }}>
+                    {Math.round(todayNutrition.calories).toLocaleString()}
+                  </span>
+                  <span style={{ fontSize: '13px', color: '#9ca3af' }}>
+                    / {calTarget.toLocaleString()} kcal
+                  </span>
                 </div>
-              ))}
+                {/* プログレスバー */}
+                <div style={{ width: '100%', height: '10px', background: '#f3f4f6', borderRadius: '20px', overflow: 'hidden', margin: '8px 0' }}>
+                  <div
+                    style={{
+                      height: '100%',
+                      borderRadius: '20px',
+                      width: `${calPct}%`,
+                      background: isOver
+                        ? 'linear-gradient(90deg, #22c55e, #f59e0b, #ef4444)'
+                        : 'linear-gradient(90deg, #22c55e, #4ade80)',
+                      transition: 'width 0.6s',
+                    }}
+                  />
+                </div>
+                {/* PFCグリッド */}
+                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                  {[
+                    { label: 'たんぱく質', value: Math.round(todayNutrition.protein * 10) / 10, target: pTarget, unit: 'g', color: '#3B82F6' },
+                    { label: '脂質', value: Math.round(todayNutrition.fat * 10) / 10, target: fTarget, unit: 'g', color: '#F59E0B' },
+                    { label: '炭水化物', value: Math.round(todayNutrition.carbs * 10) / 10, target: cTarget, unit: 'g', color: '#10B981' },
+                  ].map((pfc) => (
+                    <div key={pfc.label} style={{ minWidth: '70px' }}>
+                      <div style={{ fontSize: '10px', color: '#9ca3af', marginBottom: '1px' }}>{pfc.label}</div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
+                        <span style={{ fontSize: '15px', fontWeight: 800, color: pfc.color }}>{pfc.value}</span>
+                        <span style={{ fontSize: '10px', color: '#9ca3af' }}>{pfc.unit}</span>
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#9ca3af' }}>目標 {pfc.target}{pfc.unit}</div>
+                    </div>
+                  ))}
+                </div>
+                {/* 今日の食事一覧 */}
+                {todayMealRecords.length > 0 && (
+                  <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #f3f4f6' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px' }}>記録済み</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {todayMealRecords.map((rec) => (
+                        <div key={rec.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                          {rec.photoUrl && (
+                            <img src={rec.photoUrl} alt="" style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover' }} />
+                          )}
+                          <span style={{ fontSize: '10px', color: '#9ca3af', minWidth: '28px' }}>
+                            {rec.mealType === '朝食' ? '🌅' : rec.mealType === '昼食' ? '☀️' : rec.mealType === '夕食' ? '🌙' : '🍪'}
+                          </span>
+                          <span style={{ flex: 1, fontWeight: 600, color: '#374151' }}>{rec.foodName}</span>
+                          <span style={{ fontSize: '11px', color: '#6b7280' }}>{Math.round(rec.caloriesKcal)}kcal</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {todayMealRecords.length === 0 && (
+                  <div style={{ marginTop: '12px', textAlign: 'center' }}>
+                    <p style={{ fontSize: '12px', color: '#9ca3af' }}>まだ食事が記録されていません</p>
+                    <Link href="/meal" style={{ fontSize: '12px', color: '#22c55e', fontWeight: 700, textDecoration: 'none' }}>
+                      食事を記録する →
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </div>
+          )
+        })()}
 
         {/* ===== 体組成（最新値）===== */}
         <div
@@ -370,22 +480,31 @@ export default function DashboardPage() {
             <Link href="/body" style={{ fontSize: '11px', color: '#22c55e', fontWeight: 600, textDecoration: 'none' }}>詳細 ›</Link>
           </div>
           <div style={{ padding: '14px 16px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-              {[
-                { label: '体重', value: '72.4', unit: 'kg', change: '-0.3', isGood: true },
-                { label: '体脂肪率', value: '18.5', unit: '%', change: '-0.2', isGood: true },
-                { label: '筋肉量', value: '59.0', unit: 'kg', change: '+0.1', isGood: true },
-              ].map((stat) => (
-                <div key={stat.label} style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '10px', color: '#9ca3af' }}>{stat.label}</div>
-                  <div style={{ fontSize: '18px', fontWeight: 900, marginTop: '2px' }}>{stat.value}</div>
-                  <div style={{ fontSize: '10px', color: '#9ca3af' }}>{stat.unit}</div>
-                  <div style={{ marginTop: '2px', fontSize: '10px', fontWeight: 600, color: stat.isGood ? '#22c55e' : '#ef4444' }}>
-                    {stat.change}
+            {latestBody ? (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                {[
+                  { label: '体重', value: latestBody.weight, unit: 'kg', change: latestBody.weightChange, isGood: latestBody.weightChange.startsWith('-') },
+                  { label: '体脂肪率', value: latestBody.bodyFat, unit: '%', change: latestBody.fatChange, isGood: latestBody.fatChange.startsWith('-') },
+                  { label: '筋肉量', value: latestBody.muscle, unit: 'kg', change: latestBody.muscleChange, isGood: latestBody.muscleChange.startsWith('+') },
+                ].map((stat) => (
+                  <div key={stat.label} style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '10px', color: '#9ca3af' }}>{stat.label}</div>
+                    <div style={{ fontSize: '18px', fontWeight: 900, marginTop: '2px' }}>{stat.value}</div>
+                    <div style={{ fontSize: '10px', color: '#9ca3af' }}>{stat.unit}</div>
+                    <div style={{ marginTop: '2px', fontSize: '10px', fontWeight: 600, color: stat.change === '—' ? '#9ca3af' : stat.isGood ? '#22c55e' : '#ef4444' }}>
+                      {stat.change}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                <p style={{ fontSize: '12px', color: '#9ca3af' }}>まだ体組成が記録されていません</p>
+                <Link href="/body" style={{ fontSize: '12px', color: '#22c55e', fontWeight: 700, textDecoration: 'none' }}>
+                  体組成を記録する →
+                </Link>
+              </div>
+            )}
           </div>
         </div>
 
