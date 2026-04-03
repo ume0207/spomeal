@@ -224,7 +224,7 @@ export default function MealPage() {
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState('')
   const [photos, setPhotos] = useState<{file: File; preview: string}[]>([])
-  const [aiResult, setAiResult] = useState<{calories: number; protein: number; fat: number; carbs: number; comment: string} | null>(null)
+  const [aiResult, setAiResult] = useState<{calories: number; protein: number; fat: number; carbs: number; comment: string; items?: {name: string; amount: string; kcal: number; protein: number; fat: number; carbs: number}[]} | null>(null)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [mealDate, setMealDate] = useState('')
 
@@ -250,8 +250,8 @@ export default function MealPage() {
   const [goalPfcC, setGoalPfcC] = useState(55)
   const [goalCalAuto, setGoalCalAuto] = useState(2000)
 
-  // Gemini API共通
-  const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || 'AIzaSyBOksoqCUd65vJrMcW43OqcMgcByiO6GnY'
+  // Gemini API共通（環境変数から取得 - Cloudflare Pagesで設定）
+  const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || ''
   const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`
 
   const parseGeminiResponse = (geminiData: { candidates?: { content?: { parts?: { text?: string }[] } }[] }) => {
@@ -1031,23 +1031,49 @@ export default function MealPage() {
                 {aiResult && (
                   <div style={{
                     background: 'white', border: '1px solid #ddd6fe', borderRadius: '10px',
-                    padding: '10px', marginBottom: '12px',
+                    padding: '12px', marginBottom: '12px',
                   }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', marginBottom: '6px' }}>
+                    {/* 合計サマリー */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', marginBottom: '10px' }}>
                       {[
                         { label: 'kcal', value: Math.round(aiResult.calories), color: '#EA580C' },
                         { label: 'P', value: aiResult.protein.toFixed(1), color: '#2563EB' },
                         { label: 'F', value: aiResult.fat.toFixed(1), color: '#CA8A04' },
                         { label: 'C', value: aiResult.carbs.toFixed(1), color: '#16A34A' },
                       ].map((n) => (
-                        <div key={n.label} style={{ textAlign: 'center' }}>
+                        <div key={n.label} style={{ textAlign: 'center', background: '#f9fafb', borderRadius: '8px', padding: '6px' }}>
                           <div style={{ fontSize: '16px', fontWeight: 900, color: n.color }}>{n.value}</div>
                           <span style={{ fontSize: '10px', color: '#9ca3af' }}>{n.label}</span>
                         </div>
                       ))}
                     </div>
+
+                    {/* 食品詳細リスト */}
+                    {aiResult.items && aiResult.items.length > 0 && (
+                      <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: '8px', marginBottom: '8px' }}>
+                        <p style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px', margin: '0 0 6px' }}>食品内訳</p>
+                        {aiResult.items.map((item, i) => (
+                          <div key={i} style={{
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            padding: '6px 0', borderBottom: i < (aiResult.items?.length || 0) - 1 ? '1px solid #f3f4f6' : 'none',
+                          }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>{item.name}</div>
+                              <div style={{ fontSize: '11px', color: '#9ca3af' }}>{item.amount}</div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px', fontSize: '11px', flexShrink: 0 }}>
+                              <span style={{ color: '#EA580C', fontWeight: 700 }}>{item.kcal}kcal</span>
+                              <span style={{ color: '#2563EB' }}>P{item.protein}g</span>
+                              <span style={{ color: '#CA8A04' }}>F{item.fat}g</span>
+                              <span style={{ color: '#16A34A' }}>C{item.carbs}g</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
                     {aiResult.comment && (
-                      <p style={{ fontSize: '11px', color: '#6b7280', margin: '4px 0 0' }}>{aiResult.comment}</p>
+                      <p style={{ fontSize: '11px', color: '#6b7280', margin: '4px 0 0', background: '#f0fdf4', padding: '6px 8px', borderRadius: '6px' }}>💡 {aiResult.comment}</p>
                     )}
                   </div>
                 )}
@@ -1057,6 +1083,7 @@ export default function MealPage() {
                   onClick={async () => {
                     const desc = aiText.trim()
                     if (!desc && photos.length === 0) { setAiError('食事の説明または写真が必要です'); return }
+                    if (!GEMINI_API_KEY) { setAiError('APIキーが設定されていません。管理者にお問い合わせください。'); return }
                     setAiLoading(true)
                     setAiError('')
                     try {
@@ -1072,20 +1099,20 @@ export default function MealPage() {
                         parts.push({ inlineData: { mimeType: photos[0].file.type || 'image/jpeg', data: base64 } })
                       }
 
-                      parts.push({ text: `あなたは管理栄養士です。${desc ? `以下の食事内容` : `この写真の食事`}から栄養素を推定してJSON形式で返してください。
-${desc ? `食事内容: ${desc}` : '写真の食事を分析してください。'}
+                      parts.push({ text: `あなたはスポーツ栄養に詳しい管理栄養士です。${desc ? `以下の食事内容` : `この写真の食事`}を分析して、各食品ごとの栄養素を詳細にJSON形式で返してください。
+${desc ? `食事内容: ${desc}` : '写真に写っている食事を分析してください。'}
 
 以下のフォーマットで返答してください：
-{"calories":合計カロリー数値,"protein":合計タンパク質g数値,"fat":合計脂質g数値,"carbs":合計炭水化物g数値,"comment":"食事の簡単なコメントや栄養アドバイス"}
+{"items":[{"name":"食品名","amount":"量（例：150g、1杯）","kcal":カロリー数値,"protein":タンパク質g,"fat":脂質g,"carbs":炭水化物g}],"calories":合計カロリー,"protein":合計タンパク質g,"fat":合計脂質g,"carbs":合計炭水化物g,"comment":"食事の栄養バランスに関するアドバイス（1〜2文）"}
 
-JSONのみを返してください。` })
+各食品を個別に分析し、itemsに含めてください。JSONのみを返してください。` })
 
                       const res = await fetch(GEMINI_URL, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                           contents: [{ parts }],
-                          generationConfig: { temperature: 0.2, maxOutputTokens: 1024 },
+                          generationConfig: { temperature: 0.2, maxOutputTokens: 2048 },
                         }),
                       })
                       if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message || `API error: ${res.status}`) }
@@ -1094,7 +1121,11 @@ JSONのみを返してください。` })
                       const cleaned = text.trim().replace(/^```json\s*/i, '').replace(/\s*```$/i, '')
                       const data = JSON.parse(cleaned)
 
-                      setAiResult({ calories: data.calories, protein: data.protein, fat: data.fat, carbs: data.carbs, comment: data.comment || '' })
+                      setAiResult({
+                        calories: data.calories, protein: data.protein, fat: data.fat, carbs: data.carbs,
+                        comment: data.comment || '',
+                        items: data.items || [],
+                      })
                       setManualKcal(String(Math.round(data.calories)))
                       setManualProtein(String(Number(data.protein).toFixed(1)))
                       setManualFat(String(Number(data.fat).toFixed(1)))
