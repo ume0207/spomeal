@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { addMealPoint } from '@/lib/points'
+import { FOOD_DB, searchFoodDB } from '@/lib/food-db'
 
-// ===== 食品DB (100品目以上) =====
-const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: number }> = {
+// 旧FOOD_DB互換用（lib/food-db.tsからインポート）
+const FOOD_DB_COMPAT: Record<string, { kcal: number; p: number; f: number; c: number }> = {
   'ご飯': { kcal: 168, p: 2.5, f: 0.3, c: 37.1 }, '白米': { kcal: 168, p: 2.5, f: 0.3, c: 37.1 },
   'パン': { kcal: 264, p: 9.3, f: 4.2, c: 46.6 }, '食パン': { kcal: 264, p: 9.3, f: 4.2, c: 46.6 },
   'うどん': { kcal: 105, p: 2.6, f: 0.4, c: 21.6 }, 'そば': { kcal: 132, p: 4.8, f: 1.0, c: 26.0 },
@@ -1336,25 +1337,54 @@ export default function MealPage() {
 
                       const data = await callGemini(2) // 最大2回リトライ
 
-                      // 各itemにbase値を保存（グラム変更時の比例計算用）
-                      const itemsWithBase = (data.items || []).map((item: any) => ({
-                        ...item,
-                        grams: item.grams || 100,
-                        baseGrams: item.grams || 100,
-                        baseKcal: item.kcal,
-                        baseProtein: item.protein,
-                        baseFat: item.fat,
-                        baseCarbs: item.carbs,
-                      }))
+                      // 各itemにDB栄養値を補完＋base値を保存
+                      const itemsWithBase = (data.items || []).map((item: any) => {
+                        // DBから栄養値を検索（食品名で照合）
+                        const dbResults = searchFoodDB(item.name)
+                        const dbMatch = dbResults.length > 0 ? dbResults[0] : null
+
+                        let kcal = item.kcal, protein = item.protein, fat = item.fat, carbs = item.carbs
+                        let grams = item.grams || 100
+
+                        if (dbMatch) {
+                          // DBにヒット → DBの栄養値をグラム数に応じて比例計算
+                          const ratio = grams / dbMatch.g
+                          kcal = Math.round(dbMatch.kcal * ratio)
+                          protein = Math.round(dbMatch.p * ratio * 10) / 10
+                          fat = Math.round(dbMatch.f * ratio * 10) / 10
+                          carbs = Math.round(dbMatch.c * ratio * 10) / 10
+                          console.log(`DB照合: ${item.name} → ${dbMatch.name} (${dbMatch.g}gあたり ${dbMatch.kcal}kcal, ${grams}gで${kcal}kcal)`)
+                        }
+
+                        return {
+                          ...item,
+                          name: dbMatch ? dbMatch.name : item.name,
+                          kcal, protein, fat, carbs, grams,
+                          baseGrams: grams,
+                          baseKcal: kcal,
+                          baseProtein: protein,
+                          baseFat: fat,
+                          baseCarbs: carbs,
+                        }
+                      })
+
+                      // 合計を再計算
+                      const totals = itemsWithBase.reduce((acc: any, it: any) => ({
+                        kcal: acc.kcal + (it.kcal || 0),
+                        protein: acc.protein + (it.protein || 0),
+                        fat: acc.fat + (it.fat || 0),
+                        carbs: acc.carbs + (it.carbs || 0),
+                      }), { kcal: 0, protein: 0, fat: 0, carbs: 0 })
+
                       setAiResult({
-                        calories: data.calories, protein: data.protein, fat: data.fat, carbs: data.carbs,
+                        calories: totals.kcal, protein: totals.protein, fat: totals.fat, carbs: totals.carbs,
                         comment: data.comment || '',
                         items: itemsWithBase,
                       })
-                      setManualKcal(String(Math.round(data.calories)))
-                      setManualProtein(String(Number(data.protein).toFixed(1)))
-                      setManualFat(String(Number(data.fat).toFixed(1)))
-                      setManualCarbs(String(Number(data.carbs).toFixed(1)))
+                      setManualKcal(String(Math.round(totals.kcal)))
+                      setManualProtein(String(totals.protein.toFixed(1)))
+                      setManualFat(String(totals.fat.toFixed(1)))
+                      setManualCarbs(String(totals.carbs.toFixed(1)))
                     } catch (e) {
                       const msg = e instanceof Error ? e.message : 'Unknown error'
                       setAiError(`AI分析に失敗: ${msg}`)
@@ -1432,18 +1462,20 @@ export default function MealPage() {
                       />
                       {searchQuery.trim() ? (
                         <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                          {Object.entries(FOOD_DB)
-                            .filter(([name]) => name.includes(searchQuery))
-                            .slice(0, 10)
-                            .map(([name, info]) => (
+                          {(() => {
+                            const results = searchFoodDB(searchQuery).slice(0, 15)
+                            if (results.length === 0) {
+                              return <p style={{ fontSize: '12px', color: '#9ca3af', textAlign: 'center', padding: '16px 0' }}>該当する食品がありません</p>
+                            }
+                            return results.map((item) => (
                               <button
-                                key={name}
+                                key={item.name}
                                 onClick={() => {
-                                  setManualKcal(String(info.kcal))
-                                  setManualProtein(String(info.p))
-                                  setManualFat(String(info.f))
-                                  setManualCarbs(String(info.c))
-                                  setAiText(prev => prev ? `${prev}、${name}` : name)
+                                  setManualKcal(String(item.kcal))
+                                  setManualProtein(String(item.p))
+                                  setManualFat(String(item.f))
+                                  setManualCarbs(String(item.c))
+                                  setAiText(prev => prev ? `${prev}、${item.name}` : item.name)
                                   setSearchQuery('')
                                 }}
                                 style={{
@@ -1453,13 +1485,11 @@ export default function MealPage() {
                                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                                 }}
                               >
-                                <span>{name}</span>
-                                <span style={{ fontSize: '11px', color: '#9ca3af' }}>{info.kcal}kcal</span>
+                                <span>{item.name}</span>
+                                <span style={{ fontSize: '11px', color: '#9ca3af' }}>{item.kcal}kcal / {item.g}g</span>
                               </button>
-                            ))}
-                          {Object.entries(FOOD_DB).filter(([name]) => name.includes(searchQuery)).length === 0 && (
-                            <p style={{ fontSize: '12px', color: '#9ca3af', textAlign: 'center', padding: '16px 0' }}>該当する食品がありません</p>
-                          )}
+                            ))
+                          })()}
                         </div>
                       ) : (
                         <p style={{ fontSize: '12px', color: '#9ca3af', textAlign: 'center', padding: '8px 0' }}>食品名を入力して検索してください</p>
@@ -1470,7 +1500,8 @@ export default function MealPage() {
                     <div>
                       {favorites.length > 0 ? (
                         favorites.map((name) => {
-                          const info = FOOD_DB[name]
+                          const results = searchFoodDB(name)
+                          const info = results.length > 0 ? results[0] : null
                           return info ? (
                             <button
                               key={name}
