@@ -1217,33 +1217,45 @@ export default function MealPage() {
                       let base64Data = ''
 
                       if (photos.length > 0) {
-                        // 画像をリサイズしてbase64に変換（スマホの大きい写真対応）
-                        base64Data = await new Promise<string>((resolve, reject) => {
-                          const img = new Image()
-                          img.onload = () => {
-                            try {
-                              const canvas = document.createElement('canvas')
-                              const MAX_SIZE = 512
-                              let w = img.width, h = img.height
-                              if (w > MAX_SIZE || h > MAX_SIZE) {
-                                if (w > h) { h = Math.round(h * MAX_SIZE / w); w = MAX_SIZE }
-                                else { w = Math.round(w * MAX_SIZE / h); h = MAX_SIZE }
-                              }
-                              canvas.width = w
-                              canvas.height = h
-                              const ctx = canvas.getContext('2d')
-                              if (!ctx) { reject(new Error('Canvas not supported')); return }
-                              ctx.drawImage(img, 0, 0, w, h)
-                              const dataUrl = canvas.toDataURL('image/jpeg', 0.6)
-                              const b64 = dataUrl.split(',')[1]
-                              console.log(`画像リサイズ: ${img.width}x${img.height} → ${w}x${h}, base64: ${Math.round(b64.length/1024)}KB`)
-                              resolve(b64)
-                            } catch (e) { reject(e) }
+                        // 画像をリサイズしてbase64に変換（HEIC/高画質写真対応）
+                        const photoFile = photos[0].file
+                        try {
+                          // 方法1: createImageBitmap（HEIC対応が良い）→ Canvas でJPEGに変換
+                          const bitmap = await createImageBitmap(photoFile)
+                          const canvas = document.createElement('canvas')
+                          const MAX_SIZE = 512
+                          let w = bitmap.width, h = bitmap.height
+                          if (w > MAX_SIZE || h > MAX_SIZE) {
+                            if (w > h) { h = Math.round(h * MAX_SIZE / w); w = MAX_SIZE }
+                            else { w = Math.round(w * MAX_SIZE / h); h = MAX_SIZE }
                           }
-                          img.onerror = () => reject(new Error('画像の読み込みに失敗しました'))
-                          img.src = photos[0].preview
-                        })
-                        parts.push({ inlineData: { mimeType: 'image/jpeg', data: base64Data } })
+                          canvas.width = w
+                          canvas.height = h
+                          const ctx = canvas.getContext('2d')!
+                          ctx.drawImage(bitmap, 0, 0, w, h)
+                          bitmap.close()
+                          const dataUrl = canvas.toDataURL('image/jpeg', 0.6)
+                          base64Data = dataUrl.split(',')[1]
+                          console.log(`画像リサイズ: ${bitmap.width || '?'}x${bitmap.height || '?'} → ${w}x${h}, base64: ${Math.round(base64Data.length/1024)}KB`)
+                        } catch (bitmapErr) {
+                          console.warn('createImageBitmap失敗、FileReader使用:', bitmapErr)
+                          // 方法2: FileReaderで直接base64読み取り（リサイズなし）
+                          base64Data = await new Promise<string>((resolve, reject) => {
+                            const reader = new FileReader()
+                            reader.onload = () => {
+                              const result = reader.result as string
+                              resolve(result.split(',')[1])
+                            }
+                            reader.onerror = () => reject(new Error('ファイルの読み込みに失敗'))
+                            reader.readAsDataURL(photoFile)
+                          })
+                          console.log(`FileReader読み取り: base64: ${Math.round(base64Data.length/1024)}KB`)
+                        }
+                        // MIMEタイプを判定（HEIC→jpeg変換済みの場合はjpeg）
+                        const mimeType = photoFile.type === 'image/heic' || photoFile.type === 'image/heif'
+                          ? (base64Data.startsWith('/9j') ? 'image/jpeg' : photoFile.type)
+                          : (photoFile.type || 'image/jpeg')
+                        parts.push({ inlineData: { mimeType: mimeType === 'image/heic' || mimeType === 'image/heif' ? 'image/jpeg' : mimeType, data: base64Data } })
                       }
 
                       parts.push({ text: `あなたは管理栄養士です。${desc ? `食事: ${desc}` : 'この写真の食事'}の栄養素を分析してください。` })
