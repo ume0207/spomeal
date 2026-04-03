@@ -1420,7 +1420,7 @@ export default function MealPage() {
                 background: 'white', border: '1px solid #e5e7eb', borderRadius: '16px',
                 overflow: 'hidden', marginBottom: '16px',
               }}>
-                <div style={{ display: 'flex', borderBottom: '1px solid #e5e7eb' }}>
+                <div style={{ display: 'flex', borderBottom: '2px solid #e5e7eb', padding: '4px' }}>
                   {[
                     { key: 'search' as const, icon: '🔍', label: '検索' },
                     { key: 'favorite' as const, icon: '⭐', label: 'お気に入り' },
@@ -1431,22 +1431,21 @@ export default function MealPage() {
                       key={tab.key}
                       onClick={() => setBottomTab(tab.key)}
                       style={{
-                        flex: 1, padding: '10px 4px', fontSize: '12px', fontWeight: 600,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px',
+                        flex: 1, padding: '14px 4px', fontSize: '14px', fontWeight: 700,
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px',
                         background: bottomTab === tab.key ? '#22C55E' : 'white',
                         color: bottomTab === tab.key ? 'white' : '#6b7280',
                         border: 'none', cursor: 'pointer', fontFamily: 'inherit',
                         transition: 'all 0.2s',
-                        borderRadius: bottomTab === tab.key ? '8px' : '0',
-                        margin: bottomTab === tab.key ? '4px' : '0',
+                        borderRadius: '10px',
                       }}
                     >
-                      <span style={{ fontSize: '13px' }}>{tab.icon}</span>
+                      <span style={{ fontSize: '20px' }}>{tab.icon}</span>
                       {tab.label}
                     </button>
                   ))}
                 </div>
-                <div style={{ padding: '12px' }}>
+                <div style={{ padding: '16px' }}>
                   {bottomTab === 'search' && (
                     <div>
                       <input
@@ -1455,17 +1454,17 @@ export default function MealPage() {
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="食品名で検索（例：鶏胸肉、ご飯、バナナ）"
                         style={{
-                          width: '100%', border: '1px solid #e5e7eb', borderRadius: '10px',
-                          padding: '10px 12px', fontSize: '13px', outline: 'none',
-                          boxSizing: 'border-box', fontFamily: 'inherit', marginBottom: '8px',
+                          width: '100%', border: '2px solid #e5e7eb', borderRadius: '12px',
+                          padding: '14px 16px', fontSize: '16px', outline: 'none',
+                          boxSizing: 'border-box', fontFamily: 'inherit', marginBottom: '10px',
                         }}
                       />
                       {searchQuery.trim() ? (
-                        <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                        <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
                           {(() => {
-                            const results = searchFoodDB(searchQuery).slice(0, 15)
+                            const results = searchFoodDB(searchQuery).slice(0, 20)
                             if (results.length === 0) {
-                              return <p style={{ fontSize: '12px', color: '#9ca3af', textAlign: 'center', padding: '16px 0' }}>該当する食品がありません</p>
+                              return <p style={{ fontSize: '14px', color: '#9ca3af', textAlign: 'center', padding: '20px 0' }}>該当する食品がありません</p>
                             }
                             return results.map((item) => (
                               <button
@@ -1479,20 +1478,20 @@ export default function MealPage() {
                                   setSearchQuery('')
                                 }}
                                 style={{
-                                  width: '100%', textAlign: 'left', padding: '10px 8px',
+                                  width: '100%', textAlign: 'left', padding: '14px 12px',
                                   background: 'none', border: 'none', borderBottom: '1px solid #f3f4f6',
-                                  cursor: 'pointer', fontSize: '13px', color: '#374151', fontFamily: 'inherit',
+                                  cursor: 'pointer', fontSize: '15px', color: '#374151', fontFamily: 'inherit',
                                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                                 }}
                               >
-                                <span>{item.name}</span>
-                                <span style={{ fontSize: '11px', color: '#9ca3af' }}>{item.kcal}kcal / {item.g}g</span>
+                                <span style={{ fontWeight: 600 }}>{item.name}</span>
+                                <span style={{ fontSize: '13px', color: '#9ca3af' }}>{item.kcal}kcal / {item.g}g</span>
                               </button>
                             ))
                           })()}
                         </div>
                       ) : (
-                        <p style={{ fontSize: '12px', color: '#9ca3af', textAlign: 'center', padding: '8px 0' }}>食品名を入力して検索してください</p>
+                        <p style={{ fontSize: '14px', color: '#9ca3af', textAlign: 'center', padding: '12px 0' }}>食品名を入力して検索してください</p>
                       )}
                     </div>
                   )}
@@ -1513,24 +1512,25 @@ export default function MealPage() {
                                 setAiText(prev => prev ? `${prev}、${name}` : name)
                               }}
                               style={{
-                                width: '100%', textAlign: 'left', padding: '10px 8px',
+                                width: '100%', textAlign: 'left', padding: '14px 12px',
                                 background: 'none', border: 'none', borderBottom: '1px solid #f3f4f6',
-                                cursor: 'pointer', fontSize: '13px', color: '#374151', fontFamily: 'inherit',
+                                cursor: 'pointer', fontSize: '15px', color: '#374151', fontFamily: 'inherit',
+                                fontWeight: 600,
                               }}
-                            >{name} - {info.kcal}kcal</button>
+                            >{name} - <span style={{ fontSize: '13px', color: '#9ca3af', fontWeight: 400 }}>{info.kcal}kcal</span></button>
                           ) : null
                         })
                       ) : (
-                        <p style={{ fontSize: '12px', color: '#9ca3af', textAlign: 'center', padding: '16px 0' }}>お気に入りの食品はまだありません</p>
+                        <p style={{ fontSize: '14px', color: '#9ca3af', textAlign: 'center', padding: '20px 0' }}>お気に入りの食品はまだありません</p>
                       )}
                     </div>
                   )}
                   {bottomTab === 'manual' && (
                     <div>
-                      <label style={{ fontSize: '12px', fontWeight: 700, color: '#4b5563', marginBottom: '8px', display: 'block' }}>
+                      <label style={{ fontSize: '14px', fontWeight: 700, color: '#4b5563', marginBottom: '10px', display: 'block' }}>
                         栄養素（手動入力 / AI結果を編集）
                       </label>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                         {[
                           { label: 'カロリー (kcal)', value: manualKcal, set: setManualKcal, placeholder: '500' },
                           { label: 'たんぱく質 (g)', value: manualProtein, set: setManualProtein, placeholder: '25.0' },
@@ -1538,15 +1538,15 @@ export default function MealPage() {
                           { label: '炭水化物 (g)', value: manualCarbs, set: setManualCarbs, placeholder: '60.0' },
                         ].map((field) => (
                           <div key={field.label}>
-                            <label style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px', display: 'block' }}>{field.label}</label>
+                            <label style={{ fontSize: '13px', color: '#6b7280', marginBottom: '6px', display: 'block', fontWeight: 600 }}>{field.label}</label>
                             <input
                               type="number"
                               value={field.value}
                               onChange={(e) => field.set(e.target.value)}
                               placeholder={field.placeholder}
                               style={{
-                                width: '100%', border: '1px solid #e5e7eb', borderRadius: '8px',
-                                padding: '8px 12px', fontSize: '14px', fontFamily: 'inherit',
+                                width: '100%', border: '2px solid #e5e7eb', borderRadius: '10px',
+                                padding: '12px 14px', fontSize: '16px', fontFamily: 'inherit',
                                 outline: 'none', boxSizing: 'border-box',
                               }}
                             />
@@ -1558,8 +1558,8 @@ export default function MealPage() {
                   {bottomTab === 'history' && (
                     <div>
                       {records.length > 0 ? (
-                        <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                          {[...new Map(records.map(r => [r.foodName, r])).values()].slice(0, 15).map((rec) => (
+                        <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                          {[...new Map(records.map(r => [r.foodName, r])).values()].slice(0, 20).map((rec) => (
                             <button
                               key={rec.id}
                               onClick={() => {
@@ -1570,18 +1570,19 @@ export default function MealPage() {
                                 setManualCarbs(String(rec.carbsG))
                               }}
                               style={{
-                                width: '100%', textAlign: 'left', padding: '10px 8px',
+                                width: '100%', textAlign: 'left', padding: '14px 12px',
                                 background: 'none', border: 'none', borderBottom: '1px solid #f3f4f6',
-                                cursor: 'pointer', fontSize: '13px', color: '#374151', fontFamily: 'inherit',
+                                cursor: 'pointer', fontSize: '15px', color: '#374151', fontFamily: 'inherit',
+                                fontWeight: 600,
                               }}
                             >
                               <div>{rec.foodName}</div>
-                              <div style={{ fontSize: '11px', color: '#9ca3af' }}>{rec.caloriesKcal}kcal · P{rec.proteinG}g · F{rec.fatG}g · C{rec.carbsG}g</div>
+                              <div style={{ fontSize: '13px', color: '#9ca3af', fontWeight: 400, marginTop: '2px' }}>{rec.caloriesKcal}kcal · P{rec.proteinG}g · F{rec.fatG}g · C{rec.carbsG}g</div>
                             </button>
                           ))}
                         </div>
                       ) : (
-                        <p style={{ fontSize: '12px', color: '#9ca3af', textAlign: 'center', padding: '16px 0' }}>食事履歴はまだありません</p>
+                        <p style={{ fontSize: '14px', color: '#9ca3af', textAlign: 'center', padding: '20px 0' }}>食事履歴はまだありません</p>
                       )}
                     </div>
                   )}
