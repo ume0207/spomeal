@@ -41,7 +41,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         type: 'image_url',
         image_url: {
           url: `data:${mime};base64,${image}`,
-          detail: 'low',  // コスト抑制: lowで十分（食品特定には問題なし）
+          detail: 'auto',  // 精度重視: autoでOpenAIが最適解像度を選択
         },
       })
     }
