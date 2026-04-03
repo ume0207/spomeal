@@ -1258,9 +1258,12 @@ export default function MealPage() {
                         parts.push({ inlineData: { mimeType: mimeType === 'image/heic' || mimeType === 'image/heif' ? 'image/jpeg' : mimeType, data: base64Data } })
                       }
 
-                      parts.push({ text: `あなたは管理栄養士です。${desc ? `食事: ${desc}` : 'この写真の食事'}の栄養素を分析してください。` })
+                      parts.push({ text: `あなたは管理栄養士です。${desc ? `食事: ${desc}` : 'この写真の食事'}の栄養素をJSON形式で返してください。
 
-                      // Gemini API呼び出し（JSON出力を強制 + リトライ機能）
+回答はこのJSON形式のみ（他のテキスト不要）:
+{"items":[{"name":"食品名","amount":"量","kcal":0,"protein":0,"fat":0,"carbs":0}],"calories":0,"protein":0,"fat":0,"carbs":0,"comment":"アドバイス"}` })
+
+                      // Gemini API呼び出し（リトライ機能付き）
                       const callGemini = async (retryCount: number): Promise<any> => {
                         const res = await fetch(GEMINI_URL, {
                           method: 'POST',
@@ -1268,9 +1271,8 @@ export default function MealPage() {
                           body: JSON.stringify({
                             contents: [{ parts }],
                             generationConfig: {
-                              temperature: 0.1,
+                              temperature: 0.2,
                               maxOutputTokens: 2048,
-                              responseMimeType: 'application/json',
                             },
                           }),
                         })
@@ -1298,7 +1300,7 @@ export default function MealPage() {
                           throw new Error('AIから応答がありませんでした')
                         }
 
-                        // responseMimeType: 'application/json' なので直接パースできるはず
+                        // JSONパース（複数方法で試行）
                         try {
                           return JSON.parse(rawText)
                         } catch {
