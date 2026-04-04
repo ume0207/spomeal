@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { getPointsData, getTodayPoints, doLottery, getAvailableLotteries, getLotteryHistory, getRarityColor, getRarityLabel } from '@/lib/points'
 import { toJSTDateStr } from '@/lib/date-utils'
 import type { LotteryResult } from '@/lib/points'
+import { SpotlightTutorial, UsageGuide } from '@/components/Tutorial'
 
 // 食事記録の型定義
 interface MealRecord {
@@ -76,6 +77,26 @@ export default function DashboardPage() {
   const [lotteryResult, setLotteryResult] = useState<LotteryResult | null>(null)
   const [isSpinning, setIsSpinning] = useState(false)
   const [lotteryHistory, setLotteryHistory] = useState<LotteryResult[]>([])
+
+  // チュートリアル＆ガイド
+  const [showTutorial, setShowTutorial] = useState(false)
+  const [showGuide, setShowGuide] = useState(false)
+
+  // 初回ログイン判定 → チュートリアル表示
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const done = localStorage.getItem('spomeal_tutorial_done')
+    if (!done) {
+      // 少し遅延させてページが安定してから開始
+      const t = setTimeout(() => setShowTutorial(true), 800)
+      return () => clearTimeout(t)
+    }
+  }, [])
+
+  const handleTutorialComplete = () => {
+    setShowTutorial(false)
+    localStorage.setItem('spomeal_tutorial_done', '1')
+  }
 
   // データ読み込み関数（初回＋ページ復帰時に実行）
   const loadAllData = useCallback(() => {
@@ -321,6 +342,7 @@ export default function DashboardPage() {
 
         {/* ===== クイック記録 ===== */}
         <div
+          data-tutorial="quick-record"
           style={{
             background: 'white',
             border: '1px solid #f0f0f0',
@@ -857,6 +879,46 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+      )}
+
+        {/* ===== 使い方を見るボタン ===== */}
+        <div style={{ padding: '8px 0 20px' }}>
+          <button
+            onClick={() => setShowGuide(true)}
+            style={{
+              width: '100%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+              padding: '14px 20px',
+              background: 'white',
+              border: '1.5px solid #e5e7eb',
+              borderRadius: '14px',
+              fontSize: '13px',
+              fontWeight: 700,
+              color: '#6b7280',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              transition: 'all 0.2s',
+            }}
+          >
+            <span style={{
+              width: '28px', height: '28px', borderRadius: '8px',
+              background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '14px',
+            }}>📖</span>
+            アプリの使い方を見る
+          </button>
+        </div>
+
+      {/* チュートリアル（初回のみ） */}
+      {showTutorial && (
+        <SpotlightTutorial onComplete={handleTutorialComplete} />
+      )}
+
+      {/* 使い方ガイド（いつでも見れる） */}
+      {showGuide && (
+        <UsageGuide onClose={() => setShowGuide(false)} />
       )}
     </div>
   )

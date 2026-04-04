@@ -5,10 +5,10 @@ import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 const navItems = [
-  { href: '/dashboard', icon: '🏠', label: 'ホーム' },
-  { href: '/meal', icon: '🍽', label: '食事' },
-  { href: '/body', icon: '📊', label: '体組成' },
-  { href: '/reserve', icon: '📅', label: '予約' },
+  { href: '/dashboard', icon: '🏠', label: 'ホーム', tutorialId: 'nav-home' },
+  { href: '/meal', icon: '🍽', label: '食事', tutorialId: 'nav-meal' },
+  { href: '/body', icon: '📊', label: '体組成', tutorialId: 'nav-body' },
+  { href: '/reserve', icon: '📅', label: '予約', tutorialId: 'nav-reserve' },
 ]
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -107,6 +107,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             style={{ display: 'none' }}
           />
           <div
+            data-tutorial="avatar-icon"
             onClick={() => fileInputRef.current?.click()}
             style={{
               width: '40px',
@@ -203,6 +204,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <a
               key={item.href}
               href={item.href}
+              data-tutorial={item.tutorialId}
               style={{
                 display: 'flex',
                 flexDirection: 'column' as const,
