@@ -4872,6 +4872,14 @@ export const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: nu
 
 
 
+  '水': { kcal: 0, p: 0.0, f: 0.0, c: 0.0, g: 200 },
+  'お水': { kcal: 0, p: 0.0, f: 0.0, c: 0.0, g: 200 },
+  '冷水': { kcal: 0, p: 0.0, f: 0.0, c: 0.0, g: 200 },
+  '白湯': { kcal: 0, p: 0.0, f: 0.0, c: 0.0, g: 200 },
+  'お湯': { kcal: 0, p: 0.0, f: 0.0, c: 0.0, g: 200 },
+  'ミネラルウォーター': { kcal: 0, p: 0.0, f: 0.0, c: 0.0, g: 500 },
+  '天然水': { kcal: 0, p: 0.0, f: 0.0, c: 0.0, g: 500 },
+  '氷水': { kcal: 0, p: 0.0, f: 0.0, c: 0.0, g: 200 },
   '炭酸水': { kcal: 0, p: 0.0, f: 0.0, c: 0.0, g: 250 },
 
 
@@ -13877,38 +13885,43 @@ export const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: nu
  * Performs partial string matching (case-insensitive)
  */
 export function searchFoodDB(query: string): Array<{ name: string; kcal: number; p: number; f: number; c: number; g: number }> {
-  const lowerQuery = query.toLowerCase();
-  const results: Array<{ name: string; kcal: number; p: number; f: number; c: number; g: number }> = [];
+  const lowerQuery = query.toLowerCase().trim();
+  if (!lowerQuery) return [];
+
+  const results: Array<{ name: string; kcal: number; p: number; f: number; c: number; g: number; _score: number }> = [];
 
   for (const [name, nutrition] of Object.entries(FOOD_DB)) {
-    if (name.toLowerCase().includes(lowerQuery)) {
-      results.push({
-        name,
-        kcal: nutrition.kcal,
-        p: nutrition.p,
-        f: nutrition.f,
-        c: nutrition.c,
-        g: nutrition.g,
-      });
+    const lowerName = name.toLowerCase();
+
+    // スコアリング: 完全一致 > 前方一致 > 部分一致
+    let score = 0;
+    if (lowerName === lowerQuery) {
+      score = 100; // 完全一致
+    } else if (lowerName.startsWith(lowerQuery)) {
+      score = 50; // 前方一致
+    } else if (lowerName.includes(lowerQuery)) {
+      score = 10; // 部分一致
+    } else {
+      continue; // マッチなし
     }
+
+    // 名前が短いほどボーナス（より正確なマッチ）
+    score += Math.max(0, 30 - name.length);
+
+    results.push({
+      name,
+      kcal: nutrition.kcal,
+      p: nutrition.p,
+      f: nutrition.f,
+      c: nutrition.c,
+      g: nutrition.g,
+      _score: score,
+    });
   }
 
-  // Sort by relevance (exact matches first, then by length)
-  results.sort((a, b) => {
-    const aLower = a.name.toLowerCase();
-    const bLower = b.name.toLowerCase();
+  // スコア順にソート（高い順）
+  results.sort((a, b) => b._score - a._score);
 
-    // Exact match priority
-    if (aLower === lowerQuery) return -1;
-    if (bLower === lowerQuery) return 1;
-
-    // Prefix match priority
-    if (aLower.startsWith(lowerQuery) && !bLower.startsWith(lowerQuery)) return -1;
-    if (bLower.startsWith(lowerQuery) && !aLower.startsWith(lowerQuery)) return 1;
-
-    // Shorter names first
-    return a.name.length - b.name.length;
-  });
-
-  return results;
+  // _scoreを除いて返す
+  return results.map(({ _score, ...rest }) => rest);
 }
