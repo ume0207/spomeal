@@ -247,9 +247,7 @@ export default function AdminDashboardPage() {
     { label: '会員を登録', icon: '👥', color: '#2563eb', bg: '#eff6ff', href: '/admin/members' },
     { label: '食事記録を確認', icon: '🍽', color: '#16a34a', bg: '#f0fdf4', href: '/admin/members' },
     { label: '体組成を確認', icon: '📊', color: '#dc2626', bg: '#fef2f2', href: '/admin/members' },
-    { label: 'CSV出力', icon: '📥', color: '#2563eb', bg: '#eff6ff', href: '/admin/members' },
     { label: '予約カレンダー', icon: '📅', color: '#0ea5e9', bg: '#f0f9ff', href: '/admin/calendar' },
-    { label: 'タイムスケジュール', icon: '🕐', color: '#0ea5e9', bg: '#f0f9ff', href: '/admin/schedule' },
     { label: 'スタッフ管理', icon: '👤', color: '#2563eb', bg: '#eff6ff', href: '/admin/staff' },
     { label: 'シフト管理', icon: '📋', color: '#4f46e5', bg: '#eef2ff', href: '/admin/shift' },
   ]
