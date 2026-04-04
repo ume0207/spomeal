@@ -64,6 +64,9 @@ export default function DashboardPage() {
   const [todayMealRecords, setTodayMealRecords] = useState<MealRecord[]>([])
   const [latestBody, setLatestBody] = useState<{ weight: string; bodyFat: string; muscle: string; weightChange: string; fatChange: string; muscleChange: string } | null>(null)
 
+  // 管理栄養士コメント
+  const [nutritionistComments, setNutritionistComments] = useState<{ id: string; date: string; staffName: string; category: string; comment: string }[]>([])
+
   // ポイントシステム
   const [totalPoints, setTotalPoints] = useState(0)
   const [todayEarned, setTodayEarned] = useState(0)
@@ -77,6 +80,15 @@ export default function DashboardPage() {
   // データ読み込み関数（初回＋ページ復帰時に実行）
   const loadAllData = useCallback(() => {
     if (typeof window === 'undefined') return
+
+    // 管理栄養士コメントの読み込み
+    try {
+      const commentsRaw = localStorage.getItem('nutritionist_comments_v1')
+      if (commentsRaw) {
+        const parsed = JSON.parse(commentsRaw)
+        setNutritionistComments(Array.isArray(parsed) ? parsed : [])
+      }
+    } catch { /* ignore */ }
 
     try {
       const raw = localStorage.getItem('goals_v1')
@@ -210,6 +222,51 @@ export default function DashboardPage() {
       }}
     >
       <div style={{ maxWidth: '640px', margin: '0 auto', padding: '16px 12px 40px' }}>
+
+        {/* ===== 管理栄養士からのコメント ===== */}
+        {nutritionistComments.length > 0 && (() => {
+          const latest = nutritionistComments[0]
+          const catStyles: Record<string, { color: string; bg: string; border: string; icon: string }> = {
+            '食事': { color: '#16a34a', bg: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)', border: '#bbf7d0', icon: '🍽️' },
+            '体組成': { color: '#dc2626', bg: 'linear-gradient(135deg, #fef2f2 0%, #fecaca 100%)', border: '#fca5a5', icon: '📊' },
+            'トレーニング': { color: '#7c3aed', bg: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)', border: '#c4b5fd', icon: '💪' },
+            '全般': { color: '#2563eb', bg: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', border: '#93c5fd', icon: '💬' },
+          }
+          const cat = catStyles[latest.category] || catStyles['全般']
+          return (
+            <div style={{
+              background: cat.bg,
+              borderRadius: '16px', border: `1px solid ${cat.border}`,
+              marginBottom: '12px', overflow: 'hidden',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            }}>
+              <div style={{ padding: '14px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '13px', fontWeight: 800, color: cat.color, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {cat.icon} 管理栄養士からのコメント
+                </span>
+                <span style={{ fontSize: '10px', color: '#9ca3af', background: 'rgba(255,255,255,0.7)', padding: '2px 8px', borderRadius: '6px' }}>
+                  {latest.date}
+                </span>
+              </div>
+              <div style={{ padding: '10px 16px 14px' }}>
+                <p style={{ fontSize: '14px', color: '#1f2937', margin: 0, lineHeight: 1.7, fontWeight: 500 }}>
+                  {latest.comment}
+                </p>
+                <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ background: 'rgba(255,255,255,0.7)', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
+                    {latest.staffName}
+                  </span>
+                  <span style={{
+                    background: 'rgba(255,255,255,0.7)', padding: '2px 8px', borderRadius: '6px',
+                    fontWeight: 600, color: cat.color,
+                  }}>
+                    {latest.category}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
 
         {/* ===== 次回の栄養相談 ===== */}
         {nextReservation && (
