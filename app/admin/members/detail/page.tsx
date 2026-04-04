@@ -4,6 +4,21 @@ import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
+interface GoalData {
+  cal: number
+  protein: number
+  fat: number
+  carbs: number
+  targetWeight?: number
+  currentWeight?: number
+  height?: number
+  activityLevel?: string
+  goalType?: string
+  pfcP?: number
+  pfcF?: number
+  pfcC?: number
+}
+
 // ===== 型定義 =====
 interface Member {
   id: string
@@ -116,9 +131,11 @@ function MemberDetailContent() {
   const [member, setMember] = useState<Member | null>(null)
   const [meals, setMeals] = useState<MealRecord[]>([])
   const [bodyRecords, setBodyRecords] = useState<BodyRecord[]>([])
+  const [goalData, setGoalData] = useState<GoalData | null>(null)
   const [comments, setComments] = useState<NutritionistComment[]>([])
-  const [activeTab, setActiveTab] = useState<'meals' | 'body' | 'comments'>('meals')
+  const [activeTab, setActiveTab] = useState<'meals' | 'body' | 'goal' | 'comments'>('meals')
   const [expandedMeal, setExpandedMeal] = useState<string | null>(null)
+  const [dataLoading, setDataLoading] = useState(true)
 
   // コメント入力
   const [showCommentForm, setShowCommentForm] = useState(false)
@@ -130,7 +147,7 @@ function MemberDetailContent() {
   useEffect(() => {
     if (!memberId) return
 
-    // 会員情報読み込み（API → デモデータフォールバック）
+    // 会員情報読み込み（API）
     const loadMember = async () => {
       try {
         const res = await fetch('/api/admin/members')
@@ -145,10 +162,62 @@ function MemberDetailContent() {
     }
     loadMember()
 
-    // 食事記録（デモデータ）
-    setMeals(demoMealRecords[memberId] || [])
-    // 体組成記録（デモデータ）
-    setBodyRecords(demoBodyRecords[memberId] || [])
+    // 食事・体組成・目標データをSupabaseから取得
+    const loadMemberData = async () => {
+      setDataLoading(true)
+      try {
+        const res = await fetch(`/api/admin/member-data?id=${memberId}`)
+        if (res.ok) {
+          const data = await res.json()
+          // 食事記録を変換
+          if (data.meal_activity && data.meal_activity.length > 0) {
+            const mealRecords: MealRecord[] = data.meal_activity.map((m: any, i: number) => ({
+              id: `meal_${i}`,
+              date: m.date || m.recordedAt?.split('T')[0] || '',
+              mealType: m.mealType || '食事',
+              items: (m.items || []).map((item: any) => ({
+                name: item.name || '',
+                amount: '',
+                calories: item.kcal || 0,
+                protein: item.protein || 0,
+                fat: item.fat || 0,
+                carbs: item.carbs || 0,
+              })),
+              totalCalories: m.totalKcal || 0,
+              totalProtein: m.totalProtein || 0,
+              totalFat: m.totalFat || 0,
+              totalCarbs: m.totalCarbs || 0,
+            }))
+            setMeals(mealRecords)
+          } else {
+            setMeals([])
+          }
+          // 体組成記録を変換
+          if (data.body_activity && data.body_activity.length > 0) {
+            const bodyRecs: BodyRecord[] = data.body_activity.map((b: any, i: number) => ({
+              id: `body_${i}`,
+              date: b.date || '',
+              weight: b.weight || 0,
+              bodyFat: b.bodyFat || undefined,
+              muscleMass: b.muscle || undefined,
+              bmi: b.bmi || undefined,
+            }))
+            setBodyRecords(bodyRecs)
+          } else {
+            setBodyRecords([])
+          }
+          // 目標データ
+          if (data.goal_data) {
+            setGoalData(data.goal_data)
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load member data:', e)
+      }
+      setDataLoading(false)
+    }
+    loadMemberData()
+
     // コメント
     const allComments = loadComments()
     setComments(allComments.filter(c => c.targetMember === memberId || c.targetMember === '__all__'))
@@ -258,8 +327,9 @@ function MemberDetailContent() {
       {/* タブ切り替え */}
       <div style={{ display: 'flex', gap: '4px', background: '#f3f4f6', borderRadius: '12px', padding: '4px', marginBottom: '16px' }}>
         {([
-          { key: 'meals' as const, label: '🍽 食事記録', color: '#16a34a' },
+          { key: 'meals' as const, label: '🍽 食事', color: '#16a34a' },
           { key: 'body' as const, label: '📊 体組成', color: '#dc2626' },
+          { key: 'goal' as const, label: '🎯 目標', color: '#f59e0b' },
           { key: 'comments' as const, label: '💬 コメント', color: '#2563eb' },
         ]).map(tab => (
           <button
@@ -433,6 +503,59 @@ function MemberDetailContent() {
                   {rec.memo && <p style={{ fontSize: '11px', color: '#6b7280', margin: '6px 0 0' }}>{rec.memo}</p>}
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== 目標タブ ===== */}
+      {activeTab === 'goal' && (
+        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #e5e7eb', overflow: 'hidden', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid #f3f4f6' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: 800, margin: 0, color: '#111827' }}>🎯 目標設定</h3>
+          </div>
+          {dataLoading ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: '#9ca3af' }}>読み込み中...</div>
+          ) : goalData ? (
+            <div style={{ padding: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '16px' }}>
+                <div style={{ background: '#fffbeb', borderRadius: '12px', padding: '14px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '11px', color: '#92400e', marginBottom: '4px' }}>目標カロリー</div>
+                  <div style={{ fontSize: '22px', fontWeight: 900, color: '#f59e0b' }}>{goalData.cal}<span style={{ fontSize: '11px', color: '#9ca3af' }}> kcal</span></div>
+                </div>
+                <div style={{ background: '#fef2f2', borderRadius: '12px', padding: '14px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '11px', color: '#991b1b', marginBottom: '4px' }}>目標体重</div>
+                  <div style={{ fontSize: '22px', fontWeight: 900, color: '#dc2626' }}>{goalData.targetWeight || '-'}<span style={{ fontSize: '11px', color: '#9ca3af' }}> kg</span></div>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '16px' }}>
+                <div style={{ background: '#f0fdf4', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '10px', color: '#166534', marginBottom: '2px' }}>タンパク質</div>
+                  <div style={{ fontSize: '18px', fontWeight: 800, color: '#16a34a' }}>{goalData.protein}<span style={{ fontSize: '10px' }}>g</span></div>
+                  {goalData.pfcP && <div style={{ fontSize: '10px', color: '#6b7280' }}>{goalData.pfcP}%</div>}
+                </div>
+                <div style={{ background: '#fff7ed', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '10px', color: '#9a3412', marginBottom: '2px' }}>脂質</div>
+                  <div style={{ fontSize: '18px', fontWeight: 800, color: '#f97316' }}>{goalData.fat}<span style={{ fontSize: '10px' }}>g</span></div>
+                  {goalData.pfcF && <div style={{ fontSize: '10px', color: '#6b7280' }}>{goalData.pfcF}%</div>}
+                </div>
+                <div style={{ background: '#eef2ff', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '10px', color: '#3730a3', marginBottom: '2px' }}>炭水化物</div>
+                  <div style={{ fontSize: '18px', fontWeight: 800, color: '#6366f1' }}>{goalData.carbs}<span style={{ fontSize: '10px' }}>g</span></div>
+                  {goalData.pfcC && <div style={{ fontSize: '10px', color: '#6b7280' }}>{goalData.pfcC}%</div>}
+                </div>
+              </div>
+              <div style={{ background: '#f9fafb', borderRadius: '10px', padding: '14px', fontSize: '12px', color: '#6b7280' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}><span>現在体重</span><span style={{ fontWeight: 700, color: '#374151' }}>{goalData.currentWeight || '-'} kg</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}><span>身長</span><span style={{ fontWeight: 700, color: '#374151' }}>{goalData.height || '-'} cm</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}><span>活動レベル</span><span style={{ fontWeight: 700, color: '#374151' }}>{goalData.activityLevel || '-'}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>目標タイプ</span><span style={{ fontWeight: 700, color: '#374151' }}>{goalData.goalType || '-'}</span></div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ padding: '40px', textAlign: 'center', color: '#9ca3af' }}>
+              <div style={{ fontSize: '32px', marginBottom: '8px' }}>🎯</div>
+              <p style={{ margin: 0, fontSize: '13px' }}>目標設定データがありません</p>
             </div>
           )}
         </div>
