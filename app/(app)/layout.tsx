@@ -16,11 +16,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const [userName, setUserName] = useState('選手')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [subscriptionLocked, setSubscriptionLocked] = useState(false)
+  const [subscriptionChecked, setSubscriptionChecked] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       if (data.user) {
         const name = data.user.user_metadata?.full_name || data.user.email || '選手'
         setUserName(name)
@@ -33,6 +35,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           const saved = localStorage.getItem('spomeal_avatar')
           if (saved) setAvatarUrl(saved)
         }
+
+        // サブスクリプション状態チェック
+        try {
+          const email = data.user.email
+          const userId = data.user.id
+          const res = await fetch(`/api/check-subscription?email=${encodeURIComponent(email || '')}&userId=${userId}`)
+          if (res.ok) {
+            const subData = await res.json() as { active: boolean; reason?: string }
+            if (!subData.active) {
+              setSubscriptionLocked(true)
+            }
+          }
+        } catch {
+          // APIエラー時はロックしない（ユーザー体験優先）
+        }
+        setSubscriptionChecked(true)
+      } else {
+        setSubscriptionChecked(true)
       }
     })
   }, [])
@@ -242,8 +262,94 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         })}
       </nav>
 
-      {/* ページコンテンツ */}
-      {children}
+      {/* ===== サブスクリプションロック画面 ===== */}
+      {subscriptionLocked ? (
+        <div style={{
+          padding: '40px 20px',
+          textAlign: 'center',
+          minHeight: '60vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '24px',
+            padding: '40px 24px',
+            maxWidth: '380px',
+            width: '100%',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
+          }}>
+            <div style={{
+              width: '80px', height: '80px', borderRadius: '50%',
+              background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 20px', fontSize: '36px',
+            }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </div>
+
+            <h2 style={{
+              fontSize: '20px', fontWeight: 800, color: '#111827',
+              margin: '0 0 8px', lineHeight: 1.3,
+            }}>
+              サブスクリプションが無効です
+            </h2>
+
+            <p style={{
+              fontSize: '14px', color: '#6b7280', lineHeight: 1.7,
+              margin: '0 0 28px',
+            }}>
+              アプリを引き続きご利用いただくには、
+              プランへのお申し込みが必要です。
+            </p>
+
+            <a
+              href="/plans"
+              style={{
+                display: 'block',
+                background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                color: 'white',
+                padding: '14px 24px',
+                borderRadius: '14px',
+                fontSize: '15px',
+                fontWeight: 700,
+                textDecoration: 'none',
+                boxShadow: '0 4px 14px rgba(34,197,94,0.3)',
+                marginBottom: '12px',
+              }}
+            >
+              プランを選択する
+            </a>
+
+            <button
+              onClick={handleLogout}
+              style={{
+                display: 'block',
+                width: '100%',
+                background: 'transparent',
+                color: '#9ca3af',
+                padding: '10px',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              ログアウト
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* ページコンテンツ */
+        children
+      )}
     </div>
   )
 }
