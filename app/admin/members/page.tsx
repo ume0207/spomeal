@@ -128,10 +128,29 @@ export default function MembersPage() {
     setShowModal(false)
   }
 
-  const handleDelete = (id: string) => {
-    if (!confirm('この会員を削除しますか？')) return
-    setMembers((prev) => prev.filter((m) => m.id !== id))
-    setShowDetail(null)
+  const handleDelete = async (id: string) => {
+    const target = members.find((m) => m.id === id)
+    const name = target?.name || 'この会員'
+    if (!confirm(`【完全削除】\n${name} をSupabaseから完全に削除します。\n\n・ログインアカウント\n・食事記録 / 体組成 / 予約などのデータ\n\nすべて削除され、元に戻せません。本当に削除しますか？`)) return
+    if (!confirm('最終確認: 本当に削除してよろしいですか？この操作は取り消せません。')) return
+
+    try {
+      const res = await fetch('/api/admin/delete-member', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: id }),
+      })
+      const data = await res.json() as { success?: boolean; error?: string }
+      if (!data.success) {
+        alert(`削除に失敗しました: ${data.error || '不明なエラー'}`)
+        return
+      }
+      setMembers((prev) => prev.filter((m) => m.id !== id))
+      setShowDetail(null)
+      alert('会員を削除しました')
+    } catch (err) {
+      alert(`通信エラー: ${String(err)}`)
+    }
   }
 
   const exportCSV = () => {
