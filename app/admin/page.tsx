@@ -360,6 +360,21 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
+      {/* クイックアクション */}
+      <div style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '16px' }}>
+        <div style={{ padding: '14px 16px 0' }}>
+          <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151' }}>⚡ クイックアクション</span>
+        </div>
+        <div style={{ padding: '14px 16px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+          {quickLinks.map((link) => (
+            <Link key={link.label} href={link.href} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderRadius: '10px', background: link.bg, color: link.color, fontWeight: 700, fontSize: '12px', textDecoration: 'none', border: `1px solid ${link.color}22` }}>
+              <span style={{ fontSize: '16px' }}>{link.icon}</span>
+              {link.label}
+            </Link>
+          ))}
+        </div>
+      </div>
+
       {/* ========== 最近の食事更新フィード ========== */}
       <div style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px', marginBottom: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
         {/* フィードヘッダー */}
@@ -575,21 +590,6 @@ export default function AdminDashboardPage() {
           </div>
         </div>
       )}
-
-      {/* クイックアクション */}
-      <div style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '16px' }}>
-        <div style={{ padding: '14px 16px 0' }}>
-          <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151' }}>⚡ クイックアクション</span>
-        </div>
-        <div style={{ padding: '14px 16px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
-          {quickLinks.map((link) => (
-            <Link key={link.label} href={link.href} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderRadius: '10px', background: link.bg, color: link.color, fontWeight: 700, fontSize: '12px', textDecoration: 'none', border: `1px solid ${link.color}22` }}>
-              <span style={{ fontSize: '16px' }}>{link.icon}</span>
-              {link.label}
-            </Link>
-          ))}
-        </div>
-      </div>
 
       {/* ========== コメント入力モーダル ========== */}
       {showCommentModal && (

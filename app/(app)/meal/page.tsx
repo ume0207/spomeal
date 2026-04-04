@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { addMealPoint } from '@/lib/points'
 import { FOOD_DB, searchFoodDB } from '@/lib/food-db'
 import { toJSTDateStr, toJSTDateTimeStr } from '@/lib/date-utils'
+import { createClient } from '@/lib/supabase/client'
 
 // 旧FOOD_DB互換用（lib/food-db.tsからインポート）
 const FOOD_DB_COMPAT: Record<string, { kcal: number; p: number; f: number; c: number }> = {
@@ -535,6 +536,29 @@ export default function MealPage() {
       updatedRecords = [...records, newRecord]
     }
     saveRecords(updatedRecords)
+
+    // 管理者フィード用: 食事活動をSupabaseユーザーメタデータに記録
+    try {
+      const supabase = createClient()
+      const { data: authData } = await supabase.auth.getUser()
+      if (authData?.user?.id) {
+        fetch('/api/meal-activity', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: authData.user.id,
+            mealType: catName,
+            items: recordItems.map(i => ({
+              name: i.foodName, kcal: i.caloriesKcal, protein: i.proteinG, fat: i.fatG, carbs: i.carbsG,
+            })),
+            totalKcal: kcal,
+            totalProtein: protein,
+            totalFat: fat,
+            totalCarbs: carbs,
+          }),
+        }).catch(() => { /* サイレント失敗 */ })
+      }
+    } catch { /* サイレント失敗 */ }
 
     // ポイント付与（新規記録のみ）
     if (!editingRecordId) {
