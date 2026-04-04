@@ -527,8 +527,8 @@ export default function AdminDashboardPage() {
                                   border: `1px solid ${mt.color}22`,
                                 }}>{mt.icon} {meal.mealType}</span>
                                 <span style={{ fontSize: '10px', color: '#9ca3af' }}>{meal.time}</span>
-                                <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 700, marginLeft: 'auto' }}>{meal.totalKcal}kcal</span>
-                                <span style={{ fontSize: '10px', color: '#2563eb', fontWeight: 700 }}>P{meal.totalProtein}g</span>
+                                <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 700, marginLeft: 'auto' }}>{Math.round(meal.totalKcal)}kcal</span>
+                                <span style={{ fontSize: '10px', color: '#2563eb', fontWeight: 700 }}>P{Math.round(meal.totalProtein)}g</span>
                               </div>
                               <div style={{ fontSize: '11px', color: '#6b7280' }}>
                                 {meal.items.map(f => f.name).join('、')}
@@ -544,10 +544,10 @@ export default function AdminDashboardPage() {
                           marginTop: '4px', marginBottom: '8px',
                         }}>
                           <span style={{ fontSize: '11px', fontWeight: 800, color: '#1e40af' }}>1日合計</span>
-                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#16a34a' }}>{item.dayTotalKcal}kcal</span>
-                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#2563eb' }}>P{item.dayTotalProtein}g</span>
-                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#ea580c' }}>F{item.dayTotalFat}g</span>
-                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#7c3aed' }}>C{item.dayTotalCarbs}g</span>
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#16a34a' }}>{Math.round(item.dayTotalKcal)}kcal</span>
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#2563eb' }}>P{Math.round(item.dayTotalProtein)}g</span>
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#ea580c' }}>F{Math.round(item.dayTotalFat)}g</span>
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#7c3aed' }}>C{Math.round(item.dayTotalCarbs)}g</span>
                         </div>
 
                         {/* アクションボタン */}
@@ -561,6 +561,16 @@ export default function AdminDashboardPage() {
                               cursor: 'pointer', fontFamily: 'inherit',
                             }}
                           >💬 コメント</button>
+
+                          <Link
+                            href={`/admin/members/detail?id=${item.memberId}&tab=meals`}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '4px',
+                              padding: '6px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 700,
+                              background: '#fff7ed', color: '#ea580c', border: '1px solid #ea580c22',
+                              textDecoration: 'none',
+                            }}
+                          >🍽️ 食事記録を見る</Link>
 
                           <Link
                             href={`/admin/members/detail?id=${item.memberId}`}

@@ -127,13 +127,14 @@ const mealTypeColors: Record<string, { color: string; bg: string; icon: string }
 function MemberDetailContent() {
   const searchParams = useSearchParams()
   const memberId = searchParams.get('id')
+  const initialTab = (searchParams.get('tab') as 'meals' | 'body' | 'goal' | 'comments') || 'meals'
 
   const [member, setMember] = useState<Member | null>(null)
   const [meals, setMeals] = useState<MealRecord[]>([])
   const [bodyRecords, setBodyRecords] = useState<BodyRecord[]>([])
   const [goalData, setGoalData] = useState<GoalData | null>(null)
   const [comments, setComments] = useState<NutritionistComment[]>([])
-  const [activeTab, setActiveTab] = useState<'meals' | 'body' | 'goal' | 'comments'>('meals')
+  const [activeTab, setActiveTab] = useState<'meals' | 'body' | 'goal' | 'comments'>(initialTab)
   const [expandedMeal, setExpandedMeal] = useState<string | null>(null)
   const [dataLoading, setDataLoading] = useState(true)
 
