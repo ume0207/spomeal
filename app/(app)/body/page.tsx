@@ -34,15 +34,12 @@ const demoWeekWeights = demoRecords.map((r) => r.weight).reverse()
 const demoMinW = Math.min(...demoWeekWeights) - 0.5
 const demoMaxW = Math.max(...demoWeekWeights) + 0.5
 
-const CUPS_GOAL = 8 // 1日の目標コップ数（1600ml）
-
 export default function BodyPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [newWeight, setNewWeight] = useState('')
   const [newBodyFat, setNewBodyFat] = useState('')
   const [newMuscle, setNewMuscle] = useState('')
   const [targetWeight, setTargetWeight] = useState<number | null>(null)
-  const [waterCups, setWaterCups] = useState(0)
   const [savedRecords, setSavedRecords] = useState<BodyRecord[]>([])
   const [pointMessage, setPointMessage] = useState('')
 
@@ -122,40 +119,10 @@ export default function BodyPage() {
         // ignore
       }
 
-      // 水分摂取量の読み込み
-      try {
-        const today = toJSTDateStr()
-        const raw = localStorage.getItem('waterLog_v1')
-        if (raw) {
-          const parsed = JSON.parse(raw)
-          if (parsed[today] != null) {
-            setWaterCups(parsed[today])
-          }
-        }
-      } catch {
-        // ignore
-      }
-
       // 体組成記録の読み込み
       loadRecords()
     }
   }, [loadRecords])
-
-  const updateWaterCups = (newCount: number) => {
-    if (newCount < 0) return
-    setWaterCups(newCount)
-    if (typeof window !== 'undefined') {
-      try {
-        const today = toJSTDateStr()
-        const raw = localStorage.getItem('waterLog_v1')
-        const parsed = raw ? JSON.parse(raw) : {}
-        parsed[today] = newCount
-        localStorage.setItem('waterLog_v1', JSON.stringify(parsed))
-      } catch {
-        // ignore
-      }
-    }
-  }
 
   // 実データがあればそれを使用、なければデモデータ
   const displayRecords = savedRecords.length > 0 ? savedRecords : demoRecords
@@ -283,190 +250,179 @@ export default function BodyPage() {
           ))}
         </div>
 
-        {/* ===== グラフエリア（体重・体脂肪率・筋肉量）===== */}
-        <div
-          style={{
-            background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '16px',
-          }}
-        >
-          <div style={{ padding: '16px 16px 0' }}>
-            <span style={{ fontSize: '15px', fontWeight: 700, color: '#111827', display: 'block', marginBottom: '12px' }}>体重・体脂肪率・筋肉量の推移</span>
-          </div>
-          <div style={{ padding: '0 16px 16px' }}>
-          <div style={{ position: 'relative', height: '112px' }}>
-            <svg width="100%" height="100%" viewBox="0 0 300 80" preserveAspectRatio="none">
-              {[0, 25, 50, 75].map((y) => (
-                <line key={y} x1="0" y1={y} x2="300" y2={y} stroke="#f3f4f6" strokeWidth="1" />
-              ))}
-              <defs>
-                <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#22c55e" stopOpacity="0.15" />
-                  <stop offset="100%" stopColor="#22c55e" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path
-                d={weekWeights.map((w, i) => {
-                  const x = (i / (weekWeights.length - 1)) * 300
-                  const y = 75 - ((w - minW) / (maxW - minW)) * 65
-                  return `${i === 0 ? 'M' : 'L'} ${x} ${y}`
-                }).join(' ') + ' L 300 80 L 0 80 Z'}
-                fill="url(#areaGrad)"
-              />
-              <path
-                d={weekWeights.map((w, i) => {
-                  const x = (i / (weekWeights.length - 1)) * 300
-                  const y = 75 - ((w - minW) / (maxW - minW)) * 65
-                  return `${i === 0 ? 'M' : 'L'} ${x} ${y}`
-                }).join(' ')}
-                fill="none"
-                stroke="#22c55e"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              {weekWeights.map((w, i) => {
-                const x = (i / (weekWeights.length - 1)) * 300
-                const y = 75 - ((w - minW) / (maxW - minW)) * 65
-                return (
-                  <circle
-                    key={i}
-                    cx={x} cy={y}
-                    r={i === weekWeights.length - 1 ? 4 : 3}
-                    fill={i === weekWeights.length - 1 ? '#22c55e' : 'white'}
-                    stroke="#22c55e"
-                    strokeWidth="2"
-                  />
-                )
-              })}
-            </svg>
-          </div>
-          {/* 凡例 */}
-          <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap', marginTop: '8px' }}>
-            {[
-              { color: '#3b82f6', label: '体重(kg)' },
-              { color: '#f97316', label: '体脂肪率(%)' },
-              { color: '#22c55e', label: '筋肉量(kg)' },
-            ].map((leg) => (
-              <div key={leg.label} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#4b5563' }}>
-                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: leg.color }} />
-                {leg.label}
+        {/* ===== 体重グラフ ===== */}
+        {(() => {
+          const chartData = displayRecords.slice(0, 14).reverse()
+          const weights = chartData.map(r => r.weight)
+          const fats = chartData.map(r => r.bodyFat)
+          const muscles = chartData.map(r => r.muscle)
+          const dates = chartData.map(r => {
+            const d = r.date
+            if (d.includes('月')) return d.replace(/.*?(\d+)日.*/, '$1日')
+            const parts = d.split('-')
+            return parts.length >= 3 ? `${parseInt(parts[1])}/${parseInt(parts[2])}` : d
+          })
+          const n = chartData.length
+
+          const wMin = Math.min(...weights) - 0.5
+          const wMax = Math.max(...weights) + 0.5
+
+          const fMin = Math.min(...fats, ...muscles) - 1
+          const fMax = Math.max(...fats, ...muscles) + 1
+
+          const W = 320
+          const H = 160
+          const padL = 36
+          const padR = 10
+          const padT = 20
+          const padB = 28
+          const plotW = W - padL - padR
+          const plotH = H - padT - padB
+
+          const toX = (i: number) => padL + (n > 1 ? (i / (n - 1)) * plotW : plotW / 2)
+          const toYW = (v: number) => padT + plotH - ((v - wMin) / (wMax - wMin)) * plotH
+          const toYF = (v: number) => padT + plotH - ((v - fMin) / (fMax - fMin)) * plotH
+
+          const makePath = (vals: number[], toY: (v: number) => number) =>
+            vals.map((v, i) => `${i === 0 ? 'M' : 'L'} ${toX(i).toFixed(1)} ${toY(v).toFixed(1)}`).join(' ')
+
+          // Y軸目盛り（体重）
+          const wStep = (wMax - wMin) > 3 ? 1 : 0.5
+          const wTicks: number[] = []
+          for (let v = Math.ceil(wMin / wStep) * wStep; v <= wMax; v += wStep) wTicks.push(parseFloat(v.toFixed(1)))
+
+          return (
+            <>
+            {/* 体重の推移 */}
+            <div style={{
+              background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '16px', padding: '16px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <span style={{ fontSize: '15px', fontWeight: 700, color: '#111827' }}>📈 体重の推移</span>
+                <span style={{ fontSize: '11px', color: '#9ca3af' }}>直近{n}回</span>
               </div>
-            ))}
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
-            {['19日', '20日', '21日', '22日', '23日', '24日', '今日'].map((d) => (
-              <span key={d} style={{ fontSize: '9px', color: '#9ca3af' }}>{d}</span>
-            ))}
-          </div>
-          </div>
-        </div>
-
-        {/* ===== 水分摂取量カード ===== */}
-        <div
-          style={{
-            background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '16px',
-          }}
-        >
-          <div style={{ padding: '16px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '15px', fontWeight: 700, color: '#111827' }}>💧 今日の水分摂取</span>
-            <span style={{ fontSize: '12px', color: '#06b6d4', fontWeight: 700 }}>
-              {waterCups * 200} ml / {CUPS_GOAL * 200} ml
-            </span>
-          </div>
-          <div style={{ padding: '12px 16px 16px' }}>
-            {/* コップのアイコン表示 */}
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
-              {Array.from({ length: CUPS_GOAL }).map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => updateWaterCups(i < waterCups ? i : i + 1)}
-                  style={{
-                    width: '36px', height: '44px', borderRadius: '6px',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '22px', background: 'none', border: 'none', cursor: 'pointer',
-                    opacity: i < waterCups ? 1 : 0.25,
-                    transition: 'opacity 0.2s',
-                  }}
-                  title={`${(i + 1) * 200} ml`}
-                >
-                  🥤
-                </button>
-              ))}
-            </div>
-            {/* プログレスバー */}
-            <div style={{ width: '100%', height: '8px', background: '#e0f7fa', borderRadius: '20px', overflow: 'hidden', marginBottom: '8px' }}>
-              <div
-                style={{
-                  height: '100%', borderRadius: '20px',
-                  width: `${Math.min((waterCups / CUPS_GOAL) * 100, 100)}%`,
-                  background: 'linear-gradient(90deg, #06b6d4, #0ea5e9)',
-                  transition: 'width 0.4s',
-                }}
-              />
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                onClick={() => updateWaterCups(waterCups - 1)}
-                disabled={waterCups === 0}
-                style={{
-                  flex: 1, padding: '8px', borderRadius: '8px',
-                  border: '1px solid #e5e7eb', background: 'white', color: '#374151',
-                  fontWeight: 600, fontSize: '13px', cursor: waterCups === 0 ? 'not-allowed' : 'pointer',
-                  opacity: waterCups === 0 ? 0.4 : 1, fontFamily: 'inherit',
-                }}
-              >
-                − 1杯
-              </button>
-              <button
-                onClick={() => updateWaterCups(waterCups + 1)}
-                style={{
-                  flex: 1, padding: '8px', borderRadius: '8px',
-                  border: '1px solid #06b6d4', background: '#ecfeff', color: '#0e7490',
-                  fontWeight: 700, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit',
-                }}
-              >
-                ＋ 1杯 (200ml)
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* ===== 水分摂取量の推移 ===== */}
-        <div
-          style={{
-            background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '16px',
-          }}
-        >
-          <div style={{ padding: '16px 16px 0' }}>
-            <span style={{ fontSize: '15px', fontWeight: 700, color: '#111827', display: 'block', marginBottom: '12px' }}>水分摂取量の推移</span>
-          </div>
-          <div style={{ padding: '0 16px 16px' }}>
-            <div style={{ height: '112px' }}>
-              <svg width="100%" height="100%" viewBox="0 0 300 80" preserveAspectRatio="none">
-                {[0, 25, 50, 75].map((y) => (
-                  <line key={y} x1="0" y1={y} x2="300" y2={y} stroke="#f3f4f6" strokeWidth="1" />
-                ))}
+              <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block' }}>
+                {/* グリッド線 + Y軸ラベル */}
+                {wTicks.map((v) => {
+                  const y = toYW(v)
+                  return (
+                    <g key={v}>
+                      <line x1={padL} y1={y} x2={W - padR} y2={y} stroke="#f3f4f6" strokeWidth="1" />
+                      <text x={padL - 4} y={y + 3} textAnchor="end" fontSize="9" fill="#9ca3af">{v}</text>
+                    </g>
+                  )
+                })}
+                {/* 塗りつぶし */}
+                <defs>
+                  <linearGradient id="wGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.12" />
+                    <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
                 <path
-                  d="M 0 60 L 50 55 L 100 50 L 150 45 L 200 35 L 250 40 L 300 30"
-                  fill="none"
-                  stroke="#06b6d4"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+                  d={makePath(weights, toYW) + ` L ${toX(n - 1).toFixed(1)} ${padT + plotH} L ${toX(0).toFixed(1)} ${padT + plotH} Z`}
+                  fill="url(#wGrad)"
                 />
+                {/* ライン */}
+                <path d={makePath(weights, toYW)} fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                {/* ドット＋数値 */}
+                {weights.map((w, i) => {
+                  const x = toX(i)
+                  const y = toYW(w)
+                  const isLast = i === n - 1
+                  return (
+                    <g key={i}>
+                      <circle cx={x} cy={y} r={isLast ? 5 : 3.5} fill={isLast ? '#3b82f6' : 'white'} stroke="#3b82f6" strokeWidth="2" />
+                      {(isLast || i === 0 || i % Math.max(1, Math.floor(n / 5)) === 0) && (
+                        <text x={x} y={y - 8} textAnchor="middle" fontSize="9" fontWeight="700" fill="#3b82f6">{w}</text>
+                      )}
+                    </g>
+                  )
+                })}
+                {/* X軸日付ラベル */}
+                {dates.map((d, i) => {
+                  if (n > 7 && i % 2 !== 0 && i !== n - 1) return null
+                  return (
+                    <text key={i} x={toX(i)} y={H - 4} textAnchor="middle" fontSize="9" fill="#9ca3af">{d}</text>
+                  )
+                })}
               </svg>
-            </div>
-            <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginTop: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#4b5563' }}>
-                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#06b6d4' }} />
-                水分摂取量(ml)
+              <div style={{ textAlign: 'center', marginTop: '4px' }}>
+                <span style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 600 }}>● 体重 (kg)</span>
               </div>
             </div>
-          </div>
-        </div>
+
+            {/* 体脂肪率・筋肉量の推移 */}
+            <div style={{
+              background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '16px', padding: '16px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <span style={{ fontSize: '15px', fontWeight: 700, color: '#111827' }}>📊 体脂肪率・筋肉量の推移</span>
+              </div>
+              <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block' }}>
+                {/* グリッド */}
+                {(() => {
+                  const step = (fMax - fMin) > 6 ? 2 : 1
+                  const ticks: number[] = []
+                  for (let v = Math.ceil(fMin / step) * step; v <= fMax; v += step) ticks.push(parseFloat(v.toFixed(1)))
+                  return ticks.map((v) => {
+                    const y = toYF(v)
+                    return (
+                      <g key={v}>
+                        <line x1={padL} y1={y} x2={W - padR} y2={y} stroke="#f3f4f6" strokeWidth="1" />
+                        <text x={padL - 4} y={y + 3} textAnchor="end" fontSize="9" fill="#9ca3af">{v}</text>
+                      </g>
+                    )
+                  })
+                })()}
+                {/* 体脂肪率ライン */}
+                <path d={makePath(fats, toYF)} fill="none" stroke="#f97316" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                {fats.map((v, i) => {
+                  const x = toX(i)
+                  const y = toYF(v)
+                  const isLast = i === n - 1
+                  return (
+                    <g key={`f${i}`}>
+                      <circle cx={x} cy={y} r={isLast ? 5 : 3.5} fill={isLast ? '#f97316' : 'white'} stroke="#f97316" strokeWidth="2" />
+                      {(isLast || i === 0) && (
+                        <text x={x} y={y - 8} textAnchor="middle" fontSize="9" fontWeight="700" fill="#f97316">{v}%</text>
+                      )}
+                    </g>
+                  )
+                })}
+                {/* 筋肉量ライン */}
+                <path d={makePath(muscles, toYF)} fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                {muscles.map((v, i) => {
+                  const x = toX(i)
+                  const y = toYF(v)
+                  const isLast = i === n - 1
+                  return (
+                    <g key={`m${i}`}>
+                      <circle cx={x} cy={y} r={isLast ? 5 : 3.5} fill={isLast ? '#22c55e' : 'white'} stroke="#22c55e" strokeWidth="2" />
+                      {(isLast || i === 0) && (
+                        <text x={x} y={y + 14} textAnchor="middle" fontSize="9" fontWeight="700" fill="#22c55e">{v}</text>
+                      )}
+                    </g>
+                  )
+                })}
+                {/* X軸日付 */}
+                {dates.map((d, i) => {
+                  if (n > 7 && i % 2 !== 0 && i !== n - 1) return null
+                  return (
+                    <text key={i} x={toX(i)} y={H - 4} textAnchor="middle" fontSize="9" fill="#9ca3af">{d}</text>
+                  )
+                })}
+              </svg>
+              <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginTop: '6px' }}>
+                <span style={{ fontSize: '11px', color: '#f97316', fontWeight: 600 }}>● 体脂肪率 (%)</span>
+                <span style={{ fontSize: '11px', color: '#22c55e', fontWeight: 600 }}>● 筋肉量 (kg)</span>
+              </div>
+            </div>
+            </>
+          )
+        })()}
 
         {/* ===== 測定記録一覧 ===== */}
         <div
