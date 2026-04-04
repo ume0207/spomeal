@@ -621,7 +621,7 @@ export default function MealPage() {
     setGoalCalAuto(cal)
   }
 
-  const handleSaveGoal = () => {
+  const handleSaveGoal = async () => {
     const grams = pfcToGrams(goalCalAuto, goalPfcP, goalPfcF, goalPfcC)
     const newGoal: GoalData = {
       cal: goalCalAuto,
@@ -644,6 +644,23 @@ export default function MealPage() {
         localStorage.setItem(GOAL_KEY, JSON.stringify(parsed))
       } catch { /* ignore */ }
     }
+
+    // Supabaseにも目標データを同期
+    try {
+      const supabase = createClient()
+      const { data: authData } = await supabase.auth.getUser()
+      if (authData?.user?.id) {
+        fetch('/api/goal-activity', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: authData.user.id,
+            ...newGoal,
+          }),
+        }).catch(() => {})
+      }
+    } catch {}
+
     setShowGoalModal(false)
   }
 
