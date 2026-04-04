@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 
 interface Member {
   id: string
@@ -263,6 +264,18 @@ export default function MembersPage() {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                <Link
+                  href={`/admin/members/detail?id=${m.id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    fontSize: '11px', padding: '5px 10px', borderRadius: '7px',
+                    border: '1px solid #22c55e', color: '#16a34a', fontWeight: 600,
+                    cursor: 'pointer', background: '#f0fdf4', fontFamily: 'inherit',
+                    textDecoration: 'none', display: 'inline-flex', alignItems: 'center',
+                  }}
+                >
+                  詳細
+                </Link>
                 <button
                   onClick={(e) => { e.stopPropagation(); openEdit(m) }}
                   style={{
@@ -328,6 +341,16 @@ export default function MembersPage() {
               </div>
             ))}
             <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+              <Link
+                href={`/admin/members/detail?id=${showDetail.id}`}
+                style={{
+                  flex: 2, padding: '10px', borderRadius: '10px', border: 'none',
+                  background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)', color: 'white', fontWeight: 700, fontSize: '13px',
+                  cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'none', textAlign: 'center',
+                }}
+              >
+                🍽 食事・体組成を確認
+              </Link>
               <button
                 onClick={() => openEdit(showDetail)}
                 style={{
@@ -336,7 +359,7 @@ export default function MembersPage() {
                   cursor: 'pointer', fontFamily: 'inherit',
                 }}
               >
-                編集する
+                編集
               </button>
               <button
                 onClick={() => handleDelete(showDetail.id)}
@@ -346,7 +369,7 @@ export default function MembersPage() {
                   cursor: 'pointer', fontFamily: 'inherit',
                 }}
               >
-                削除する
+                削除
               </button>
             </div>
           </div>

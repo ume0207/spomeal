@@ -1,15 +1,19 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 interface Staff {
   id: string
   name: string
   nameKana: string
   role: string
+  title: string       // 肩書き
   phone: string
   email: string
   notes: string
+  bio: string          // プロフィール自己紹介
+  specialties: string  // 専門分野
+  photo: string        // base64 プロフィール画像
   color: string
   active: boolean
   createdAt: string
@@ -20,21 +24,34 @@ const ROLE_COLORS: Record<string, { bg: string; color: string }> = {
   '管理栄養士': { bg: '#dbeafe', color: '#1d4ed8' },
   'トレーナー':  { bg: '#dcfce7', color: '#16a34a' },
   '受付':        { bg: '#fef9c3', color: '#a16207' },
+  'マネージャー': { bg: '#f3e8ff', color: '#7c3aed' },
   'その他':      { bg: '#f3f4f6', color: '#6b7280' },
 }
 
-const emptyForm = { name: '', nameKana: '', role: '管理栄養士', phone: '', email: '', notes: '', color: '#2563eb' }
+const emptyForm = { name: '', nameKana: '', role: '管理栄養士', title: '', phone: '', email: '', notes: '', bio: '', specialties: '', photo: '', color: '#2563eb' }
 
 export default function StaffPage() {
   const [staff, setStaff] = useState<Staff[]>([])
   const [showModal, setShowModal] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
+  const [showProfile, setShowProfile] = useState<Staff | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem('staff_v1')
-      if (saved) setStaff(JSON.parse(saved))
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        // 古いデータとの互換性
+        setStaff(parsed.map((s: Staff) => ({
+          ...s,
+          title: s.title || '',
+          bio: s.bio || '',
+          specialties: s.specialties || '',
+          photo: s.photo || '',
+        })))
+      }
     } catch {}
   }, [])
 
@@ -51,8 +68,13 @@ export default function StaffPage() {
 
   const openEdit = (s: Staff) => {
     setEditId(s.id)
-    setForm({ name: s.name, nameKana: s.nameKana, role: s.role, phone: s.phone, email: s.email, notes: s.notes, color: s.color })
+    setForm({
+      name: s.name, nameKana: s.nameKana, role: s.role, title: s.title || '',
+      phone: s.phone, email: s.email, notes: s.notes,
+      bio: s.bio || '', specialties: s.specialties || '', photo: s.photo || '', color: s.color,
+    })
     setShowModal(true)
+    setShowProfile(null)
   }
 
   const saveForm = () => {
@@ -74,6 +96,27 @@ export default function StaffPage() {
   const deleteStaff = (id: string) => {
     if (!confirm('このスタッフを削除しますか？')) return
     save(staff.filter(s => s.id !== id))
+    setShowProfile(null)
+  }
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 2 * 1024 * 1024) {
+      alert('画像は2MB以下にしてください')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      setForm(f => ({ ...f, photo: reader.result as string }))
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '8px 12px', borderRadius: '8px',
+    border: '1.5px solid #e5e7eb', fontSize: '13px', boxSizing: 'border-box',
+    fontFamily: 'inherit', outline: 'none', background: '#f9fafb',
   }
 
   return (
@@ -101,26 +144,34 @@ export default function StaffPage() {
             return (
               <div
                 key={s.id}
-                style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '14px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}
+                onClick={() => setShowProfile(s)}
+                style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '14px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', cursor: 'pointer', transition: 'box-shadow 0.15s' }}
               >
-                <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '16px', fontWeight: 900, flexShrink: 0 }}>
-                  {(s.name || '?').charAt(0)}
-                </div>
+                {/* プロフィール画像 or イニシャル */}
+                {s.photo ? (
+                  <div style={{ width: '48px', height: '48px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, border: `2px solid ${s.color}` }}>
+                    <img src={s.photo} alt={s.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                ) : (
+                  <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '18px', fontWeight: 900, flexShrink: 0 }}>
+                    {(s.name || '?').charAt(0)}
+                  </div>
+                )}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px', flexWrap: 'wrap' }}>
                     <p style={{ fontSize: '14px', fontWeight: 800, margin: 0, color: '#111827' }}>{s.name}</p>
                     {s.nameKana && <p style={{ fontSize: '10px', color: '#9ca3af', margin: 0 }}>{s.nameKana}</p>}
                     <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 7px', borderRadius: '20px', background: rc.bg, color: rc.color }}>{s.role}</span>
                   </div>
+                  {s.title && <p style={{ fontSize: '12px', color: '#4b5563', margin: '0 0 2px', fontWeight: 600 }}>{s.title}</p>}
                   <p style={{ fontSize: '11px', color: '#6b7280', margin: 0 }}>
                     {s.phone && <span>📞 {s.phone}　</span>}
                     {s.email && <span>✉ {s.email}</span>}
                   </p>
-                  {s.notes && <p style={{ fontSize: '11px', color: '#9ca3af', margin: '2px 0 0' }}>{s.notes}</p>}
                 </div>
                 <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                  <button onClick={() => openEdit(s)} style={{ padding: '5px 12px', borderRadius: '7px', border: '1px solid #3b82f6', color: '#2563eb', fontSize: '11px', fontWeight: 700, cursor: 'pointer', background: 'white', fontFamily: 'inherit' }}>編集</button>
-                  <button onClick={() => deleteStaff(s.id)} style={{ padding: '5px 12px', borderRadius: '7px', border: '1px solid #fca5a5', color: '#ef4444', fontSize: '11px', fontWeight: 700, cursor: 'pointer', background: 'white', fontFamily: 'inherit' }}>削除</button>
+                  <button onClick={(e) => { e.stopPropagation(); openEdit(s) }} style={{ padding: '5px 12px', borderRadius: '7px', border: '1px solid #3b82f6', color: '#2563eb', fontSize: '11px', fontWeight: 700, cursor: 'pointer', background: 'white', fontFamily: 'inherit' }}>編集</button>
+                  <button onClick={(e) => { e.stopPropagation(); deleteStaff(s.id) }} style={{ padding: '5px 12px', borderRadius: '7px', border: '1px solid #fca5a5', color: '#ef4444', fontSize: '11px', fontWeight: 700, cursor: 'pointer', background: 'white', fontFamily: 'inherit' }}>削除</button>
                 </div>
               </div>
             )
@@ -128,18 +179,143 @@ export default function StaffPage() {
         </div>
       )}
 
-      {/* モーダル */}
+      {/* ===== プロフィール表示モーダル ===== */}
+      {showProfile && (
+        <div onClick={() => setShowProfile(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 400, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'white', width: '100%', maxWidth: '520px', borderRadius: '20px 20px 0 0', maxHeight: '85vh', overflowY: 'auto' }}>
+            {/* ヘッダー画像エリア */}
+            <div style={{ background: `linear-gradient(135deg, ${showProfile.color} 0%, ${showProfile.color}cc 100%)`, padding: '30px 20px 20px', textAlign: 'center', position: 'relative' }}>
+              <button onClick={() => setShowProfile(null)} style={{ position: 'absolute', top: '12px', right: '12px', fontSize: '20px', color: 'rgba(255,255,255,0.8)', background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+
+              {showProfile.photo ? (
+                <div style={{ width: '90px', height: '90px', borderRadius: '50%', overflow: 'hidden', margin: '0 auto 12px', border: '3px solid rgba(255,255,255,0.5)', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
+                  <img src={showProfile.photo} alt={showProfile.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              ) : (
+                <div style={{ width: '90px', height: '90px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', fontWeight: 900, color: 'white' }}>
+                  {showProfile.name.charAt(0)}
+                </div>
+              )}
+
+              <h2 style={{ fontSize: '20px', fontWeight: 900, margin: '0 0 2px', color: 'white' }}>{showProfile.name}</h2>
+              {showProfile.nameKana && <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', margin: '0 0 6px' }}>{showProfile.nameKana}</p>}
+              {showProfile.title && <p style={{ fontSize: '14px', fontWeight: 700, color: 'rgba(255,255,255,0.9)', margin: '0 0 6px' }}>{showProfile.title}</p>}
+              <span style={{ display: 'inline-block', fontSize: '11px', fontWeight: 700, padding: '3px 12px', borderRadius: '20px', background: 'rgba(255,255,255,0.2)', color: 'white' }}>{showProfile.role}</span>
+            </div>
+
+            <div style={{ padding: '20px' }}>
+              {/* 連絡先 */}
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '16px', fontSize: '13px' }}>
+                {showProfile.phone && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#4b5563' }}>
+                    <span style={{ fontSize: '16px' }}>📞</span> {showProfile.phone}
+                  </div>
+                )}
+                {showProfile.email && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#4b5563' }}>
+                    <span style={{ fontSize: '16px' }}>✉️</span> {showProfile.email}
+                  </div>
+                )}
+              </div>
+
+              {/* 専門分野 */}
+              {showProfile.specialties && (
+                <div style={{ marginBottom: '14px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#6b7280', marginBottom: '6px' }}>🎯 専門分野</div>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {showProfile.specialties.split(/[、,，]/).map((s, i) => (
+                      <span key={i} style={{ fontSize: '12px', background: '#f0fdf4', color: '#16a34a', padding: '4px 12px', borderRadius: '20px', fontWeight: 600, border: '1px solid #bbf7d0' }}>
+                        {s.trim()}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 自己紹介 */}
+              {showProfile.bio && (
+                <div style={{ marginBottom: '14px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#6b7280', marginBottom: '6px' }}>📋 自己紹介</div>
+                  <p style={{ fontSize: '13px', color: '#374151', lineHeight: 1.7, margin: 0, background: '#f9fafb', borderRadius: '10px', padding: '12px 14px', border: '1px solid #f3f4f6' }}>
+                    {showProfile.bio}
+                  </p>
+                </div>
+              )}
+
+              {/* メモ */}
+              {showProfile.notes && (
+                <div style={{ marginBottom: '14px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#6b7280', marginBottom: '6px' }}>📝 メモ</div>
+                  <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>{showProfile.notes}</p>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '8px', marginTop: '20px' }}>
+                <button
+                  onClick={() => openEdit(showProfile)}
+                  style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: '#2563eb', color: 'white', fontWeight: 700, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}
+                >
+                  編集する
+                </button>
+                <button
+                  onClick={() => deleteStaff(showProfile.id)}
+                  style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1.5px solid #fca5a5', background: 'white', color: '#ef4444', fontWeight: 700, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}
+                >
+                  削除する
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== 登録・編集モーダル ===== */}
       {showModal && (
-        <div onClick={() => setShowModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 400, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'white', width: '100%', maxWidth: '480px', borderRadius: '20px 20px 0 0', padding: '20px', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div onClick={() => setShowModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 500, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'white', width: '100%', maxWidth: '520px', borderRadius: '20px 20px 0 0', padding: '20px', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
               <h2 style={{ fontSize: '16px', fontWeight: 900, margin: 0 }}>{editId ? 'スタッフ編集' : 'スタッフ登録'}</h2>
               <button onClick={() => setShowModal(false)} style={{ fontSize: '20px', color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
             </div>
 
+            {/* プロフィール画像 */}
+            <div style={{ marginBottom: '16px', textAlign: 'center' }}>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '8px', textAlign: 'left' }}>プロフィール写真</label>
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  width: '80px', height: '80px', borderRadius: '50%', margin: '0 auto',
+                  background: form.photo ? 'transparent' : '#f3f4f6',
+                  border: form.photo ? `3px solid ${form.color}` : '2px dashed #d1d5db',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', overflow: 'hidden', position: 'relative',
+                }}
+              >
+                {form.photo ? (
+                  <img src={form.photo} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '24px', marginBottom: '2px' }}>📷</div>
+                    <div style={{ fontSize: '9px', color: '#9ca3af' }}>写真を選択</div>
+                  </div>
+                )}
+              </div>
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} />
+              {form.photo && (
+                <button
+                  onClick={() => setForm(f => ({ ...f, photo: '' }))}
+                  style={{ marginTop: '6px', fontSize: '11px', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}
+                >
+                  写真を削除
+                </button>
+              )}
+            </div>
+
+            {/* 基本情報 */}
             {[
               { label: '氏名 *', key: 'name', placeholder: '山田 花子' },
               { label: 'フリガナ', key: 'nameKana', placeholder: 'ヤマダ ハナコ' },
+              { label: '肩書き', key: 'title', placeholder: '例: チーフ管理栄養士 / ヘッドトレーナー' },
               { label: '電話番号', key: 'phone', placeholder: '090-0000-0000' },
               { label: 'メールアドレス', key: 'email', placeholder: 'staff@example.com' },
             ].map(({ label, key, placeholder }) => (
@@ -148,19 +324,41 @@ export default function StaffPage() {
                 <input
                   type="text" value={form[key as keyof typeof form]} placeholder={placeholder}
                   onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1.5px solid #e5e7eb', fontSize: '13px', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                  style={inputStyle}
                 />
               </div>
             ))}
 
+            {/* 役職 */}
             <div style={{ marginBottom: '10px' }}>
               <label style={{ fontSize: '12px', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '4px' }}>役職</label>
-              <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
-                style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1.5px solid #e5e7eb', fontSize: '13px', boxSizing: 'border-box', fontFamily: 'inherit' }}>
-                {['管理栄養士','トレーナー','受付','その他'].map(r => <option key={r} value={r}>{r}</option>)}
+              <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} style={inputStyle}>
+                {['管理栄養士','トレーナー','マネージャー','受付','その他'].map(r => <option key={r} value={r}>{r}</option>)}
               </select>
             </div>
 
+            {/* 専門分野 */}
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '4px' }}>専門分野（カンマ区切り）</label>
+              <input
+                type="text" value={form.specialties} placeholder="例: スポーツ栄養、減量指導、サプリメント"
+                onChange={e => setForm(f => ({ ...f, specialties: e.target.value }))}
+                style={inputStyle}
+              />
+            </div>
+
+            {/* 自己紹介 */}
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '4px' }}>自己紹介</label>
+              <textarea
+                value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))}
+                placeholder="お客様に表示されるプロフィール文を入力..."
+                rows={3}
+                style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }}
+              />
+            </div>
+
+            {/* カラー */}
             <div style={{ marginBottom: '10px' }}>
               <label style={{ fontSize: '12px', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '6px' }}>表示カラー</label>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -177,10 +375,11 @@ export default function StaffPage() {
               </div>
             </div>
 
+            {/* メモ */}
             <div style={{ marginBottom: '16px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '4px' }}>メモ</label>
-              <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="専門分野など" rows={2}
-                style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1.5px solid #e5e7eb', fontSize: '13px', boxSizing: 'border-box', fontFamily: 'inherit', resize: 'none' }} />
+              <label style={{ fontSize: '12px', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '4px' }}>メモ（内部用）</label>
+              <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="内部メモ..." rows={2}
+                style={{ ...inputStyle, resize: 'none' }} />
             </div>
 
             <button onClick={saveForm} style={{ width: '100%', padding: '13px', borderRadius: '12px', border: 'none', background: '#2563eb', color: 'white', fontWeight: 800, fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }}>
