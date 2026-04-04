@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { toJSTDateStr } from '@/lib/date-utils'
 import { addBodyPoint } from '@/lib/points'
+import { createClient } from '@/lib/supabase/client'
 
 interface BodyRecord {
   date: string
@@ -57,7 +58,7 @@ export default function BodyPage() {
   }, [])
 
   // 体組成を保存
-  const handleSaveBody = () => {
+  const handleSaveBody = async () => {
     const w = parseFloat(newWeight)
     if (!w || w <= 0) return
     const bf = parseFloat(newBodyFat) || 0
@@ -72,6 +73,26 @@ export default function BodyPage() {
 
     localStorage.setItem('bodyRecords_v1', JSON.stringify(updated))
     setSavedRecords(updated)
+
+    // Supabaseにも同期
+    try {
+      const supabase = createClient()
+      const { data: authData } = await supabase.auth.getUser()
+      if (authData?.user?.id) {
+        fetch('/api/body-activity', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: authData.user.id,
+            date: dateStr,
+            weight: w,
+            bodyFat: bf,
+            muscle: m,
+            bmi,
+          }),
+        }).catch(() => {})
+      }
+    } catch {}
 
     // ポイント付与（1日1回）
     const result = addBodyPoint(dateStr)
