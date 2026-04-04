@@ -60,6 +60,19 @@ interface MeetingNote {
   staffName: string
 }
 
+interface BodyFeedItem {
+  id: string
+  memberId: string
+  memberName: string
+  memberEmail: string
+  date: string
+  weight: number
+  bodyFat: number
+  muscle: number
+  bmi: number
+  updatedAt: string
+}
+
 const COMMENTS_KEY = 'nutritionist_comments_v1'
 const MEETING_NOTES_KEY = 'meeting_notes_v1'
 
@@ -111,6 +124,12 @@ export default function AdminDashboardPage() {
   const [feedLoading, setFeedLoading] = useState(true)
   const [feedDropdownOpen, setFeedDropdownOpen] = useState(false)
 
+  // 体組成フィード
+  const [bodyFeedRange, setBodyFeedRange] = useState<FeedRange>('week')
+  const [bodyFeed, setBodyFeed] = useState<BodyFeedItem[]>([])
+  const [bodyFeedLoading, setBodyFeedLoading] = useState(true)
+  const [bodyFeedDropdownOpen, setBodyFeedDropdownOpen] = useState(false)
+
   // 議事録モーダル
   const [showMeetingModal, setShowMeetingModal] = useState(false)
   const [meetingNotes, setMeetingNotes] = useState<MeetingNote[]>([])
@@ -136,7 +155,7 @@ export default function AdminDashboardPage() {
     setMeetingNotes(loadMeetingNotes())
   }, [])
 
-  // フィード取得
+  // 食事フィード取得
   useEffect(() => {
     setFeedLoading(true)
     fetch(`/api/admin/meal-feed?range=${feedRange}`)
@@ -150,6 +169,21 @@ export default function AdminDashboardPage() {
         setFeedLoading(false)
       })
   }, [feedRange])
+
+  // 体組成フィード取得
+  useEffect(() => {
+    setBodyFeedLoading(true)
+    fetch(`/api/admin/body-feed?range=${bodyFeedRange}`)
+      .then((r) => r.json())
+      .then((data: { feed: BodyFeedItem[] }) => {
+        setBodyFeed(data.feed || [])
+        setBodyFeedLoading(false)
+      })
+      .catch(() => {
+        setBodyFeed([])
+        setBodyFeedLoading(false)
+      })
+  }, [bodyFeedRange])
 
   const handleSendComment = () => {
     if (!commentText.trim()) return
@@ -566,6 +600,166 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
             ))
+          )}
+        </div>
+      </div>
+
+      {/* ========== 体組成更新フィード ========== */}
+      <div style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px', marginBottom: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+        {/* ヘッダー */}
+        <div style={{
+          background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
+          padding: '14px 16px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '18px' }}>📊</span>
+            <span style={{ fontWeight: 800, color: 'white', fontSize: '14px' }}>体組成フィード</span>
+            <span style={{
+              background: 'rgba(255,255,255,0.25)', color: 'white', fontSize: '11px',
+              fontWeight: 700, padding: '2px 8px', borderRadius: '10px',
+            }}>{bodyFeed.length}件</span>
+          </div>
+
+          {/* フィルタードロップダウン */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setBodyFeedDropdownOpen(!bodyFeedDropdownOpen)}
+              style={{
+                background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)',
+                color: 'white', fontWeight: 700, fontSize: '12px', padding: '6px 12px',
+                borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit',
+                display: 'flex', alignItems: 'center', gap: '4px',
+              }}
+            >
+              {rangeLabels[bodyFeedRange]}
+              <span style={{ fontSize: '10px' }}>▼</span>
+            </button>
+            {bodyFeedDropdownOpen && (
+              <div style={{
+                position: 'absolute', top: '100%', right: 0, marginTop: '4px',
+                background: 'white', borderRadius: '10px', overflow: 'hidden',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.15)', zIndex: 100, minWidth: '140px',
+              }}>
+                {(Object.keys(rangeLabels) as FeedRange[]).map((key) => (
+                  <button
+                    key={key}
+                    onClick={() => { setBodyFeedRange(key); setBodyFeedDropdownOpen(false) }}
+                    style={{
+                      display: 'block', width: '100%', padding: '10px 14px', border: 'none',
+                      background: bodyFeedRange === key ? '#fef2f2' : 'white',
+                      color: bodyFeedRange === key ? '#dc2626' : '#374151',
+                      fontWeight: bodyFeedRange === key ? 700 : 400,
+                      fontSize: '13px', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+                    }}
+                  >{rangeLabels[key]}</button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* フィード本体 */}
+        <div style={{ padding: '12px 16px', maxHeight: '500px', overflowY: 'auto' }}>
+          {bodyFeedLoading ? (
+            <div style={{ textAlign: 'center', padding: '20px', color: '#9ca3af', fontSize: '13px' }}>読み込み中...</div>
+          ) : bodyFeed.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '20px', color: '#9ca3af', fontSize: '13px' }}>この期間の体組成更新はありません</div>
+          ) : (
+            (() => {
+              // 日付ごとにグループ化
+              const bodyGrouped: Record<string, BodyFeedItem[]> = {}
+              for (const item of bodyFeed) {
+                if (!bodyGrouped[item.date]) bodyGrouped[item.date] = []
+                bodyGrouped[item.date].push(item)
+              }
+              const bodySortedDates = Object.keys(bodyGrouped).sort((a, b) => b.localeCompare(a))
+
+              return bodySortedDates.map((dateStr) => (
+                <div key={dateStr} style={{ marginBottom: '12px' }}>
+                  {/* 日付ラベル */}
+                  <div style={{
+                    fontSize: '11px', fontWeight: 700, color: '#6b7280',
+                    padding: '4px 0', marginBottom: '8px',
+                    borderBottom: '1px solid #f3f4f6',
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                  }}>
+                    <span style={{ fontSize: '14px' }}>📅</span>
+                    {formatDateLabel(dateStr)}
+                    <span style={{
+                      background: '#f3f4f6', color: '#6b7280', fontSize: '10px',
+                      fontWeight: 600, padding: '1px 6px', borderRadius: '6px',
+                    }}>{bodyGrouped[dateStr].length}名</span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {bodyGrouped[dateStr].map((item) => (
+                      <div key={item.id} style={{
+                        background: '#f9fafb', borderRadius: '12px', padding: '12px',
+                        border: '1px solid #f3f4f6',
+                      }}>
+                        {/* メンバー名 */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                          <span style={{
+                            background: '#dc2626', color: 'white', fontSize: '11px',
+                            fontWeight: 800, padding: '3px 10px', borderRadius: '6px',
+                          }}>{item.memberName}</span>
+                          <span style={{ fontSize: '10px', color: '#9ca3af', marginLeft: 'auto' }}>
+                            {item.updatedAt ? new Date(item.updatedAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' }) : ''}
+                          </span>
+                        </div>
+
+                        {/* 体組成データ */}
+                        <div style={{
+                          display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px',
+                          marginBottom: '8px',
+                        }}>
+                          <div style={{ background: 'white', borderRadius: '8px', padding: '8px 10px', border: '1px solid #f3f4f6', textAlign: 'center' }}>
+                            <div style={{ fontSize: '10px', color: '#6b7280', marginBottom: '2px' }}>⚖️ 体重</div>
+                            <div style={{ fontSize: '16px', fontWeight: 800, color: '#1e40af' }}>{item.weight}<span style={{ fontSize: '11px', fontWeight: 600 }}>kg</span></div>
+                          </div>
+                          <div style={{ background: 'white', borderRadius: '8px', padding: '8px 10px', border: '1px solid #f3f4f6', textAlign: 'center' }}>
+                            <div style={{ fontSize: '10px', color: '#6b7280', marginBottom: '2px' }}>📉 体脂肪率</div>
+                            <div style={{ fontSize: '16px', fontWeight: 800, color: '#ea580c' }}>{item.bodyFat}<span style={{ fontSize: '11px', fontWeight: 600 }}>%</span></div>
+                          </div>
+                          <div style={{ background: 'white', borderRadius: '8px', padding: '8px 10px', border: '1px solid #f3f4f6', textAlign: 'center' }}>
+                            <div style={{ fontSize: '10px', color: '#6b7280', marginBottom: '2px' }}>💪 筋肉量</div>
+                            <div style={{ fontSize: '16px', fontWeight: 800, color: '#16a34a' }}>{item.muscle}<span style={{ fontSize: '11px', fontWeight: 600 }}>kg</span></div>
+                          </div>
+                          <div style={{ background: 'white', borderRadius: '8px', padding: '8px 10px', border: '1px solid #f3f4f6', textAlign: 'center' }}>
+                            <div style={{ fontSize: '10px', color: '#6b7280', marginBottom: '2px' }}>📊 BMI</div>
+                            <div style={{ fontSize: '16px', fontWeight: 800, color: '#7c3aed' }}>{item.bmi}</div>
+                          </div>
+                        </div>
+
+                        {/* アクション */}
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          <button
+                            onClick={() => openCommentForMember(item.memberId, item.memberName)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '4px',
+                              padding: '6px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 700,
+                              background: '#fef2f2', color: '#dc2626', border: '1px solid #dc262622',
+                              cursor: 'pointer', fontFamily: 'inherit',
+                            }}
+                          >💬 コメント</button>
+
+                          <Link
+                            href={`/admin/members/detail?id=${item.memberId}`}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '4px',
+                              padding: '6px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 700,
+                              background: '#eff6ff', color: '#2563eb', border: '1px solid #2563eb22',
+                              textDecoration: 'none',
+                            }}
+                          >👤 プロフィール</Link>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            })()
           )}
         </div>
       </div>
