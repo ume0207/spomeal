@@ -308,6 +308,8 @@ export default function MealPage() {
     setRecords(newRecords)
     if (typeof window !== 'undefined') {
       localStorage.setItem(MEAL_KEY, JSON.stringify(newRecords))
+      // ダッシュボード等の他ページにデータ更新を通知
+      window.dispatchEvent(new Event('mealRecordsUpdated'))
     }
   }, [])
 

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { getPointsData, getTodayPoints, doLottery, getAvailableLotteries, getLotteryHistory, getRarityColor, getRarityLabel } from '@/lib/points'
 import type { LotteryResult } from '@/lib/points'
 
@@ -72,105 +72,125 @@ export default function DashboardPage() {
   const [isSpinning, setIsSpinning] = useState(false)
   const [lotteryHistory, setLotteryHistory] = useState<LotteryResult[]>([])
 
+  // データ読み込み関数（初回＋ページ復帰時に実行）
+  const loadAllData = useCallback(() => {
+    if (typeof window === 'undefined') return
+
+    try {
+      const raw = localStorage.getItem('goals_v1')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (parsed['__default__']) {
+          setGoal(parsed['__default__'])
+        }
+      }
+    } catch { /* ignore */ }
+
+    // 食事記録データ読み込み
+    try {
+      const mealRaw = localStorage.getItem('mealRecords_v1')
+      if (mealRaw) {
+        const allRecords: MealRecord[] = JSON.parse(mealRaw)
+        const today = new Date().toISOString().slice(0, 10)
+        const todayRecs = allRecords.filter(r => r.mealDate === today)
+        setTodayMealRecords(todayRecs)
+        const totals = todayRecs.reduce((acc, r) => ({
+          calories: acc.calories + (r.caloriesKcal || 0),
+          protein: acc.protein + (r.proteinG || 0),
+          fat: acc.fat + (r.fatG || 0),
+          carbs: acc.carbs + (r.carbsG || 0),
+        }), { calories: 0, protein: 0, fat: 0, carbs: 0 })
+        setTodayNutrition(totals)
+      } else {
+        setTodayMealRecords([])
+        setTodayNutrition({ calories: 0, protein: 0, fat: 0, carbs: 0 })
+      }
+    } catch { /* ignore */ }
+
+    // 体組成データ読み込み
+    try {
+      const bodyRaw = localStorage.getItem('bodyRecords_v1')
+      if (bodyRaw) {
+        const allBody: BodyRecord[] = JSON.parse(bodyRaw)
+        const sorted = [...allBody].sort((a, b) => b.date.localeCompare(a.date))
+        if (sorted.length > 0) {
+          const latest = sorted[0]
+          const prev = sorted.length > 1 ? sorted[1] : null
+          const wChange = prev && latest.weight != null && prev.weight != null
+            ? (latest.weight - prev.weight).toFixed(1) : '—'
+          const fChange = prev && latest.bodyFat != null && prev.bodyFat != null
+            ? (latest.bodyFat - prev.bodyFat).toFixed(1) : '—'
+          const mChange = prev && latest.muscleMass != null && prev.muscleMass != null
+            ? (latest.muscleMass - prev.muscleMass).toFixed(1) : '—'
+          setLatestBody({
+            weight: latest.weight != null ? latest.weight.toFixed(1) : '—',
+            bodyFat: latest.bodyFat != null ? latest.bodyFat.toFixed(1) : '—',
+            muscle: latest.muscleMass != null ? latest.muscleMass.toFixed(1) : '—',
+            weightChange: wChange !== '—' ? (Number(wChange) >= 0 ? '+' + wChange : wChange) : '—',
+            fatChange: fChange !== '—' ? (Number(fChange) >= 0 ? '+' + fChange : fChange) : '—',
+            muscleChange: mChange !== '—' ? (Number(mChange) >= 0 ? '+' + mChange : mChange) : '—',
+          })
+        }
+      }
+    } catch { /* ignore */ }
+
+    // ポイントデータ読み込み
+    const ptData = getPointsData()
+    setTotalPoints(ptData.totalPoints)
+    setAvailableLotteries(getAvailableLotteries())
+    const today = new Date().toISOString().slice(0, 10)
+    const todayPt = getTodayPoints(today)
+    setTodayEarned(todayPt.earned)
+    if (todayPt.record) {
+      setTodayMeals({
+        breakfast: todayPt.record.breakfast,
+        lunch: todayPt.record.lunch,
+        dinner: todayPt.record.dinner,
+        snack: todayPt.record.snack,
+        bonus: todayPt.record.bonus,
+      })
+    }
+    setLotteryHistory(getLotteryHistory().results.slice(0, 10))
+
+    try {
+      const raw = localStorage.getItem('reservations_v1')
+      if (raw) {
+        const all: Reservation[] = JSON.parse(raw)
+        const todayStr = new Date().toISOString().slice(0, 10)
+        const upcoming = all
+          .filter(r => r.status === 'confirmed' && r.date >= todayStr)
+          .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
+        setNextReservation(upcoming[0] ?? null)
+      }
+    } catch { /* ignore */ }
+  }, [])
+
+  // 初回読み込み
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const raw = localStorage.getItem('goals_v1')
-        if (raw) {
-          const parsed = JSON.parse(raw)
-          if (parsed['__default__']) {
-            setGoal(parsed['__default__'])
-          }
-        }
-      } catch {
-        // ignore
-      }
+    loadAllData()
+  }, [loadAllData])
 
-      // 食事記録データ読み込み
-      try {
-        const mealRaw = localStorage.getItem('mealRecords_v1')
-        if (mealRaw) {
-          const allRecords: MealRecord[] = JSON.parse(mealRaw)
-          const today = new Date().toISOString().slice(0, 10)
-          const todayRecs = allRecords.filter(r => r.mealDate === today)
-          setTodayMealRecords(todayRecs)
-          const totals = todayRecs.reduce((acc, r) => ({
-            calories: acc.calories + (r.caloriesKcal || 0),
-            protein: acc.protein + (r.proteinG || 0),
-            fat: acc.fat + (r.fatG || 0),
-            carbs: acc.carbs + (r.carbsG || 0),
-          }), { calories: 0, protein: 0, fat: 0, carbs: 0 })
-          setTodayNutrition(totals)
-        }
-      } catch {
-        // ignore
-      }
-
-      // 体組成データ読み込み
-      try {
-        const bodyRaw = localStorage.getItem('bodyRecords_v1')
-        if (bodyRaw) {
-          const allBody: BodyRecord[] = JSON.parse(bodyRaw)
-          const sorted = [...allBody].sort((a, b) => b.date.localeCompare(a.date))
-          if (sorted.length > 0) {
-            const latest = sorted[0]
-            const prev = sorted.length > 1 ? sorted[1] : null
-            const wChange = prev && latest.weight != null && prev.weight != null
-              ? (latest.weight - prev.weight).toFixed(1)
-              : '—'
-            const fChange = prev && latest.bodyFat != null && prev.bodyFat != null
-              ? (latest.bodyFat - prev.bodyFat).toFixed(1)
-              : '—'
-            const mChange = prev && latest.muscleMass != null && prev.muscleMass != null
-              ? (latest.muscleMass - prev.muscleMass).toFixed(1)
-              : '—'
-            setLatestBody({
-              weight: latest.weight != null ? latest.weight.toFixed(1) : '—',
-              bodyFat: latest.bodyFat != null ? latest.bodyFat.toFixed(1) : '—',
-              muscle: latest.muscleMass != null ? latest.muscleMass.toFixed(1) : '—',
-              weightChange: wChange !== '—' ? (Number(wChange) >= 0 ? '+' + wChange : wChange) : '—',
-              fatChange: fChange !== '—' ? (Number(fChange) >= 0 ? '+' + fChange : fChange) : '—',
-              muscleChange: mChange !== '—' ? (Number(mChange) >= 0 ? '+' + mChange : mChange) : '—',
-            })
-          }
-        }
-      } catch {
-        // ignore
-      }
-
-      // ポイントデータ読み込み
-      const ptData = getPointsData()
-      setTotalPoints(ptData.totalPoints)
-      setAvailableLotteries(getAvailableLotteries())
-      const today = new Date().toISOString().slice(0, 10)
-      const todayPt = getTodayPoints(today)
-      setTodayEarned(todayPt.earned)
-      if (todayPt.record) {
-        setTodayMeals({
-          breakfast: todayPt.record.breakfast,
-          lunch: todayPt.record.lunch,
-          dinner: todayPt.record.dinner,
-          snack: todayPt.record.snack,
-          bonus: todayPt.record.bonus,
-        })
-      }
-      setLotteryHistory(getLotteryHistory().results.slice(0, 10))
-
-      try {
-        const raw = localStorage.getItem('reservations_v1')
-        if (raw) {
-          const all: Reservation[] = JSON.parse(raw)
-          const today = new Date().toISOString().slice(0, 10)
-          const upcoming = all
-            .filter(r => r.status === 'confirmed' && r.date >= today)
-            .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
-          setNextReservation(upcoming[0] ?? null)
-        }
-      } catch {
-        // ignore
+  // ページに戻ったとき（食事記録ページから戻る等）にデータを再読み込み
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        loadAllData()
       }
     }
-  }, [])
+    const handleFocus = () => loadAllData()
+    document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('focus', handleFocus)
+    window.addEventListener('storage', loadAllData)
+    window.addEventListener('mealRecordsUpdated', loadAllData)
+    window.addEventListener('popstate', loadAllData)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('storage', loadAllData)
+      window.removeEventListener('mealRecordsUpdated', loadAllData)
+      window.removeEventListener('popstate', loadAllData)
+    }
+  }, [loadAllData])
 
   const calcRemainingDays = (endDate?: string) => {
     if (!endDate) return null
@@ -282,6 +302,19 @@ export default function DashboardPage() {
               >
                 <span style={{ fontSize: '24px' }}>📊</span>
                 体組成を測定
+              </Link>
+              <Link
+                href="/reserve"
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  gap: '6px', padding: '16px 8px', borderRadius: '14px',
+                  border: '1.5px solid #0ea5e9', color: '#0284c7',
+                  fontWeight: 700, fontSize: '12px', transition: 'all 0.2s',
+                  textAlign: 'center', background: 'white', cursor: 'pointer', textDecoration: 'none',
+                }}
+              >
+                <span style={{ fontSize: '24px' }}>📅</span>
+                相談を予約
               </Link>
             </div>
           </div>
