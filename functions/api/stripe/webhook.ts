@@ -182,13 +182,60 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
 
     } else if (event.type === 'customer.subscription.deleted') {
-      const subscription = event.data.object as StripeSubscription
+      const subscription = event.data.object as StripeSubscription & {
+        metadata?: { userId?: string; pending_deletion?: string }
+        customer?: string
+      }
       const userId = subscription.metadata?.userId
+      const pendingDeletion = subscription.metadata?.pending_deletion === 'true'
+
       if (userId && supabaseUrl && serviceKey) {
-        await updateSupabaseProfile(supabaseUrl, serviceKey, userId, {
-          subscription_plan: 'free',
-          subscription_status: 'cancelled',
-        })
+        // 管理者による削除予約だった場合 → 完全削除を実行
+        if (pendingDeletion) {
+          const supaHeaders = {
+            'Authorization': `Bearer ${serviceKey}`,
+            'apikey': serviceKey,
+            'Content-Type': 'application/json',
+          }
+          // 関連データ削除
+          const tables = ['meals', 'body_records', 'reservations']
+          for (const table of tables) {
+            try {
+              await fetch(`${supabaseUrl}/rest/v1/${table}?user_id=eq.${userId}`, {
+                method: 'DELETE', headers: supaHeaders,
+              })
+            } catch { /* ignore */ }
+          }
+          // profiles削除
+          try {
+            await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${userId}`, {
+              method: 'DELETE', headers: supaHeaders,
+            })
+          } catch { /* ignore */ }
+          // Stripe Customer削除
+          const stripeSecret = (env as Env & { STRIPE_SECRET_KEY?: string }).STRIPE_SECRET_KEY
+          if (stripeSecret && subscription.customer) {
+            try {
+              await fetch(`https://api.stripe.com/v1/customers/${subscription.customer}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${stripeSecret}` },
+              })
+            } catch { /* ignore */ }
+          }
+          // Supabase Authユーザー削除
+          try {
+            await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
+              method: 'DELETE', headers: supaHeaders,
+            })
+          } catch { /* ignore */ }
+          console.log(`Full deletion completed for user ${userId}`)
+        } else {
+          // 通常のサブスク終了
+          await updateSupabaseProfile(supabaseUrl, serviceKey, userId, {
+            subscription_plan: 'free',
+            subscription_status: 'cancelled',
+          })
+        }
       }
 
     } else if (event.type === 'invoice.payment_failed') {

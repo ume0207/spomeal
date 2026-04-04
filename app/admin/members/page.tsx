@@ -131,8 +131,8 @@ export default function MembersPage() {
   const handleDelete = async (id: string) => {
     const target = members.find((m) => m.id === id)
     const name = target?.name || 'この会員'
-    if (!confirm(`【完全削除】\n${name} をSupabaseから完全に削除します。\n\n・ログインアカウント\n・食事記録 / 体組成 / 予約などのデータ\n\nすべて削除され、元に戻せません。本当に削除しますか？`)) return
-    if (!confirm('最終確認: 本当に削除してよろしいですか？この操作は取り消せません。')) return
+    if (!confirm(`【退会処理】\n${name} の退会処理を行います。\n\n・Stripeサブスクは現在の期間終了時に自動キャンセル\n・期間中はアプリ利用可能（支払い済みのため）\n・期間終了時にアカウントと全データを自動削除\n\n進めてよろしいですか？`)) return
+    if (!confirm('最終確認: 退会処理を実行します。よろしいですか？')) return
 
     try {
       const res = await fetch('/api/admin/delete-member', {
@@ -140,14 +140,19 @@ export default function MembersPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: id }),
       })
-      const data = await res.json() as { success?: boolean; error?: string }
+      const data = await res.json() as { success?: boolean; error?: string; scheduled?: boolean; scheduledDeletionAt?: string; message?: string }
       if (!data.success) {
-        alert(`削除に失敗しました: ${data.error || '不明なエラー'}`)
+        alert(`処理に失敗しました: ${data.error || '不明なエラー'}`)
         return
       }
-      setMembers((prev) => prev.filter((m) => m.id !== id))
       setShowDetail(null)
-      alert('会員を削除しました')
+      if (data.scheduled && data.scheduledDeletionAt) {
+        const dt = new Date(data.scheduledDeletionAt).toLocaleString('ja-JP')
+        alert(`退会予約完了\n\n${dt} にアカウント＆全データが自動削除されます。\nそれまではアプリの利用が可能です。`)
+      } else {
+        setMembers((prev) => prev.filter((m) => m.id !== id))
+        alert('会員を即時削除しました（サブスクリプションなし）')
+      }
     } catch (err) {
       alert(`通信エラー: ${String(err)}`)
     }
