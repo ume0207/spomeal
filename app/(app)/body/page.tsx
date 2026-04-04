@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { toJSTDateStr } from '@/lib/date-utils'
 
 interface BodyRecord {
   date: string
@@ -57,7 +58,7 @@ export default function BodyPage() {
 
       // 水分摂取量の読み込み
       try {
-        const today = new Date().toISOString().slice(0, 10)
+        const today = toJSTDateStr()
         const raw = localStorage.getItem('waterLog_v1')
         if (raw) {
           const parsed = JSON.parse(raw)
@@ -76,7 +77,7 @@ export default function BodyPage() {
     setWaterCups(newCount)
     if (typeof window !== 'undefined') {
       try {
-        const today = new Date().toISOString().slice(0, 10)
+        const today = toJSTDateStr()
         const raw = localStorage.getItem('waterLog_v1')
         const parsed = raw ? JSON.parse(raw) : {}
         parsed[today] = newCount

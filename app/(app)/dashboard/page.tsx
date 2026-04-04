@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useState, useEffect, useCallback } from 'react'
 import { getPointsData, getTodayPoints, doLottery, getAvailableLotteries, getLotteryHistory, getRarityColor, getRarityLabel } from '@/lib/points'
+import { toJSTDateStr } from '@/lib/date-utils'
 import type { LotteryResult } from '@/lib/points'
 
 // 食事記録の型定義
@@ -91,7 +92,7 @@ export default function DashboardPage() {
       const mealRaw = localStorage.getItem('mealRecords_v1')
       if (mealRaw) {
         const allRecords: MealRecord[] = JSON.parse(mealRaw)
-        const today = new Date().toISOString().slice(0, 10)
+        const today = toJSTDateStr()
         const todayRecs = allRecords.filter(r => r.mealDate === today)
         setTodayMealRecords(todayRecs)
         const totals = todayRecs.reduce((acc, r) => ({
@@ -138,7 +139,7 @@ export default function DashboardPage() {
     const ptData = getPointsData()
     setTotalPoints(ptData.totalPoints)
     setAvailableLotteries(getAvailableLotteries())
-    const today = new Date().toISOString().slice(0, 10)
+    const today = toJSTDateStr()
     const todayPt = getTodayPoints(today)
     setTodayEarned(todayPt.earned)
     if (todayPt.record) {
@@ -156,7 +157,7 @@ export default function DashboardPage() {
       const raw = localStorage.getItem('reservations_v1')
       if (raw) {
         const all: Reservation[] = JSON.parse(raw)
-        const todayStr = new Date().toISOString().slice(0, 10)
+        const todayStr = toJSTDateStr()
         const upcoming = all
           .filter(r => r.status === 'confirmed' && r.date >= todayStr)
           .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
@@ -467,17 +468,34 @@ export default function DashboardPage() {
                 {todayMealRecords.length > 0 && (
                   <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #f3f4f6' }}>
                     <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px' }}>記録済み</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       {todayMealRecords.map((rec) => (
-                        <div key={rec.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
-                          {rec.photoUrl && (
-                            <img src={rec.photoUrl} alt="" style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover' }} />
+                        <div key={rec.id} style={{ background: '#f9fafb', borderRadius: '10px', padding: '8px 10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                            {rec.photoUrl && (
+                              <img src={rec.photoUrl} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover' }} />
+                            )}
+                            <span style={{ fontSize: '13px' }}>
+                              {rec.mealType === '朝食' ? '🌅' : rec.mealType === '昼食' ? '☀️' : rec.mealType === '夕食' ? '🌙' : '🍪'}
+                            </span>
+                            <span style={{ flex: 1, fontWeight: 700, color: '#374151', fontSize: '12px' }}>{rec.mealType}</span>
+                            <span style={{ fontSize: '12px', fontWeight: 700, color: '#16a34a' }}>{Math.round(rec.caloriesKcal)}kcal</span>
+                          </div>
+                          {/* 各食材の詳細 */}
+                          {rec.items && rec.items.length > 0 && (
+                            <div style={{ marginTop: '4px', paddingLeft: '4px' }}>
+                              {rec.items.map((item: any, i: number) => (
+                                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#6b7280', padding: '2px 0' }}>
+                                  <span style={{ color: '#374151', fontWeight: 500, flex: 1 }}>{item.foodName || item.name}</span>
+                                  {(item.grams || item.g) && <span>{item.grams || item.g}g</span>}
+                                  <span style={{ color: '#16a34a', fontWeight: 600 }}>{Math.round(item.caloriesKcal || item.kcal || 0)}kcal</span>
+                                </div>
+                              ))}
+                            </div>
                           )}
-                          <span style={{ fontSize: '10px', color: '#9ca3af', minWidth: '28px' }}>
-                            {rec.mealType === '朝食' ? '🌅' : rec.mealType === '昼食' ? '☀️' : rec.mealType === '夕食' ? '🌙' : '🍪'}
-                          </span>
-                          <span style={{ flex: 1, fontWeight: 600, color: '#374151' }}>{rec.foodName}</span>
-                          <span style={{ fontSize: '11px', color: '#6b7280' }}>{Math.round(rec.caloriesKcal)}kcal</span>
+                          <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '3px' }}>
+                            P:{(rec.proteinG || 0).toFixed(1)}g · F:{(rec.fatG || 0).toFixed(1)}g · C:{(rec.carbsG || 0).toFixed(1)}g
+                          </div>
                         </div>
                       ))}
                     </div>

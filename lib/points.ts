@@ -131,7 +131,7 @@ export function doLottery(): LotteryResult | null {
     prize: selected.prize,
     rarity: selected.rarity,
     icon: selected.icon,
-    date: new Date().toISOString(),
+    date: new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tokyo' }),
   }
 
   const history = getLotteryHistory()

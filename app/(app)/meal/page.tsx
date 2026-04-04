@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { addMealPoint } from '@/lib/points'
 import { FOOD_DB, searchFoodDB } from '@/lib/food-db'
+import { toJSTDateStr, toJSTDateTimeStr } from '@/lib/date-utils'
 
 // 旧FOOD_DB互換用（lib/food-db.tsからインポート）
 const FOOD_DB_COMPAT: Record<string, { kcal: number; p: number; f: number; c: number }> = {
@@ -135,6 +136,7 @@ const FOOD_DB_COMPAT: Record<string, { kcal: number; p: number; f: number; c: nu
 // ===== 型定義 =====
 interface MealItem {
   foodName: string
+  grams?: number
   caloriesKcal: number
   proteinG: number
   fatG: number
@@ -210,7 +212,7 @@ function pfcToGrams(cal: number, pfcP: number, pfcF: number, pfcC: number) {
 }
 
 function toDateStr(d: Date) {
-  return d.toISOString().slice(0, 10)
+  return toJSTDateStr(d)
 }
 
 export default function MealPage() {
@@ -256,8 +258,12 @@ export default function MealPage() {
   const [goalPfcC, setGoalPfcC] = useState(55)
   const [goalCalAuto, setGoalCalAuto] = useState(2000)
 
-  // Gemini API共通（環境変数から取得 - Cloudflare Pagesで設定）
-  // AI分析はCloudflare Pages Function経由（OpenAI GPT-4o mini）
+  // 記録詳細展開・インライン編集
+  const [expandedRecordId, setExpandedRecordId] = useState<string | null>(null)
+  const [inlineEditRecordId, setInlineEditRecordId] = useState<string | null>(null)
+  const [inlineEditItems, setInlineEditItems] = useState<MealItem[]>([])
+
+  // AI分析はCloudflare Pages Function経由（OpenAI GPT-4o）
   const AI_ANALYZE_URL = '/api/ai/analyze-meal'
 
   const parseGeminiResponse = (geminiData: { candidates?: { content?: { parts?: { text?: string }[] } }[] }) => {
@@ -374,7 +380,37 @@ export default function MealPage() {
   const hasRecordToday = todayRecords.length > 0
 
   const deleteRecord = (id: string) => {
-    saveRecords(records.filter(r => r.id !== id))
+    if (confirm('この記録を削除しますか？')) {
+      saveRecords(records.filter(r => r.id !== id))
+    }
+  }
+
+  // インライン編集開始
+  const startInlineEdit = (record: MealRecord) => {
+    setInlineEditRecordId(record.id)
+    setInlineEditItems(record.items.map(it => ({ ...it })))
+    setExpandedRecordId(record.id)
+  }
+
+  // インライン編集保存
+  const saveInlineEdit = (recordId: string) => {
+    const totalKcal = inlineEditItems.reduce((s, it) => s + (it.caloriesKcal || 0), 0)
+    const totalP = inlineEditItems.reduce((s, it) => s + (it.proteinG || 0), 0)
+    const totalF = inlineEditItems.reduce((s, it) => s + (it.fatG || 0), 0)
+    const totalC = inlineEditItems.reduce((s, it) => s + (it.carbsG || 0), 0)
+    const foodName = inlineEditItems.map(it => it.foodName).join('、')
+    const updated = records.map(r => {
+      if (r.id !== recordId) return r
+      return { ...r, items: inlineEditItems, caloriesKcal: totalKcal, proteinG: totalP, fatG: totalF, carbsG: totalC, foodName }
+    })
+    saveRecords(updated)
+    setInlineEditRecordId(null)
+  }
+
+  // インライン編集キャンセル
+  const cancelInlineEdit = () => {
+    setInlineEditRecordId(null)
+    setInlineEditItems([])
   }
 
 
@@ -385,10 +421,8 @@ export default function MealPage() {
       if (record) {
         setEditingRecordId(recordId)
         setActiveMealType(mealTypeReverseMap[record.mealType] ?? 'lunch')
-        const dt = new Date(record.mealDate + 'T00:00:00')
-        dt.setHours(8, 0, 0, 0)
-        const localStr = dt.toISOString().slice(0, 16)
-        setMealDate(localStr)
+        const dt = new Date(record.mealDate + 'T08:00:00+09:00')
+        setMealDate(toJSTDateTimeStr(dt))
         setAiText(record.foodName)
         setPhotos(record.photoUrl ? [{ file: new File([''], ''), preview: record.photoUrl }] : [])
         setAiResult(null)
@@ -405,10 +439,8 @@ export default function MealPage() {
       // New record mode
       setEditingRecordId(null)
       if (cat) setActiveMealType(mealTypeReverseMap[cat] ?? 'lunch')
-      const now = new Date(currentDate ?? new Date())
-      now.setHours(8, 0, 0, 0)
-      const localStr = now.toISOString().slice(0, 16)
-      setMealDate(localStr)
+      const now = currentDate ?? new Date()
+      setMealDate(toJSTDateTimeStr(now))
       setAiText('')
       setPhotos([])
       setAiResult(null)
@@ -434,7 +466,7 @@ export default function MealPage() {
     const foodName = aiText.trim() || '手動入力'
 
     const mealDateObj = new Date(mealDate)
-    const mealDateStr = mealDateObj.toISOString().slice(0, 10)
+    const mealDateStr = toJSTDateStr(mealDateObj)
 
     // Save photo as base64 thumbnail
     let photoUrl = ''
@@ -457,9 +489,10 @@ export default function MealPage() {
     }
 
     // AI分析結果のアイテムがあればそれを使う
-    const recordItems = (aiResult && aiResult.items && aiResult.items.length > 0)
+    const recordItems: MealItem[] = (aiResult && aiResult.items && aiResult.items.length > 0)
       ? aiResult.items.map((it: any) => ({
           foodName: it.name || foodName,
+          grams: it.grams || undefined,
           caloriesKcal: it.kcal || 0,
           proteinG: it.protein || 0,
           fatG: it.fat || 0,
@@ -833,71 +866,141 @@ export default function MealPage() {
                 </div>
               ) : (
                 <div style={{ borderTop: '1px solid #f3f4f6' }}>
-                  {catMeals.map((record) => (
-                    <div
-                      key={record.id}
-                      style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        padding: '10px 16px', borderBottom: '1px solid #f8f8f8', gap: '8px',
-                      }}
-                    >
-                      {record.photoUrl && (
-                        <img
-                          onClick={() => setViewPhoto(record.photoUrl || null)}
-                          src={record.photoUrl}
-                          alt="meal"
-                          style={{
-                            width: '48px', height: '48px', borderRadius: '8px', objectFit: 'cover',
-                            cursor: 'pointer', flexShrink: 0,
-                          }}
-                        />
-                      )}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div
-                          style={{
-                            fontSize: '13px', fontWeight: 600, color: '#1f2937',
-                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                            cursor: 'pointer',
-                          }}
-                          onClick={() => openAddModal(undefined, record.id)}
-                          title="クリックで編集"
-                        >
-                          {record.foodName}
+                  {catMeals.map((record) => {
+                    const isExpanded = expandedRecordId === record.id
+                    const isEditing = inlineEditRecordId === record.id
+                    return (
+                    <div key={record.id} style={{ borderBottom: '1px solid #f8f8f8' }}>
+                      {/* メイン行 */}
+                      <div
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          padding: '10px 16px', gap: '8px', cursor: 'pointer',
+                        }}
+                        onClick={() => setExpandedRecordId(isExpanded ? null : record.id)}
+                      >
+                        {record.photoUrl && (
+                          <img
+                            onClick={(e) => { e.stopPropagation(); setViewPhoto(record.photoUrl || null) }}
+                            src={record.photoUrl}
+                            alt="meal"
+                            style={{
+                              width: '48px', height: '48px', borderRadius: '8px', objectFit: 'cover',
+                              cursor: 'pointer', flexShrink: 0,
+                            }}
+                          />
+                        )}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '13px', fontWeight: 600, color: '#1f2937', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {record.foodName}
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '2px' }}>
+                            P:{(record.proteinG || 0).toFixed(1)}g · F:{(record.fatG || 0).toFixed(1)}g · C:{(record.carbsG || 0).toFixed(1)}g
+                          </div>
                         </div>
-                        <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '2px' }}>
-                          P:{(record.proteinG || 0).toFixed(1)}g · F:{(record.fatG || 0).toFixed(1)}g · C:{(record.carbsG || 0).toFixed(1)}g
-                        </div>
+                        <span style={{ fontSize: '12px', fontWeight: 700, padding: '2px 8px', borderRadius: '12px', background: '#f0fdf4', color: '#16a34a', whiteSpace: 'nowrap' }}>
+                          {Math.round(record.caloriesKcal)} kcal
+                        </span>
+                        <span style={{ fontSize: '10px', color: '#9ca3af', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
                       </div>
-                      <span
-                        style={{
-                          fontSize: '12px', fontWeight: 700, padding: '2px 8px',
-                          borderRadius: '12px', background: '#f0fdf4', color: '#16a34a',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {Math.round(record.caloriesKcal)} kcal
-                      </span>
-                      <button
-                        onClick={() => deleteRecord(record.id)}
-                        style={{
-                          width: '28px', height: '28px', borderRadius: '50%',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          color: '#d1d5db', background: 'none', border: 'none',
-                          cursor: 'pointer', fontSize: '14px',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = '#fee2e2'
-                          e.currentTarget.style.color = '#ef4444'
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'none'
-                          e.currentTarget.style.color = '#d1d5db'
-                        }}
-                      >
-                        ✕
-                      </button>
+
+                      {/* 展開エリア: 食材詳細 */}
+                      {isExpanded && (
+                        <div style={{ padding: '0 16px 12px', background: '#fafafa' }}>
+                          {/* 各アイテム一覧 */}
+                          {(isEditing ? inlineEditItems : record.items).map((item, idx) => (
+                            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 0', borderBottom: idx < (isEditing ? inlineEditItems : record.items).length - 1 ? '1px solid #f0f0f0' : 'none', flexWrap: 'wrap' }}>
+                              {isEditing ? (
+                                <>
+                                  <input
+                                    value={item.foodName}
+                                    onChange={(e) => { const nw = [...inlineEditItems]; nw[idx] = { ...nw[idx], foodName: e.target.value }; setInlineEditItems(nw) }}
+                                    style={{ flex: 1, minWidth: '100px', fontSize: '12px', fontWeight: 600, border: '1px solid #d1d5db', borderRadius: '6px', padding: '4px 6px', fontFamily: 'inherit' }}
+                                  />
+                                  <input
+                                    type="number"
+                                    value={item.grams ?? ''}
+                                    placeholder="g"
+                                    onChange={(e) => { const nw = [...inlineEditItems]; nw[idx] = { ...nw[idx], grams: Number(e.target.value) || undefined }; setInlineEditItems(nw) }}
+                                    style={{ width: '50px', fontSize: '11px', border: '1px solid #d1d5db', borderRadius: '6px', padding: '4px', textAlign: 'right', fontFamily: 'inherit' }}
+                                  />
+                                  <span style={{ fontSize: '10px', color: '#9ca3af' }}>g</span>
+                                  <div style={{ display: 'flex', gap: '4px', width: '100%', marginTop: '4px' }}>
+                                    {[
+                                      { label: 'kcal', key: 'caloriesKcal' as const, color: '#16a34a' },
+                                      { label: 'P', key: 'proteinG' as const, color: '#3B82F6' },
+                                      { label: 'F', key: 'fatG' as const, color: '#F59E0B' },
+                                      { label: 'C', key: 'carbsG' as const, color: '#10B981' },
+                                    ].map(f => (
+                                      <div key={f.key} style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                        <span style={{ fontSize: '9px', color: f.color, fontWeight: 700 }}>{f.label}</span>
+                                        <input
+                                          type="number"
+                                          step="0.1"
+                                          value={item[f.key] ?? ''}
+                                          onChange={(e) => { const nw = [...inlineEditItems]; nw[idx] = { ...nw[idx], [f.key]: Number(e.target.value) || 0 }; setInlineEditItems(nw) }}
+                                          style={{ width: '48px', fontSize: '11px', border: '1px solid #d1d5db', borderRadius: '4px', padding: '2px 4px', textAlign: 'right', fontFamily: 'inherit' }}
+                                        />
+                                      </div>
+                                    ))}
+                                    <button
+                                      onClick={() => { const nw = inlineEditItems.filter((_, i) => i !== idx); setInlineEditItems(nw) }}
+                                      style={{ marginLeft: 'auto', fontSize: '11px', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+                                    >✕</button>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#374151', flex: 1 }}>{item.foodName}</span>
+                                  {item.grams && <span style={{ fontSize: '11px', color: '#6b7280' }}>{item.grams}g</span>}
+                                  <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: 600 }}>{Math.round(item.caloriesKcal)}kcal</span>
+                                  <div style={{ width: '100%', fontSize: '10px', color: '#9ca3af', marginTop: '1px' }}>
+                                    P:{(item.proteinG || 0).toFixed(1)}g · F:{(item.fatG || 0).toFixed(1)}g · C:{(item.carbsG || 0).toFixed(1)}g
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          ))}
+
+                          {/* 編集モード時のアイテム追加ボタン */}
+                          {isEditing && (
+                            <button
+                              onClick={() => setInlineEditItems([...inlineEditItems, { foodName: '', grams: 100, caloriesKcal: 0, proteinG: 0, fatG: 0, carbsG: 0 }])}
+                              style={{ fontSize: '11px', color: '#22c55e', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 0', fontWeight: 700, fontFamily: 'inherit' }}
+                            >＋ 食材を追加</button>
+                          )}
+
+                          {/* 操作ボタン */}
+                          <div style={{ display: 'flex', gap: '8px', marginTop: '8px', justifyContent: 'flex-end' }}>
+                            {isEditing ? (
+                              <>
+                                <button
+                                  onClick={cancelInlineEdit}
+                                  style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '8px', border: '1px solid #d1d5db', background: 'white', color: '#6b7280', cursor: 'pointer', fontFamily: 'inherit' }}
+                                >キャンセル</button>
+                                <button
+                                  onClick={() => saveInlineEdit(record.id)}
+                                  style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '8px', border: 'none', background: '#22c55e', color: 'white', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+                                >保存</button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); startInlineEdit(record) }}
+                                  style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '8px', border: '1px solid #3B82F6', background: 'white', color: '#3B82F6', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                                >編集</button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); deleteRecord(record.id) }}
+                                  style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '8px', border: '1px solid #ef4444', background: 'white', color: '#ef4444', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                                >削除</button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>
