@@ -156,6 +156,7 @@ interface MealRecord {
   saltG: number
   items: MealItem[]
   photoUrl?: string
+  advice?: string  // AIアドバイス
 }
 
 interface GoalData {
@@ -506,6 +507,9 @@ export default function MealPage() {
           carbsG: carbs,
         }]
 
+    // AIアドバイスがあれば保存
+    const adviceText = aiResult?.comment && aiResult.comment !== 'アドバイスを取得中...' ? aiResult.comment : undefined
+
     const newRecord: MealRecord = {
       id: editingRecordId || Date.now().toString(),
       mealDate: mealDateStr,
@@ -519,6 +523,7 @@ export default function MealPage() {
       saltG: 0,
       items: recordItems,
       photoUrl: photoUrl || undefined,
+      advice: adviceText,
     }
 
     let updatedRecords: MealRecord[]
@@ -968,6 +973,22 @@ export default function MealPage() {
                               onClick={() => setInlineEditItems([...inlineEditItems, { foodName: '', grams: 100, caloriesKcal: 0, proteinG: 0, fatG: 0, carbsG: 0 }])}
                               style={{ fontSize: '11px', color: '#22c55e', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 0', fontWeight: 700, fontFamily: 'inherit' }}
                             >＋ 食材を追加</button>
+                          )}
+
+                          {/* AIアドバイス表示 */}
+                          {!isEditing && record.advice && (
+                            <div style={{
+                              marginTop: '8px', padding: '10px 12px',
+                              background: 'linear-gradient(135deg, #f0fdf4, #ecfdf5)',
+                              borderRadius: '10px', border: '1px solid #bbf7d0',
+                            }}>
+                              <div style={{ fontSize: '11px', fontWeight: 700, color: '#16a34a', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                💡 AIアドバイス
+                              </div>
+                              <p style={{ fontSize: '12px', color: '#374151', margin: 0, lineHeight: 1.6 }}>
+                                {record.advice}
+                              </p>
+                            </div>
                           )}
 
                           {/* 操作ボタン */}

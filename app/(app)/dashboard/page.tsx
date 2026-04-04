@@ -20,6 +20,7 @@ interface MealRecord {
   saltG: number
   items: { name: string; grams: number; kcal: number; protein: number; fat: number; carbs: number }[]
   photoUrl?: string
+  advice?: string
 }
 
 // 体組成の型定義
@@ -496,6 +497,13 @@ export default function DashboardPage() {
                           <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '3px' }}>
                             P:{(rec.proteinG || 0).toFixed(1)}g · F:{(rec.fatG || 0).toFixed(1)}g · C:{(rec.carbsG || 0).toFixed(1)}g
                           </div>
+                          {rec.advice && (
+                            <div style={{ marginTop: '4px', padding: '6px 8px', background: '#f0fdf4', borderRadius: '6px', border: '1px solid #dcfce7' }}>
+                              <p style={{ fontSize: '10px', color: '#374151', margin: 0, lineHeight: 1.5 }}>
+                                💡 {rec.advice}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
