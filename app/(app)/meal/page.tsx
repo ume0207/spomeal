@@ -542,21 +542,42 @@ export default function MealPage() {
       const supabase = createClient()
       const { data: authData } = await supabase.auth.getUser()
       if (authData?.user?.id) {
-        fetch('/api/meal-activity', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: authData.user.id,
-            mealType: catName,
-            items: recordItems.map(i => ({
-              name: i.foodName, kcal: i.caloriesKcal, protein: i.proteinG, fat: i.fatG, carbs: i.carbsG,
-            })),
-            totalKcal: kcal,
-            totalProtein: protein,
-            totalFat: fat,
-            totalCarbs: carbs,
-          }),
-        }).catch(() => { /* サイレント失敗 */ })
+        const mealPayload = {
+          userId: authData.user.id,
+          mealType: catName,
+          items: recordItems.map(i => ({
+            name: i.foodName, kcal: i.caloriesKcal, protein: i.proteinG, fat: i.fatG, carbs: i.carbsG,
+          })),
+          totalKcal: kcal,
+          totalProtein: protein,
+          totalFat: fat,
+          totalCarbs: carbs,
+        }
+        // awaitで確実に送信し、失敗時は1回リトライ
+        try {
+          const res = await fetch('/api/meal-activity', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(mealPayload),
+          })
+          if (!res.ok) {
+            // リトライ
+            await fetch('/api/meal-activity', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(mealPayload),
+            }).catch(() => {})
+          }
+        } catch {
+          // リトライ
+          try {
+            await fetch('/api/meal-activity', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(mealPayload),
+            })
+          } catch { /* 最終的にサイレント失敗 */ }
+        }
       }
     } catch { /* サイレント失敗 */ }
 

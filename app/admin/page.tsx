@@ -24,18 +24,30 @@ interface NutritionistComment {
   comment: string
 }
 
+interface MealEntry {
+  mealType: string
+  items: { name: string; kcal: number; protein: number; fat: number; carbs: number }[]
+  totalKcal: number
+  totalProtein: number
+  totalFat: number
+  totalCarbs: number
+  time: string
+  updatedAt: string
+}
+
 interface FeedItem {
   id: string
   memberId: string
   memberName: string
   memberEmail: string
-  mealType: string
-  items: { name: string; kcal: number; protein: number; fat: number; carbs: number }[]
-  totalKcal: number
-  totalProtein: number
   date: string
-  time: string
-  updatedAt: string
+  meals: MealEntry[]
+  dayTotalKcal: number
+  dayTotalProtein: number
+  dayTotalFat: number
+  dayTotalCarbs: number
+  latestUpdatedAt: string
+  mealCount: number
 }
 
 interface MeetingNote {
@@ -134,17 +146,7 @@ export default function AdminDashboardPage() {
         setFeedLoading(false)
       })
       .catch(() => {
-        // APIが使えない場合のフォールバック（デモデータ）
-        const now = new Date()
-        const todayStr = now.toISOString().slice(0, 10)
-        const demoFeed: FeedItem[] = [
-          { id: 'f1', memberId: 'demo-1', memberName: '山田 太郎', memberEmail: 'yamada@example.com', mealType: '朝食', items: [{ name: '鶏むね肉のグリル', kcal: 230, protein: 38, fat: 5, carbs: 0 }, { name: '玄米ごはん', kcal: 264, protein: 5.6, fat: 1.8, carbs: 57 }], totalKcal: 494, totalProtein: 43.6, date: todayStr, time: '08:30', updatedAt: `${todayStr}T08:30:00+09:00` },
-          { id: 'f2', memberId: 'demo-2', memberName: '佐藤 花子', memberEmail: 'sato@example.com', mealType: '昼食', items: [{ name: 'サーモンの刺身定食', kcal: 580, protein: 32, fat: 18, carbs: 65 }], totalKcal: 580, totalProtein: 32, date: todayStr, time: '12:15', updatedAt: `${todayStr}T12:15:00+09:00` },
-          { id: 'f3', memberId: 'demo-3', memberName: '田中 健太', memberEmail: 'tanaka@example.com', mealType: '夕食', items: [{ name: 'ささみと野菜の炒め物', kcal: 320, protein: 35, fat: 8, carbs: 20 }, { name: '味噌汁', kcal: 45, protein: 3, fat: 1.5, carbs: 5 }], totalKcal: 365, totalProtein: 38, date: todayStr, time: '19:45', updatedAt: `${todayStr}T19:45:00+09:00` },
-          { id: 'f4', memberId: 'demo-4', memberName: '鈴木 美咲', memberEmail: 'suzuki@example.com', mealType: '朝食', items: [{ name: 'ギリシャヨーグルト', kcal: 130, protein: 20, fat: 0, carbs: 10 }, { name: 'バナナ', kcal: 86, protein: 1.1, fat: 0.2, carbs: 22.5 }], totalKcal: 216, totalProtein: 21.1, date: todayStr, time: '07:20', updatedAt: `${todayStr}T07:20:00+09:00` },
-          { id: 'f5', memberId: 'demo-5', memberName: '高橋 翔', memberEmail: 'takahashi@example.com', mealType: '間食', items: [{ name: 'プロテインバー', kcal: 190, protein: 15, fat: 8, carbs: 20 }], totalKcal: 190, totalProtein: 15, date: todayStr, time: '15:00', updatedAt: `${todayStr}T15:00:00+09:00` },
-        ]
-        setFeed(demoFeed)
+        setFeed([])
         setFeedLoading(false)
       })
   }, [feedRange])
@@ -449,56 +451,69 @@ export default function AdminDashboardPage() {
                   <span style={{
                     background: '#f3f4f6', color: '#6b7280', fontSize: '10px',
                     fontWeight: 600, padding: '1px 6px', borderRadius: '6px',
-                  }}>{groupedFeed[dateStr].length}件</span>
+                  }}>{groupedFeed[dateStr].length}名</span>
                 </div>
 
-                {/* 食事カード */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {/* 会員カード（会員ごとにまとめ） */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {groupedFeed[dateStr].map((item) => {
-                    const mt = mealTypeColors[item.mealType] || mealTypeColors['間食']
                     const memberNotes = meetingNotes.filter(n => n.memberId === item.memberId)
                     return (
                       <div key={item.id} style={{
                         background: '#f9fafb', borderRadius: '12px', padding: '12px',
                         border: '1px solid #f3f4f6',
                       }}>
-                        {/* 上段: メンバー名 + 食事タイプ + 時刻 */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                        {/* ヘッダー: メンバー名 + 食数 + 最終更新時刻 */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', flexWrap: 'wrap' }}>
                           <span style={{
-                            background: '#2563eb', color: 'white', fontSize: '10px',
-                            fontWeight: 800, padding: '2px 8px', borderRadius: '6px',
+                            background: '#2563eb', color: 'white', fontSize: '11px',
+                            fontWeight: 800, padding: '3px 10px', borderRadius: '6px',
                           }}>{item.memberName}</span>
                           <span style={{
-                            background: mt.bg, color: mt.color, fontSize: '10px',
+                            background: '#f0fdf4', color: '#16a34a', fontSize: '10px',
                             fontWeight: 700, padding: '2px 8px', borderRadius: '6px',
-                            border: `1px solid ${mt.color}22`,
-                          }}>{mt.icon} {item.mealType}</span>
-                          <span style={{ fontSize: '10px', color: '#9ca3af', marginLeft: 'auto' }}>{item.time}</span>
+                          }}>{item.mealCount}食記録</span>
+                          <span style={{ fontSize: '10px', color: '#9ca3af', marginLeft: 'auto' }}>
+                            最終更新 {item.latestUpdatedAt ? new Date(item.latestUpdatedAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' }) : ''}
+                          </span>
                         </div>
 
-                        {/* 食事内容 */}
-                        <div style={{ marginBottom: '8px' }}>
-                          {item.items.map((food, idx) => (
-                            <div key={idx} style={{
-                              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                              padding: '3px 0', fontSize: '12px',
+                        {/* 各食事エントリ */}
+                        {item.meals.map((meal, mealIdx) => {
+                          const mt = mealTypeColors[meal.mealType] || mealTypeColors['間食']
+                          return (
+                            <div key={mealIdx} style={{
+                              background: 'white', borderRadius: '8px', padding: '8px 10px',
+                              marginBottom: '6px', border: '1px solid #f3f4f6',
                             }}>
-                              <span style={{ color: '#374151' }}>{food.name}</span>
-                              <span style={{ color: '#9ca3af', fontSize: '11px', whiteSpace: 'nowrap', marginLeft: '8px' }}>
-                                {food.kcal}kcal / P{food.protein}g
-                              </span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                                <span style={{
+                                  background: mt.bg, color: mt.color, fontSize: '10px',
+                                  fontWeight: 700, padding: '2px 8px', borderRadius: '6px',
+                                  border: `1px solid ${mt.color}22`,
+                                }}>{mt.icon} {meal.mealType}</span>
+                                <span style={{ fontSize: '10px', color: '#9ca3af' }}>{meal.time}</span>
+                                <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 700, marginLeft: 'auto' }}>{meal.totalKcal}kcal</span>
+                                <span style={{ fontSize: '10px', color: '#2563eb', fontWeight: 700 }}>P{meal.totalProtein}g</span>
+                              </div>
+                              <div style={{ fontSize: '11px', color: '#6b7280' }}>
+                                {meal.items.map(f => f.name).join('、')}
+                              </div>
                             </div>
-                          ))}
-                        </div>
+                          )
+                        })}
 
-                        {/* 合計 */}
+                        {/* 日計合計 */}
                         <div style={{
                           display: 'flex', alignItems: 'center', gap: '10px',
-                          padding: '6px 8px', background: 'white', borderRadius: '8px',
-                          marginBottom: '8px',
+                          padding: '8px 10px', background: '#eff6ff', borderRadius: '8px',
+                          marginTop: '4px', marginBottom: '8px',
                         }}>
-                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#16a34a' }}>合計 {item.totalKcal}kcal</span>
-                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#2563eb' }}>P {item.totalProtein}g</span>
+                          <span style={{ fontSize: '11px', fontWeight: 800, color: '#1e40af' }}>1日合計</span>
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#16a34a' }}>{item.dayTotalKcal}kcal</span>
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#2563eb' }}>P{item.dayTotalProtein}g</span>
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#ea580c' }}>F{item.dayTotalFat}g</span>
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#7c3aed' }}>C{item.dayTotalCarbs}g</span>
                         </div>
 
                         {/* アクションボタン */}

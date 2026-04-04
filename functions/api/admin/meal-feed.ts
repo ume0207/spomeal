@@ -13,7 +13,7 @@ const cors = {
 /**
  * GET /api/admin/meal-feed?range=today|yesterday|3days|week
  * 会員のuser_metadataに保存された食事記録(meal_activity)からフィードを生成
- * デモデータは使用しない（実際に食事を登録した人のみ表示）
+ * 同じ会員の更新は1エントリにまとめる（日別・会員別でグループ化）
  */
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { env, request } = context
@@ -33,7 +33,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     )
 
     if (!res.ok) {
-      return new Response(JSON.stringify({ feed: [], total: 0 }), { status: 200, headers: cors })
+      const errText = await res.text()
+      return new Response(JSON.stringify({ feed: [], total: 0, error: `Supabase error: ${res.status}`, detail: errText }), { status: 200, headers: cors })
     }
 
     const data = await res.json() as {
@@ -62,22 +63,35 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       : getDateNDaysAgo(7)
 
     // 各ユーザーのmeal_activityからフィードを構築
-    interface FeedItem {
-      id: string
-      memberId: string
-      memberName: string
-      memberEmail: string
+    // 同じ会員・同じ日付のエントリをまとめる
+    interface MealEntry {
       mealType: string
       items: { name: string; kcal: number; protein: number; fat: number; carbs: number }[]
       totalKcal: number
       totalProtein: number
-      date: string
+      totalFat: number
+      totalCarbs: number
       time: string
       updatedAt: string
     }
 
-    const feed: FeedItem[] = []
-    let idCounter = 0
+    interface GroupedFeedItem {
+      id: string
+      memberId: string
+      memberName: string
+      memberEmail: string
+      date: string
+      meals: MealEntry[]
+      dayTotalKcal: number
+      dayTotalProtein: number
+      dayTotalFat: number
+      dayTotalCarbs: number
+      latestUpdatedAt: string
+      mealCount: number
+    }
+
+    // memberId + date をキーにしてグループ化
+    const groupMap = new Map<string, GroupedFeedItem>()
 
     for (const user of (data.users || [])) {
       const meta = user.user_metadata || {}
@@ -86,6 +100,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         items: { name: string; kcal: number; protein: number; fat: number; carbs: number }[]
         totalKcal: number
         totalProtein: number
+        totalFat: number
+        totalCarbs: number
         date: string
         time: string
         updatedAt: string
@@ -93,34 +109,90 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
       if (activity.length === 0) continue
 
-      const memberName = (meta.full_name as string) || user.email?.split('@')[0] || '会員'
+      const memberName = (meta.full_name as string) || (meta.name as string) || user.email?.split('@')[0] || '会員'
 
       for (const entry of activity) {
-        // 日付フィルター: filterDate以降のデータのみ表示
         if (!entry.date || entry.date < filterDate) continue
 
-        feed.push({
-          id: `feed-${++idCounter}`,
-          memberId: user.id,
-          memberName,
-          memberEmail: user.email,
-          mealType: entry.mealType || '食事',
-          items: entry.items || [],
-          totalKcal: entry.totalKcal || 0,
-          totalProtein: entry.totalProtein || 0,
-          date: entry.date,
-          time: entry.time || '',
-          updatedAt: entry.updatedAt || `${entry.date}T${entry.time || '00:00'}:00+09:00`,
-        })
+        const groupKey = `${user.id}_${entry.date}`
+
+        if (!groupMap.has(groupKey)) {
+          groupMap.set(groupKey, {
+            id: groupKey,
+            memberId: user.id,
+            memberName,
+            memberEmail: user.email,
+            date: entry.date,
+            meals: [],
+            dayTotalKcal: 0,
+            dayTotalProtein: 0,
+            dayTotalFat: 0,
+            dayTotalCarbs: 0,
+            latestUpdatedAt: '',
+            mealCount: 0,
+          })
+        }
+
+        const group = groupMap.get(groupKey)!
+
+        // 同じmealTypeが既にある場合は上書き（最新の記録を採用）
+        const existingIdx = group.meals.findIndex(m => m.mealType === entry.mealType)
+        if (existingIdx >= 0) {
+          // 古いエントリの分を引く
+          group.dayTotalKcal -= group.meals[existingIdx].totalKcal
+          group.dayTotalProtein -= group.meals[existingIdx].totalProtein
+          group.dayTotalFat -= group.meals[existingIdx].totalFat
+          group.dayTotalCarbs -= group.meals[existingIdx].totalCarbs
+          group.meals[existingIdx] = {
+            mealType: entry.mealType || '食事',
+            items: entry.items || [],
+            totalKcal: entry.totalKcal || 0,
+            totalProtein: entry.totalProtein || 0,
+            totalFat: entry.totalFat || 0,
+            totalCarbs: entry.totalCarbs || 0,
+            time: entry.time || '',
+            updatedAt: entry.updatedAt || '',
+          }
+        } else {
+          group.meals.push({
+            mealType: entry.mealType || '食事',
+            items: entry.items || [],
+            totalKcal: entry.totalKcal || 0,
+            totalProtein: entry.totalProtein || 0,
+            totalFat: entry.totalFat || 0,
+            totalCarbs: entry.totalCarbs || 0,
+            time: entry.time || '',
+            updatedAt: entry.updatedAt || '',
+          })
+        }
+
+        // 日計を再計算
+        group.dayTotalKcal += entry.totalKcal || 0
+        group.dayTotalProtein += entry.totalProtein || 0
+        group.dayTotalFat += entry.totalFat || 0
+        group.dayTotalCarbs += entry.totalCarbs || 0
+        group.mealCount = group.meals.length
+
+        const entryUpdatedAt = entry.updatedAt || `${entry.date}T${entry.time || '00:00'}:00+09:00`
+        if (!group.latestUpdatedAt || entryUpdatedAt > group.latestUpdatedAt) {
+          group.latestUpdatedAt = entryUpdatedAt
+        }
       }
     }
 
-    // 更新日時の降順でソート
-    feed.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    // 食事を時系列順にソート（朝食→昼食→夕食→間食）
+    const mealOrder: Record<string, number> = { '朝食': 1, '昼食': 2, '夕食': 3, '間食': 4, '食事': 5 }
+    for (const group of groupMap.values()) {
+      group.meals.sort((a, b) => (mealOrder[a.mealType] || 9) - (mealOrder[b.mealType] || 9))
+    }
+
+    // 最新更新順にソート
+    const feed = Array.from(groupMap.values())
+      .sort((a, b) => b.latestUpdatedAt.localeCompare(a.latestUpdatedAt))
 
     return new Response(JSON.stringify({ feed, total: feed.length }), { status: 200, headers: cors })
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: cors })
+    return new Response(JSON.stringify({ feed: [], total: 0, error: String(err) }), { status: 200, headers: cors })
   }
 }
 
