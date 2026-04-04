@@ -1,25 +1,38 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { getPointsData, getTodayPoints, doLottery, getAvailableLotteries, getLotteryHistory, getRarityColor, getRarityLabel } from '@/lib/points'
+import { toJSTDateStr } from '@/lib/date-utils'
+import type { LotteryResult } from '@/lib/points'
 
-const nutrition = {
-  calories: { current: 1420, target: 2000 },
-  protein: { current: 98, target: 160 },
-  fat: { current: 42, target: 60 },
-  carbs: { current: 165, target: 250 },
+// 食事記録の型定義
+interface MealRecord {
+  id: string
+  mealDate: string
+  mealType: string
+  foodName: string
+  caloriesKcal: number
+  proteinG: number
+  fatG: number
+  carbsG: number
+  fiberG: number
+  saltG: number
+  items: { name: string; grams: number; kcal: number; protein: number; fat: number; carbs: number }[]
+  photoUrl?: string
+  advice?: string
 }
 
-const supplements = [
-  { name: 'ホエイプロテイン', timing: 'トレーニング後', done: true },
-  { name: 'クレアチン', timing: 'トレーニング前', done: true },
-  { name: 'BCAA', timing: 'トレーニング中', done: false },
-  { name: 'マルチビタミン', timing: '朝食後', done: true },
-]
+// 体組成の型定義
+interface BodyRecord {
+  id: string
+  date: string
+  weight?: number
+  bodyFat?: number
+  muscleMass?: number
+  [key: string]: unknown
+}
 
-const trainingItems = [
-  { name: '胸・三頭筋', cat: '筋トレ', detail: '65分 · 320kcal', catColor: '#7c3aed', catBg: '#ede9fe' },
-]
 
 interface GoalData {
   cal: number
@@ -45,41 +58,153 @@ interface Reservation {
 }
 
 export default function DashboardPage() {
-  const calPct = Math.min((nutrition.calories.current / nutrition.calories.target) * 100, 100)
-  const isOver = nutrition.calories.current > nutrition.calories.target
-  const [suppState, setSuppState] = useState(supplements.map(s => s.done))
   const [goal, setGoal] = useState<GoalData | null>(null)
   const [nextReservation, setNextReservation] = useState<Reservation | null>(null)
+  const [todayNutrition, setTodayNutrition] = useState({ calories: 0, protein: 0, fat: 0, carbs: 0 })
+  const [todayMealRecords, setTodayMealRecords] = useState<MealRecord[]>([])
+  const [latestBody, setLatestBody] = useState<{ weight: string; bodyFat: string; muscle: string; weightChange: string; fatChange: string; muscleChange: string } | null>(null)
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const raw = localStorage.getItem('goals_v1')
-        if (raw) {
-          const parsed = JSON.parse(raw)
-          if (parsed['__default__']) {
-            setGoal(parsed['__default__'])
-          }
-        }
-      } catch {
-        // ignore
+  // 管理栄養士コメント
+  const [nutritionistComments, setNutritionistComments] = useState<{ id: string; date: string; staffName: string; category: string; comment: string }[]>([])
+
+  // ポイントシステム
+  const [totalPoints, setTotalPoints] = useState(0)
+  const [todayEarned, setTodayEarned] = useState(0)
+  const [todayMeals, setTodayMeals] = useState({ breakfast: false, lunch: false, dinner: false, snack: false, bonus: false })
+  const [availableLotteries, setAvailableLotteries] = useState(0)
+  const [showLotteryModal, setShowLotteryModal] = useState(false)
+  const [lotteryResult, setLotteryResult] = useState<LotteryResult | null>(null)
+  const [isSpinning, setIsSpinning] = useState(false)
+  const [lotteryHistory, setLotteryHistory] = useState<LotteryResult[]>([])
+
+  // データ読み込み関数（初回＋ページ復帰時に実行）
+  const loadAllData = useCallback(() => {
+    if (typeof window === 'undefined') return
+
+    // 管理栄養士コメントの読み込み
+    try {
+      const commentsRaw = localStorage.getItem('nutritionist_comments_v1')
+      if (commentsRaw) {
+        const parsed = JSON.parse(commentsRaw)
+        setNutritionistComments(Array.isArray(parsed) ? parsed : [])
       }
+    } catch { /* ignore */ }
 
-      try {
-        const raw = localStorage.getItem('reservations_v1')
-        if (raw) {
-          const all: Reservation[] = JSON.parse(raw)
-          const today = new Date().toISOString().slice(0, 10)
-          const upcoming = all
-            .filter(r => r.status === 'confirmed' && r.date >= today)
-            .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
-          setNextReservation(upcoming[0] ?? null)
+    try {
+      const raw = localStorage.getItem('goals_v1')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (parsed['__default__']) {
+          setGoal(parsed['__default__'])
         }
-      } catch {
-        // ignore
+      }
+    } catch { /* ignore */ }
+
+    // 食事記録データ読み込み
+    try {
+      const mealRaw = localStorage.getItem('mealRecords_v1')
+      if (mealRaw) {
+        const allRecords: MealRecord[] = JSON.parse(mealRaw)
+        const today = toJSTDateStr()
+        const todayRecs = allRecords.filter(r => r.mealDate === today)
+        setTodayMealRecords(todayRecs)
+        const totals = todayRecs.reduce((acc, r) => ({
+          calories: acc.calories + (r.caloriesKcal || 0),
+          protein: acc.protein + (r.proteinG || 0),
+          fat: acc.fat + (r.fatG || 0),
+          carbs: acc.carbs + (r.carbsG || 0),
+        }), { calories: 0, protein: 0, fat: 0, carbs: 0 })
+        setTodayNutrition(totals)
+      } else {
+        setTodayMealRecords([])
+        setTodayNutrition({ calories: 0, protein: 0, fat: 0, carbs: 0 })
+      }
+    } catch { /* ignore */ }
+
+    // 体組成データ読み込み
+    try {
+      const bodyRaw = localStorage.getItem('bodyRecords_v1')
+      if (bodyRaw) {
+        const allBody: BodyRecord[] = JSON.parse(bodyRaw)
+        const sorted = [...allBody].sort((a, b) => b.date.localeCompare(a.date))
+        if (sorted.length > 0) {
+          const latest = sorted[0]
+          const prev = sorted.length > 1 ? sorted[1] : null
+          const wChange = prev && latest.weight != null && prev.weight != null
+            ? (latest.weight - prev.weight).toFixed(1) : '—'
+          const fChange = prev && latest.bodyFat != null && prev.bodyFat != null
+            ? (latest.bodyFat - prev.bodyFat).toFixed(1) : '—'
+          const mChange = prev && latest.muscleMass != null && prev.muscleMass != null
+            ? (latest.muscleMass - prev.muscleMass).toFixed(1) : '—'
+          setLatestBody({
+            weight: latest.weight != null ? latest.weight.toFixed(1) : '—',
+            bodyFat: latest.bodyFat != null ? latest.bodyFat.toFixed(1) : '—',
+            muscle: latest.muscleMass != null ? latest.muscleMass.toFixed(1) : '—',
+            weightChange: wChange !== '—' ? (Number(wChange) >= 0 ? '+' + wChange : wChange) : '—',
+            fatChange: fChange !== '—' ? (Number(fChange) >= 0 ? '+' + fChange : fChange) : '—',
+            muscleChange: mChange !== '—' ? (Number(mChange) >= 0 ? '+' + mChange : mChange) : '—',
+          })
+        }
+      }
+    } catch { /* ignore */ }
+
+    // ポイントデータ読み込み
+    const ptData = getPointsData()
+    setTotalPoints(ptData.totalPoints)
+    setAvailableLotteries(getAvailableLotteries())
+    const today = toJSTDateStr()
+    const todayPt = getTodayPoints(today)
+    setTodayEarned(todayPt.earned)
+    if (todayPt.record) {
+      setTodayMeals({
+        breakfast: todayPt.record.breakfast,
+        lunch: todayPt.record.lunch,
+        dinner: todayPt.record.dinner,
+        snack: todayPt.record.snack,
+        bonus: todayPt.record.bonus,
+      })
+    }
+    setLotteryHistory(getLotteryHistory().results.slice(0, 10))
+
+    try {
+      const raw = localStorage.getItem('reservations_v1')
+      if (raw) {
+        const all: Reservation[] = JSON.parse(raw)
+        const todayStr = toJSTDateStr()
+        const upcoming = all
+          .filter(r => r.status === 'confirmed' && r.date >= todayStr)
+          .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
+        setNextReservation(upcoming[0] ?? null)
+      }
+    } catch { /* ignore */ }
+  }, [])
+
+  // 初回読み込み
+  useEffect(() => {
+    loadAllData()
+  }, [loadAllData])
+
+  // ページに戻ったとき（食事記録ページから戻る等）にデータを再読み込み
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        loadAllData()
       }
     }
-  }, [])
+    const handleFocus = () => loadAllData()
+    document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('focus', handleFocus)
+    window.addEventListener('storage', loadAllData)
+    window.addEventListener('mealRecordsUpdated', loadAllData)
+    window.addEventListener('popstate', loadAllData)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('storage', loadAllData)
+      window.removeEventListener('mealRecordsUpdated', loadAllData)
+      window.removeEventListener('popstate', loadAllData)
+    }
+  }, [loadAllData])
 
   const calcRemainingDays = (endDate?: string) => {
     if (!endDate) return null
@@ -97,6 +222,51 @@ export default function DashboardPage() {
       }}
     >
       <div style={{ maxWidth: '640px', margin: '0 auto', padding: '16px 12px 40px' }}>
+
+        {/* ===== 管理栄養士からのコメント ===== */}
+        {nutritionistComments.length > 0 && (() => {
+          const latest = nutritionistComments[0]
+          const catStyles: Record<string, { color: string; bg: string; border: string; icon: string }> = {
+            '食事': { color: '#16a34a', bg: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)', border: '#bbf7d0', icon: '🍽️' },
+            '体組成': { color: '#dc2626', bg: 'linear-gradient(135deg, #fef2f2 0%, #fecaca 100%)', border: '#fca5a5', icon: '📊' },
+            'トレーニング': { color: '#7c3aed', bg: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)', border: '#c4b5fd', icon: '💪' },
+            '全般': { color: '#2563eb', bg: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', border: '#93c5fd', icon: '💬' },
+          }
+          const cat = catStyles[latest.category] || catStyles['全般']
+          return (
+            <div style={{
+              background: cat.bg,
+              borderRadius: '16px', border: `1px solid ${cat.border}`,
+              marginBottom: '12px', overflow: 'hidden',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            }}>
+              <div style={{ padding: '14px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '13px', fontWeight: 800, color: cat.color, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {cat.icon} 管理栄養士からのコメント
+                </span>
+                <span style={{ fontSize: '10px', color: '#9ca3af', background: 'rgba(255,255,255,0.7)', padding: '2px 8px', borderRadius: '6px' }}>
+                  {latest.date}
+                </span>
+              </div>
+              <div style={{ padding: '10px 16px 14px' }}>
+                <p style={{ fontSize: '14px', color: '#1f2937', margin: 0, lineHeight: 1.7, fontWeight: 500 }}>
+                  {latest.comment}
+                </p>
+                <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ background: 'rgba(255,255,255,0.7)', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
+                    {latest.staffName}
+                  </span>
+                  <span style={{
+                    background: 'rgba(255,255,255,0.7)', padding: '2px 8px', borderRadius: '6px',
+                    fontWeight: 600, color: cat.color,
+                  }}>
+                    {latest.category}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
 
         {/* ===== 次回の栄養相談 ===== */}
         {nextReservation && (
@@ -165,7 +335,7 @@ export default function DashboardPage() {
             </span>
           </div>
           <div style={{ padding: '14px 16px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
               <Link
                 href="/meal"
                 style={{
@@ -193,30 +363,17 @@ export default function DashboardPage() {
                 体組成を測定
               </Link>
               <Link
-                href="/training"
+                href="/reserve"
                 style={{
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                   gap: '6px', padding: '16px 8px', borderRadius: '14px',
-                  border: '1.5px solid #a855f7', color: '#9333ea',
+                  border: '1.5px solid #0ea5e9', color: '#0284c7',
                   fontWeight: 700, fontSize: '12px', transition: 'all 0.2s',
                   textAlign: 'center', background: 'white', cursor: 'pointer', textDecoration: 'none',
                 }}
               >
-                <span style={{ fontSize: '24px' }}>💪</span>
-                トレーニング
-              </Link>
-              <Link
-                href="/supplement"
-                style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                  gap: '6px', padding: '16px 8px', borderRadius: '14px',
-                  border: '1.5px solid #f97316', color: '#ea580c',
-                  fontWeight: 700, fontSize: '12px', transition: 'all 0.2s',
-                  textAlign: 'center', background: 'white', cursor: 'pointer', textDecoration: 'none',
-                }}
-              >
-                <span style={{ fontSize: '24px' }}>💊</span>
-                サプリを記録
+                <span style={{ fontSize: '24px' }}>📅</span>
+                相談を予約
               </Link>
             </div>
           </div>
@@ -299,66 +456,128 @@ export default function DashboardPage() {
         )}
 
         {/* ===== 今日の栄養 ===== */}
-        <div
-          style={{
-            background: 'white',
-            border: '1px solid #f0f0f0',
-            borderRadius: '16px',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-            marginBottom: '12px',
-          }}
-        >
-          <div style={{ padding: '14px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              🍽 今日の栄養
-            </span>
-            <Link href="/meal" style={{ fontSize: '11px', color: '#22c55e', fontWeight: 600, textDecoration: 'none', cursor: 'pointer' }}>
-              詳細 ›
-            </Link>
-          </div>
-          <div style={{ padding: '14px 16px' }}>
-            <p style={{ fontSize: '11px', color: '#6b7280' }}>カロリー</p>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', margin: '2px 0' }}>
-              <span style={{ fontSize: '32px', fontWeight: 900, color: '#111827', lineHeight: 1 }}>
-                {nutrition.calories.current.toLocaleString()}
-              </span>
-              <span style={{ fontSize: '13px', color: '#9ca3af' }}>
-                / {nutrition.calories.target.toLocaleString()} kcal
-              </span>
-            </div>
-            {/* プログレスバー */}
-            <div style={{ width: '100%', height: '10px', background: '#f3f4f6', borderRadius: '20px', overflow: 'hidden', margin: '8px 0' }}>
-              <div
-                style={{
-                  height: '100%',
-                  borderRadius: '20px',
-                  width: `${calPct}%`,
-                  background: isOver
-                    ? 'linear-gradient(90deg, #22c55e, #f59e0b, #ef4444)'
-                    : 'linear-gradient(90deg, #22c55e, #4ade80)',
-                  transition: 'width 0.6s',
-                }}
-              />
-            </div>
-            {/* PFCグリッド */}
-            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-              {[
-                { label: 'たんぱく質', value: nutrition.protein.current, target: nutrition.protein.target, unit: 'g', color: '#3B82F6' },
-                { label: '脂質', value: nutrition.fat.current, target: nutrition.fat.target, unit: 'g', color: '#F59E0B' },
-                { label: '炭水化物', value: nutrition.carbs.current, target: nutrition.carbs.target, unit: 'g', color: '#10B981' },
-              ].map((pfc) => (
-                <div key={pfc.label} style={{ minWidth: '70px' }}>
-                  <div style={{ fontSize: '10px', color: '#9ca3af', marginBottom: '1px' }}>{pfc.label}</div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
-                    <span style={{ fontSize: '15px', fontWeight: 800, color: pfc.color }}>{pfc.value}</span>
-                    <span style={{ fontSize: '10px', color: '#9ca3af' }}>{pfc.unit}</span>
-                  </div>
-                  <div style={{ fontSize: '10px', color: '#9ca3af' }}>目標 {pfc.target}{pfc.unit}</div>
+        {(() => {
+          const calTarget = goal?.cal || 2000
+          const pTarget = goal?.protein || 160
+          const fTarget = goal?.fat || 60
+          const cTarget = goal?.carbs || 250
+          const calPct = Math.min((todayNutrition.calories / calTarget) * 100, 100)
+          const isOver = todayNutrition.calories > calTarget
+          return (
+            <div
+              style={{
+                background: 'white',
+                border: '1px solid #f0f0f0',
+                borderRadius: '16px',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+                marginBottom: '12px',
+              }}
+            >
+              <div style={{ padding: '14px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  🍽 今日の栄養
+                </span>
+                <Link href="/meal" style={{ fontSize: '11px', color: '#22c55e', fontWeight: 600, textDecoration: 'none', cursor: 'pointer' }}>
+                  詳細 ›
+                </Link>
+              </div>
+              <div style={{ padding: '14px 16px' }}>
+                <p style={{ fontSize: '11px', color: '#6b7280' }}>カロリー</p>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', margin: '2px 0' }}>
+                  <span style={{ fontSize: '32px', fontWeight: 900, color: '#111827', lineHeight: 1 }}>
+                    {Math.round(todayNutrition.calories).toLocaleString()}
+                  </span>
+                  <span style={{ fontSize: '13px', color: '#9ca3af' }}>
+                    / {calTarget.toLocaleString()} kcal
+                  </span>
                 </div>
-              ))}
+                {/* プログレスバー */}
+                <div style={{ width: '100%', height: '10px', background: '#f3f4f6', borderRadius: '20px', overflow: 'hidden', margin: '8px 0' }}>
+                  <div
+                    style={{
+                      height: '100%',
+                      borderRadius: '20px',
+                      width: `${calPct}%`,
+                      background: isOver
+                        ? 'linear-gradient(90deg, #22c55e, #f59e0b, #ef4444)'
+                        : 'linear-gradient(90deg, #22c55e, #4ade80)',
+                      transition: 'width 0.6s',
+                    }}
+                  />
+                </div>
+                {/* PFCグリッド */}
+                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                  {[
+                    { label: 'たんぱく質', value: Math.round(todayNutrition.protein * 10) / 10, target: pTarget, unit: 'g', color: '#3B82F6' },
+                    { label: '脂質', value: Math.round(todayNutrition.fat * 10) / 10, target: fTarget, unit: 'g', color: '#F59E0B' },
+                    { label: '炭水化物', value: Math.round(todayNutrition.carbs * 10) / 10, target: cTarget, unit: 'g', color: '#10B981' },
+                  ].map((pfc) => (
+                    <div key={pfc.label} style={{ minWidth: '70px' }}>
+                      <div style={{ fontSize: '10px', color: '#9ca3af', marginBottom: '1px' }}>{pfc.label}</div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
+                        <span style={{ fontSize: '15px', fontWeight: 800, color: pfc.color }}>{pfc.value}</span>
+                        <span style={{ fontSize: '10px', color: '#9ca3af' }}>{pfc.unit}</span>
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#9ca3af' }}>目標 {pfc.target}{pfc.unit}</div>
+                    </div>
+                  ))}
+                </div>
+                {/* 今日の食事一覧 */}
+                {todayMealRecords.length > 0 && (
+                  <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #f3f4f6' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px' }}>記録済み</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {todayMealRecords.map((rec) => (
+                        <div key={rec.id} style={{ background: '#f9fafb', borderRadius: '10px', padding: '8px 10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                            {rec.photoUrl && (
+                              <img src={rec.photoUrl} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover' }} />
+                            )}
+                            <span style={{ fontSize: '13px' }}>
+                              {rec.mealType === '朝食' ? '🌅' : rec.mealType === '昼食' ? '☀️' : rec.mealType === '夕食' ? '🌙' : '🍪'}
+                            </span>
+                            <span style={{ flex: 1, fontWeight: 700, color: '#374151', fontSize: '12px' }}>{rec.mealType}</span>
+                            <span style={{ fontSize: '12px', fontWeight: 700, color: '#16a34a' }}>{Math.round(rec.caloriesKcal)}kcal</span>
+                          </div>
+                          {/* 各食材の詳細 */}
+                          {rec.items && rec.items.length > 0 && (
+                            <div style={{ marginTop: '4px', paddingLeft: '4px' }}>
+                              {rec.items.map((item: any, i: number) => (
+                                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#6b7280', padding: '2px 0' }}>
+                                  <span style={{ color: '#374151', fontWeight: 500, flex: 1 }}>{item.foodName || item.name}</span>
+                                  {(item.grams || item.g) && <span>{item.grams || item.g}g</span>}
+                                  <span style={{ color: '#16a34a', fontWeight: 600 }}>{Math.round(item.caloriesKcal || item.kcal || 0)}kcal</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '3px' }}>
+                            P:{(rec.proteinG || 0).toFixed(1)}g · F:{(rec.fatG || 0).toFixed(1)}g · C:{(rec.carbsG || 0).toFixed(1)}g
+                          </div>
+                          {rec.advice && (
+                            <div style={{ marginTop: '4px', padding: '6px 8px', background: '#f0fdf4', borderRadius: '6px', border: '1px solid #dcfce7' }}>
+                              <p style={{ fontSize: '10px', color: '#374151', margin: 0, lineHeight: 1.5 }}>
+                                💡 {rec.advice}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {todayMealRecords.length === 0 && (
+                  <div style={{ marginTop: '12px', textAlign: 'center' }}>
+                    <p style={{ fontSize: '12px', color: '#9ca3af' }}>まだ食事が記録されていません</p>
+                    <Link href="/meal" style={{ fontSize: '12px', color: '#22c55e', fontWeight: 700, textDecoration: 'none' }}>
+                      食事を記録する →
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </div>
+          )
+        })()}
 
         {/* ===== 体組成（最新値）===== */}
         <div
@@ -377,117 +596,268 @@ export default function DashboardPage() {
             <Link href="/body" style={{ fontSize: '11px', color: '#22c55e', fontWeight: 600, textDecoration: 'none' }}>詳細 ›</Link>
           </div>
           <div style={{ padding: '14px 16px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+            {latestBody ? (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                {[
+                  { label: '体重', value: latestBody.weight, unit: 'kg', change: latestBody.weightChange, isGood: latestBody.weightChange.startsWith('-') },
+                  { label: '体脂肪率', value: latestBody.bodyFat, unit: '%', change: latestBody.fatChange, isGood: latestBody.fatChange.startsWith('-') },
+                  { label: '筋肉量', value: latestBody.muscle, unit: 'kg', change: latestBody.muscleChange, isGood: latestBody.muscleChange.startsWith('+') },
+                ].map((stat) => (
+                  <div key={stat.label} style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '10px', color: '#9ca3af' }}>{stat.label}</div>
+                    <div style={{ fontSize: '18px', fontWeight: 900, marginTop: '2px' }}>{stat.value}</div>
+                    <div style={{ fontSize: '10px', color: '#9ca3af' }}>{stat.unit}</div>
+                    <div style={{ marginTop: '2px', fontSize: '10px', fontWeight: 600, color: stat.change === '—' ? '#9ca3af' : stat.isGood ? '#22c55e' : '#ef4444' }}>
+                      {stat.change}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                <p style={{ fontSize: '12px', color: '#9ca3af' }}>まだ体組成が記録されていません</p>
+                <Link href="/body" style={{ fontSize: '12px', color: '#22c55e', fontWeight: 700, textDecoration: 'none' }}>
+                  体組成を記録する →
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ===== ポイント & 抽選 ===== */}
+        <div
+          style={{
+            background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+            border: '1.5px solid #f59e0b',
+            borderRadius: '16px',
+            boxShadow: '0 2px 8px rgba(245,158,11,0.2)',
+            marginBottom: '12px',
+          }}
+        >
+          <div style={{ padding: '14px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '13px', fontWeight: 700, color: '#92400e', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              🎯 ポイント＆抽選
+            </span>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#92400e' }}>
+              今日 {todayEarned}/5pt
+            </span>
+          </div>
+          <div style={{ padding: '12px 16px' }}>
+            {/* 累計ポイント */}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '8px' }}>
+              <span style={{ fontSize: '36px', fontWeight: 900, color: '#92400e', lineHeight: 1 }}>{totalPoints}</span>
+              <span style={{ fontSize: '14px', fontWeight: 600, color: '#b45309' }}>pt</span>
+              {availableLotteries > 0 && (
+                <span style={{ fontSize: '11px', fontWeight: 800, background: '#ef4444', color: 'white', padding: '2px 8px', borderRadius: '20px', marginLeft: '8px' }}>
+                  抽選{availableLotteries}回可能!
+                </span>
+              )}
+            </div>
+            {/* 100ptプログレスバー */}
+            <div style={{ marginBottom: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#92400e', marginBottom: '3px' }}>
+                <span>次の抽選まで</span>
+                <span>{totalPoints % 100}/100pt</span>
+              </div>
+              <div style={{ width: '100%', height: '10px', background: 'rgba(255,255,255,0.5)', borderRadius: '20px', overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%', borderRadius: '20px', width: `${(totalPoints % 100)}%`,
+                  background: 'linear-gradient(90deg, #f59e0b, #ef4444)',
+                  transition: 'width 0.5s',
+                }} />
+              </div>
+            </div>
+            {/* 今日の獲得状況 */}
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
               {[
-                { label: '体重', value: '72.4', unit: 'kg', change: '-0.3', isGood: true },
-                { label: '体脂肪率', value: '18.5', unit: '%', change: '-0.2', isGood: true },
-                { label: '筋肉量', value: '59.0', unit: 'kg', change: '+0.1', isGood: true },
-              ].map((stat) => (
-                <div key={stat.label} style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '10px', color: '#9ca3af' }}>{stat.label}</div>
-                  <div style={{ fontSize: '18px', fontWeight: 900, marginTop: '2px' }}>{stat.value}</div>
-                  <div style={{ fontSize: '10px', color: '#9ca3af' }}>{stat.unit}</div>
-                  <div style={{ marginTop: '2px', fontSize: '10px', fontWeight: 600, color: stat.isGood ? '#22c55e' : '#ef4444' }}>
-                    {stat.change}
+                { label: '朝食', done: todayMeals.breakfast, icon: '🌅' },
+                { label: '昼食', done: todayMeals.lunch, icon: '☀️' },
+                { label: '夕食', done: todayMeals.dinner, icon: '🌙' },
+                { label: '間食', done: todayMeals.snack, icon: '🍪' },
+                { label: 'ボーナス', done: todayMeals.bonus, icon: '⭐' },
+              ].map(m => (
+                <div key={m.label} style={{
+                  flex: 1, textAlign: 'center', padding: '6px 2px', borderRadius: '8px',
+                  background: m.done ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.4)',
+                  border: m.done ? '1px solid #22c55e' : '1px solid rgba(0,0,0,0.05)',
+                }}>
+                  <div style={{ fontSize: '14px' }}>{m.icon}</div>
+                  <div style={{ fontSize: '9px', fontWeight: 700, color: m.done ? '#16a34a' : '#9ca3af' }}>
+                    {m.done ? '+1' : '—'}
                   </div>
                 </div>
               ))}
             </div>
+            {/* 抽選ボタン */}
+            <button
+              onClick={() => { setLotteryResult(null); setShowLotteryModal(true) }}
+              disabled={availableLotteries === 0}
+              style={{
+                width: '100%', padding: '12px', borderRadius: '12px', fontSize: '14px',
+                fontWeight: 800, border: 'none', cursor: availableLotteries > 0 ? 'pointer' : 'not-allowed',
+                fontFamily: 'inherit', transition: 'all 0.2s',
+                background: availableLotteries > 0 ? 'linear-gradient(90deg, #ef4444, #f59e0b)' : '#d1d5db',
+                color: 'white',
+                boxShadow: availableLotteries > 0 ? '0 4px 12px rgba(239,68,68,0.3)' : 'none',
+              }}
+            >
+              {availableLotteries > 0 ? `🎰 抽選する（${availableLotteries}回）` : '🎰 100pt で抽選（あと' + (100 - totalPoints % 100) + 'pt）'}
+            </button>
           </div>
         </div>
 
-        {/* ===== 今日のトレーニング ===== */}
-        <div
-          style={{
-            background: 'white',
-            border: '1px solid #f0f0f0',
-            borderRadius: '16px',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-            marginBottom: '12px',
-          }}
-        >
-          <div style={{ padding: '14px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              💪 今日のトレーニング
-            </span>
-            <Link href="/training" style={{ fontSize: '11px', color: '#22c55e', fontWeight: 600, textDecoration: 'none' }}>詳細 ›</Link>
-          </div>
-          <div style={{ padding: '14px 16px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {trainingItems.map((item, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '10px',
-                    padding: '8px 0', borderBottom: '1px solid #f3f4f6',
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: '10px', fontWeight: 700, padding: '2px 8px',
-                      borderRadius: '20px', background: item.catBg, color: item.catColor,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {item.cat}
-                  </span>
-                  <span style={{ flex: 1, fontSize: '13px', fontWeight: 600 }}>{item.name}</span>
-                  <span style={{ fontSize: '11px', color: '#9ca3af' }}>{item.detail}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* ===== 今日のサプリ ===== */}
-        <div
-          style={{
-            background: 'white',
-            border: '1px solid #f0f0f0',
-            borderRadius: '16px',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-            marginBottom: '12px',
-          }}
-        >
-          <div style={{ padding: '14px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              💊 今日のサプリ
-            </span>
-            <Link href="/supplement" style={{ fontSize: '11px', color: '#22c55e', fontWeight: 600, textDecoration: 'none' }}>詳細 ›</Link>
-          </div>
-          <div style={{ padding: '14px 16px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {supplements.map((s, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '10px',
-                    padding: '8px 10px', borderRadius: '10px', background: '#fafafa',
-                  }}
-                >
-                  <div
-                    onClick={() => setSuppState(prev => prev.map((v, idx) => idx === i ? !v : v))}
-                    style={{
-                      width: '24px', height: '24px', borderRadius: '50%',
-                      border: suppState[i] ? 'none' : '2px solid #d1d5db',
-                      background: suppState[i] ? '#22c55e' : 'transparent',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '12px', flexShrink: 0, cursor: 'pointer',
-                      color: suppState[i] ? 'white' : '#9ca3af',
-                      transition: 'all 0.2s',
-                    }}
-                  >
-                    {suppState[i] ? '✓' : ''}
-                  </div>
-                  <span style={{ flex: 1, fontSize: '13px', fontWeight: 600 }}>{s.name}</span>
-                  <span style={{ fontSize: '10px', color: '#9ca3af' }}>{s.timing}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
 
       </div>
+
+      {/* ===== 抽選モーダル ===== */}
+      {showLotteryModal && (
+        <div
+          style={{
+            display: 'flex', position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,0.6)', zIndex: 300,
+            alignItems: 'center', justifyContent: 'center',
+          }}
+          onClick={() => setShowLotteryModal(false)}
+        >
+          <div
+            style={{
+              background: 'white', width: '90%', maxWidth: '380px',
+              borderRadius: '24px', overflow: 'hidden',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{
+              background: 'linear-gradient(135deg, #ef4444, #f59e0b)',
+              padding: '24px 20px', textAlign: 'center',
+            }}>
+              <div style={{ fontSize: '40px', marginBottom: '8px' }}>🎰</div>
+              <h2 style={{ fontSize: '20px', fontWeight: 900, color: 'white', margin: 0 }}>スポミル抽選</h2>
+              <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.8)', margin: '4px 0 0' }}>100pt で1回抽選できます</p>
+            </div>
+            <div style={{ padding: '20px' }}>
+              {!lotteryResult ? (
+                <>
+                  <p style={{ fontSize: '13px', color: '#6b7280', textAlign: 'center', marginBottom: '12px' }}>
+                    残りポイント: <strong>{totalPoints}pt</strong>（{availableLotteries}回抽選可能）
+                  </p>
+                  <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '16px' }}>
+                    <p style={{ fontWeight: 700, marginBottom: '6px' }}>景品一覧:</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {[
+                        { icon: '💳', name: 'クオカード500円', rarity: 'スーパーレア' },
+                        { icon: '🏆', name: 'リカバリープロ', rarity: 'ウルトラレア' },
+                        { icon: '👕', name: 'スポミルTシャツ', rarity: 'レア' },
+                        { icon: '💪', name: 'プロテイン1kg', rarity: 'レア' },
+                        { icon: '🎫', name: 'スポミルステッカー', rarity: 'コモン' },
+                      ].map(p => (
+                        <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
+                          <span style={{ fontSize: '16px' }}>{p.icon}</span>
+                          <span style={{ flex: 1, fontSize: '12px' }}>{p.name}</span>
+                          <span style={{ fontSize: '10px', fontWeight: 700, color: '#f59e0b' }}>{p.rarity}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setIsSpinning(true)
+                      setTimeout(() => {
+                        const result = doLottery()
+                        if (result) {
+                          setLotteryResult(result)
+                          const ptData = getPointsData()
+                          setTotalPoints(ptData.totalPoints)
+                          setAvailableLotteries(getAvailableLotteries())
+                          setLotteryHistory(getLotteryHistory().results.slice(0, 10))
+                        }
+                        setIsSpinning(false)
+                      }, 1500)
+                    }}
+                    disabled={availableLotteries === 0 || isSpinning}
+                    style={{
+                      width: '100%', padding: '14px', borderRadius: '12px', fontSize: '15px',
+                      fontWeight: 800, border: 'none', fontFamily: 'inherit',
+                      cursor: (availableLotteries > 0 && !isSpinning) ? 'pointer' : 'not-allowed',
+                      background: (availableLotteries > 0 && !isSpinning) ? 'linear-gradient(90deg, #ef4444, #f59e0b)' : '#d1d5db',
+                      color: 'white',
+                      animation: isSpinning ? 'pulse 0.5s infinite' : 'none',
+                    }}
+                  >
+                    {isSpinning ? '🎰 抽選中...' : '100pt 使って抽選する！'}
+                  </button>
+                </>
+              ) : (
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{
+                    fontSize: '64px', marginBottom: '12px',
+                    animation: 'bounce 0.5s',
+                  }}>
+                    {lotteryResult.icon}
+                  </div>
+                  {lotteryResult.rarity !== 'miss' && (
+                    <div style={{
+                      fontSize: '12px', fontWeight: 800,
+                      color: getRarityColor(lotteryResult.rarity),
+                      marginBottom: '4px',
+                    }}>
+                      {getRarityLabel(lotteryResult.rarity)}
+                    </div>
+                  )}
+                  <h3 style={{
+                    fontSize: '20px', fontWeight: 900, color: '#111827', margin: '0 0 8px',
+                  }}>
+                    {lotteryResult.prize}
+                  </h3>
+                  <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '16px' }}>
+                    残りポイント: {totalPoints}pt
+                  </p>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={() => setShowLotteryModal(false)}
+                      style={{
+                        flex: 1, padding: '11px', borderRadius: '10px', fontSize: '13px',
+                        fontWeight: 600, border: '1px solid #e5e7eb', background: 'white',
+                        color: '#6b7280', cursor: 'pointer', fontFamily: 'inherit',
+                      }}
+                    >
+                      閉じる
+                    </button>
+                    {availableLotteries > 0 && (
+                      <button
+                        onClick={() => setLotteryResult(null)}
+                        style={{
+                          flex: 1, padding: '11px', borderRadius: '10px', fontSize: '13px',
+                          fontWeight: 700, border: 'none',
+                          background: 'linear-gradient(90deg, #ef4444, #f59e0b)',
+                          color: 'white', cursor: 'pointer', fontFamily: 'inherit',
+                        }}
+                      >
+                        もう1回！
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* 抽選履歴 */}
+              {lotteryHistory.length > 0 && (
+                <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #f3f4f6' }}>
+                  <p style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px' }}>最近の抽選結果</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                    {lotteryHistory.slice(0, 5).map((r, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#6b7280' }}>
+                        <span>{r.icon}</span>
+                        <span style={{ flex: 1, fontWeight: 600, color: getRarityColor(r.rarity) }}>{r.prize}</span>
+                        <span style={{ fontSize: '10px' }}>{new Date(r.date).toLocaleDateString('ja-JP')}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

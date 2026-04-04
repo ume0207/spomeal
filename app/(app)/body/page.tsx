@@ -1,6 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { toJSTDateStr } from '@/lib/date-utils'
+import { addBodyPoint } from '@/lib/points'
 
 interface BodyRecord {
   date: string
@@ -26,9 +28,10 @@ const demoRecords: BodyRecord[] = [
   { date: '3月19日', weight: 73.6, bodyFat: 19.4, muscle: 58.4, bmi: calcBmi(73.6) },
 ]
 
-const weekWeights = demoRecords.map((r) => r.weight).reverse()
-const minW = Math.min(...weekWeights) - 0.5
-const maxW = Math.max(...weekWeights) + 0.5
+// チャート用のデモデータ（実データがあれば上書きされる）
+const demoWeekWeights = demoRecords.map((r) => r.weight).reverse()
+const demoMinW = Math.min(...demoWeekWeights) - 0.5
+const demoMaxW = Math.max(...demoWeekWeights) + 0.5
 
 const CUPS_GOAL = 8 // 1日の目標コップ数（1600ml）
 
@@ -39,6 +42,49 @@ export default function BodyPage() {
   const [newMuscle, setNewMuscle] = useState('')
   const [targetWeight, setTargetWeight] = useState<number | null>(null)
   const [waterCups, setWaterCups] = useState(0)
+  const [savedRecords, setSavedRecords] = useState<BodyRecord[]>([])
+  const [pointMessage, setPointMessage] = useState('')
+
+  // localStorageから体組成記録を読み込み
+  const loadRecords = useCallback(() => {
+    try {
+      const raw = localStorage.getItem('bodyRecords_v1')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        setSavedRecords(Array.isArray(parsed) ? parsed.sort((a: BodyRecord, b: BodyRecord) => b.date.localeCompare(a.date)) : [])
+      }
+    } catch { /* ignore */ }
+  }, [])
+
+  // 体組成を保存
+  const handleSaveBody = () => {
+    const w = parseFloat(newWeight)
+    if (!w || w <= 0) return
+    const bf = parseFloat(newBodyFat) || 0
+    const m = parseFloat(newMuscle) || 0
+    const bmi = calcBmi(w)
+    const dateStr = toJSTDateStr()
+
+    const newRecord: BodyRecord = { date: dateStr, weight: w, bodyFat: bf, muscle: m, bmi }
+
+    const existing = savedRecords.filter(r => r.date !== dateStr)
+    const updated = [newRecord, ...existing].sort((a, b) => b.date.localeCompare(a.date))
+
+    localStorage.setItem('bodyRecords_v1', JSON.stringify(updated))
+    setSavedRecords(updated)
+
+    // ポイント付与（1日1回）
+    const result = addBodyPoint(dateStr)
+    if (result.pointsAdded > 0) {
+      setPointMessage(`🎉 体組成記録で +${result.pointsAdded}pt！ (累計: ${result.totalPoints}pt)`)
+      setTimeout(() => setPointMessage(''), 3000)
+    }
+
+    setNewWeight('')
+    setNewBodyFat('')
+    setNewMuscle('')
+    setShowAddModal(false)
+  }
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -57,7 +103,7 @@ export default function BodyPage() {
 
       // 水分摂取量の読み込み
       try {
-        const today = new Date().toISOString().slice(0, 10)
+        const today = toJSTDateStr()
         const raw = localStorage.getItem('waterLog_v1')
         if (raw) {
           const parsed = JSON.parse(raw)
@@ -68,15 +114,18 @@ export default function BodyPage() {
       } catch {
         // ignore
       }
+
+      // 体組成記録の読み込み
+      loadRecords()
     }
-  }, [])
+  }, [loadRecords])
 
   const updateWaterCups = (newCount: number) => {
     if (newCount < 0) return
     setWaterCups(newCount)
     if (typeof window !== 'undefined') {
       try {
-        const today = new Date().toISOString().slice(0, 10)
+        const today = toJSTDateStr()
         const raw = localStorage.getItem('waterLog_v1')
         const parsed = raw ? JSON.parse(raw) : {}
         parsed[today] = newCount
@@ -87,8 +136,10 @@ export default function BodyPage() {
     }
   }
 
-  const latest = demoRecords[0]
-  const prev = demoRecords[1]
+  // 実データがあればそれを使用、なければデモデータ
+  const displayRecords = savedRecords.length > 0 ? savedRecords : demoRecords
+  const latest = displayRecords[0]
+  const prev = displayRecords.length > 1 ? displayRecords[1] : latest
   const weightChange = (latest.weight - prev.weight).toFixed(1)
   const fatChange = (latest.bodyFat - prev.bodyFat).toFixed(1)
   const muscleChange = (latest.muscle - prev.muscle).toFixed(1)
@@ -99,6 +150,11 @@ export default function BodyPage() {
   const bmiPct = Math.min(Math.max(((bmi - 15) / (35 - 15)) * 100, 0), 100)
 
   const diffToTarget = targetWeight != null ? (latest.weight - targetWeight).toFixed(1) : null
+
+  // チャート用データ（実データまたはデモ）
+  const weekWeights = displayRecords.slice(0, 7).map(r => r.weight).reverse()
+  const minW = weekWeights.length > 0 ? Math.min(...weekWeights) - 0.5 : demoMinW
+  const maxW = weekWeights.length > 0 ? Math.max(...weekWeights) + 0.5 : demoMaxW
 
   const inputStyle: React.CSSProperties = {
     width: '100%',
@@ -116,6 +172,19 @@ export default function BodyPage() {
   return (
     <div style={{ fontFamily: "'Helvetica Neue', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif", color: '#1a1a1a' }}>
       <div style={{ maxWidth: '900px', margin: '0 auto', padding: '20px 16px 40px' }}>
+
+        {/* ポイント獲得メッセージ */}
+        {pointMessage && (
+          <div style={{
+            position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
+            background: 'linear-gradient(135deg, #22c55e, #16a34a)', color: 'white',
+            padding: '12px 24px', borderRadius: '12px', fontWeight: 700, fontSize: '14px',
+            zIndex: 9999, boxShadow: '0 4px 15px rgba(34,197,94,0.4)',
+            animation: 'fadeIn 0.3s ease-out',
+          }}>
+            {pointMessage}
+          </div>
+        )}
 
         {/* ===== ページヘッダー ===== */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
@@ -403,7 +472,7 @@ export default function BodyPage() {
                 </tr>
               </thead>
               <tbody>
-                {demoRecords.map((record, i) => (
+                {displayRecords.map((record, i) => (
                   <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
                     <td style={{ padding: '10px 12px', color: '#6b7280', whiteSpace: 'nowrap' }}>{record.date}</td>
                     <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700 }}>{record.weight}</td>
@@ -411,14 +480,22 @@ export default function BodyPage() {
                     <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700 }}>{record.muscle}</td>
                     <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700 }}>{record.bmi}</td>
                     <td style={{ padding: '10px 12px' }}>
-                      <button
-                        style={{
-                          padding: '4px 8px', borderRadius: '6px', fontSize: '16px',
-                          color: '#d1d5db', background: 'none', border: 'none', cursor: 'pointer',
-                        }}
-                      >
-                        🗑
-                      </button>
+                      {savedRecords.length > 0 && (
+                        <button
+                          onClick={() => {
+                            if (!confirm('この記録を削除しますか？')) return
+                            const updated = savedRecords.filter((_, idx) => idx !== i)
+                            localStorage.setItem('bodyRecords_v1', JSON.stringify(updated))
+                            setSavedRecords(updated)
+                          }}
+                          style={{
+                            padding: '4px 8px', borderRadius: '6px', fontSize: '16px',
+                            color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer',
+                          }}
+                        >
+                          🗑
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -487,7 +564,7 @@ export default function BodyPage() {
                 </div>
               ))}
               <button
-                onClick={() => setShowAddModal(false)}
+                onClick={handleSaveBody}
                 style={{
                   width: '100%', background: '#dc2626', color: 'white',
                   fontWeight: 700, padding: '12px', borderRadius: '12px',

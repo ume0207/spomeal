@@ -1,0 +1,186 @@
+// 写真解析用: GPT-4o（食品名+グラム数の特定のみ、軽量プロンプト）
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type PagesFunction<Env = Record<string, unknown>> = (context: { request: Request; env: Env; params: Record<string, string>; next: () => Promise<Response> }) => Promise<Response> | Response
+
+interface Env {
+  OPENAI_API_KEY: string
+}
+
+export const onRequestPost: PagesFunction<Env> = async (context) => {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  }
+
+  try {
+    const { text, image, mimeType, images } = await context.request.json() as {
+      text?: string
+      image?: string  // base64 (単一画像・後方互換)
+      mimeType?: string
+      images?: { data: string; mimeType: string }[]  // 複数画像対応
+    }
+
+    if (!text && !image && (!images || images.length === 0)) {
+      return new Response(JSON.stringify({ error: '食事の説明または写真が必要です' }), {
+        status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      })
+    }
+
+    const apiKey = context.env.OPENAI_API_KEY
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: 'APIキーが設定されていません' }), {
+        status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      })
+    }
+
+    // メッセージ構築（OpenAI Vision形式・複数画像対応）
+    const content: any[] = []
+
+    // 複数画像対応
+    if (images && images.length > 0) {
+      for (const img of images) {
+        content.push({
+          type: 'image_url',
+          image_url: {
+            url: `data:${img.mimeType || 'image/jpeg'};base64,${img.data}`,
+            detail: 'auto',
+          },
+        })
+      }
+    } else if (image) {
+      // 後方互換: 単一画像
+      const mime = mimeType || 'image/jpeg'
+      content.push({
+        type: 'image_url',
+        image_url: {
+          url: `data:${mime};base64,${image}`,
+          detail: 'auto',
+        },
+      })
+    }
+
+    // プロンプト: 食品名とグラム数の特定（丁寧でわかりやすい料理名＋ソース・調味料も細かく）
+    const photoCount = (images && images.length > 0) ? images.length : (image ? 1 : 0)
+    const foodDesc = text
+      ? `食事: ${text}`
+      : (photoCount > 1 ? `これら${photoCount}枚の写真に写っている全ての食事` : 'この写真の食事')
+    content.push({
+      type: 'text',
+      text: `${foodDesc}に含まれる食品・料理をプロの栄養士として徹底的に分析してください。
+
+## 分析ルール
+
+### 料理名の書き方
+- 丁寧でわかりやすい日本語で記述すること
+- 良い例: 「鶏むね肉のグリル」「ほうれん草のおひたし」「玄米ごはん」「豚肉の生姜焼き」
+- 悪い例: 「鶏むね」「ほうれん草」「米」（単なる食材名はNG）
+- 調理法を含める（〜の炒め物、〜のサラダ、〜の煮物、〜のフライ）
+
+### ソース・調味料・ドレッシングの分析（重要）
+- ソースや調味料は必ず別の品目として分けて記載すること
+- 何のソースか具体的に特定する（「ソース」だけはNG）
+- 良い例: 「デミグラスソース」「タルタルソース」「和風ドレッシング」「ケチャップ」「マヨネーズ」「ポン酢」「ごまだれ」「焼肉のたれ」「トマトソース」「ホワイトソース」
+- 悪い例: 「ソース」「たれ」「ドレッシング」（種類を特定しないのはNG）
+- 写真から判断できない場合は料理に合う一般的なソースを推定して記載
+
+### その他の注意
+- 飲み物（お茶、コーヒー、ジュースなど）も必ず含める
+- サラダの場合はドレッシングを別品目で記載
+- 揚げ物の場合は付け合わせのソースも記載
+- 丼物・麺類のつゆ・スープも別品目で記載
+- 量の説明は具体的に（「お茶碗1杯分」「手のひらサイズ1枚」「小鉢1杯」「大さじ1杯分」）
+- 写真がある場合は見た目から量を正確に推定
+- commentは食事全体のわかりやすい説明
+
+## 回答形式（JSONのみ、他のテキスト不要）
+{"items":[{"name":"丁寧な料理名","amount":"わかりやすい量の説明","grams":200}],"comment":"食事全体の一言説明"}`,
+    })
+
+    // OpenAI API呼び出し（GPT-4o）
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: '写真や説明から食品・料理を正確に分析するプロの栄養管理士です。料理名は「鶏むね肉のグリル」「ほうれん草のおひたし」のように丁寧でわかりやすい日本語で記述してください。ソース・調味料・ドレッシングは必ず種類を特定して別品目として記載してください（「デミグラスソース」「タルタルソース」「和風ドレッシング」など。「ソース」だけはNG）。飲み物やスープも含めてください。量の説明も「お茶碗1杯」「大さじ1杯分」など具体的に。JSONのみ返してください。',
+          },
+          { role: 'user', content },
+        ],
+        temperature: 0.2,
+        max_tokens: 1024,
+        response_format: { type: 'json_object' },
+      }),
+    })
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({})) as any
+      console.error('OpenAI API error:', res.status, err)
+      return new Response(JSON.stringify({
+        error: err.error?.message || `API error: ${res.status}`,
+      }), {
+        status: res.status,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      })
+    }
+
+    const data = await res.json() as any
+    const rawText = data.choices?.[0]?.message?.content || ''
+
+    // JSON抽出
+    let result: any = null
+    try {
+      result = JSON.parse(rawText)
+    } catch {
+      let jsonStr = rawText.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim()
+      const firstBrace = jsonStr.indexOf('{')
+      const lastBrace = jsonStr.lastIndexOf('}')
+      if (firstBrace !== -1 && lastBrace > firstBrace) {
+        jsonStr = jsonStr.slice(firstBrace, lastBrace + 1)
+      }
+      jsonStr = jsonStr.replace(/,\s*([}\]])/g, '$1')
+      try {
+        result = JSON.parse(jsonStr)
+      } catch {
+        return new Response(JSON.stringify({
+          error: '食品データを取得できませんでした',
+          raw: rawText.substring(0, 500),
+        }), {
+          status: 422,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        })
+      }
+    }
+
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    })
+  } catch (e) {
+    console.error('analyze-meal error:', e)
+    return new Response(JSON.stringify({
+      error: e instanceof Error ? e.message : 'Unknown error',
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    })
+  }
+}
+
+// CORS preflight
+export const onRequestOptions: PagesFunction = async () => {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  })
+}

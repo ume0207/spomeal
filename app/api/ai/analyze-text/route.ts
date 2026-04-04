@@ -12,31 +12,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const formData = await request.formData()
-    const image = formData.get('image') as File | null
-    const imageUrl = formData.get('imageUrl') as string | null
+    const { text } = await request.json()
 
-    if (!image && !imageUrl) {
-      return NextResponse.json({ error: 'No image provided' }, { status: 400 })
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+      return NextResponse.json({ error: 'No text provided' }, { status: 400 })
     }
 
     const apiKey = process.env.GEMINI_API_KEY
     if (!apiKey) {
       return NextResponse.json({ error: 'GEMINI_API_KEY is not configured' }, { status: 500 })
-    }
-
-    let imageData: string
-    let mimeType: string = 'image/jpeg'
-
-    if (image) {
-      const buffer = await image.arrayBuffer()
-      imageData = Buffer.from(buffer).toString('base64')
-      mimeType = image.type
-    } else {
-      const response = await fetch(imageUrl!)
-      const buffer = await response.arrayBuffer()
-      imageData = Buffer.from(buffer).toString('base64')
-      mimeType = response.headers.get('content-type') || 'image/jpeg'
     }
 
     const response = await fetch(
@@ -51,13 +35,10 @@ export async function POST(request: NextRequest) {
             {
               parts: [
                 {
-                  inlineData: {
-                    mimeType: mimeType,
-                    data: imageData,
-                  },
-                },
-                {
-                  text: `この食事の写真を分析して、栄養情報をJSON形式で返してください。
+                  text: `あなたは管理栄養士です。以下の食事内容から各食品の栄養情報を推定してJSON形式で返してください。
+量が指定されていない場合は一般的な1人前の量を推定してください。
+
+食事内容: ${text}
 
 以下のフォーマットで返答してください：
 {
@@ -76,9 +57,7 @@ export async function POST(request: NextRequest) {
     "protein": 合計タンパク質g,
     "fat": 合計脂質g,
     "carbs": 合計炭水化物g
-  },
-  "confidence": "high/medium/low",
-  "notes": "補足説明（あれば）"
+  }
 }
 
 JSONのみを返してください。他のテキストは不要です。`,
@@ -112,9 +91,9 @@ JSONのみを返してください。他のテキストは不要です。`,
 
     return NextResponse.json(nutritionData)
   } catch (error) {
-    console.error('AI analyze error:', error)
+    console.error('AI text analyze error:', error)
     return NextResponse.json(
-      { error: 'Failed to analyze image' },
+      { error: 'Failed to analyze text' },
       { status: 500 }
     )
   }
