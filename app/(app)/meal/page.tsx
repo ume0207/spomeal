@@ -1251,28 +1251,57 @@ export default function MealPage() {
                 {/* AI解析結果（カード内・編集可能） */}
                 {aiResult && (
                   <div style={{
-                    background: 'white', border: '1px solid #ddd6fe', borderRadius: '10px',
-                    padding: '12px', marginBottom: '12px',
+                    background: 'linear-gradient(135deg, #fefce8 0%, #f0fdf4 50%, #eff6ff 100%)',
+                    border: '1px solid #d1d5db', borderRadius: '14px',
+                    padding: '14px', marginBottom: '12px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                   }}>
+                    {/* ヘッダー: AI分析結果タイトル */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+                      <span style={{ fontSize: '16px' }}>🍽️</span>
+                      <span style={{ fontSize: '13px', fontWeight: 800, color: '#1f2937' }}>AI分析結果</span>
+                      <span style={{ fontSize: '11px', color: '#6b7280', marginLeft: 'auto' }}>{aiResult.items?.length || 0}品目</span>
+                    </div>
+
+                    {/* 食事全体の説明コメント */}
+                    {aiResult.comment && (
+                      <div style={{
+                        background: 'white', borderRadius: '10px', padding: '10px 12px',
+                        marginBottom: '10px', border: '1px solid #e5e7eb',
+                      }}>
+                        <p style={{ fontSize: '13px', color: '#374151', margin: 0, lineHeight: 1.6 }}>
+                          💡 {aiResult.comment}
+                        </p>
+                      </div>
+                    )}
+
                     {/* 合計サマリー（items合計から自動計算） */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+                    <div style={{
+                      display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '6px', marginBottom: '10px',
+                      background: 'white', borderRadius: '10px', padding: '10px 8px', border: '1px solid #e5e7eb',
+                    }}>
                       {[
-                        { label: 'kcal', value: Math.round(aiResult.calories), color: '#EA580C' },
-                        { label: 'P', value: aiResult.protein.toFixed(1), color: '#2563EB' },
-                        { label: 'F', value: aiResult.fat.toFixed(1), color: '#CA8A04' },
-                        { label: 'C', value: aiResult.carbs.toFixed(1), color: '#16A34A' },
+                        { label: 'カロリー', unit: 'kcal', value: Math.round(aiResult.calories), color: '#EA580C', bg: '#fff7ed' },
+                        { label: 'タンパク質', unit: 'g', value: aiResult.protein.toFixed(1), color: '#2563EB', bg: '#eff6ff' },
+                        { label: '脂質', unit: 'g', value: aiResult.fat.toFixed(1), color: '#CA8A04', bg: '#fefce8' },
+                        { label: '炭水化物', unit: 'g', value: aiResult.carbs.toFixed(1), color: '#16A34A', bg: '#f0fdf4' },
                       ].map((n) => (
-                        <div key={n.label} style={{ textAlign: 'center', background: '#f9fafb', borderRadius: '8px', padding: '6px' }}>
-                          <div style={{ fontSize: '16px', fontWeight: 900, color: n.color }}>{n.value}</div>
-                          <span style={{ fontSize: '10px', color: '#9ca3af' }}>{n.label}</span>
+                        <div key={n.label} style={{ textAlign: 'center', background: n.bg, borderRadius: '8px', padding: '8px 4px' }}>
+                          <div style={{ fontSize: '18px', fontWeight: 900, color: n.color, lineHeight: 1.2 }}>{n.value}</div>
+                          <span style={{ fontSize: '10px', fontWeight: 600, color: n.color, opacity: 0.7 }}>{n.unit}</span>
+                          <div style={{ fontSize: '9px', color: '#9ca3af', marginTop: '2px' }}>{n.label}</div>
                         </div>
                       ))}
                     </div>
 
                     {/* 食品詳細リスト（編集可能） */}
                     {aiResult.items && aiResult.items.length > 0 && (
-                      <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: '8px', marginBottom: '8px' }}>
-                        <p style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px', margin: '0 0 6px' }}>📝 食品内訳（グラム数を変更すると栄養素が自動計算されます）</p>
+                      <div style={{ marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                          <span style={{ fontSize: '12px' }}>📝</span>
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#4b5563' }}>食品内訳</span>
+                          <span style={{ fontSize: '10px', color: '#9ca3af' }}>（タップで編集可能）</span>
+                        </div>
                         {aiResult.items.map((item, i) => {
                           // 合計再計算ヘルパー
                           const recalcTotals = (newItems: typeof aiResult.items) => {
@@ -1291,40 +1320,48 @@ export default function MealPage() {
                           }
                           return (
                           <div key={i} style={{
-                            padding: '8px', marginBottom: '6px', background: '#fafafa', borderRadius: '8px',
-                            border: '1px solid #f3f4f6',
+                            padding: '10px 12px', marginBottom: '6px', background: 'white', borderRadius: '10px',
+                            border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
                           }}>
-                            {/* 食品名 */}
-                            <div style={{ display: 'flex', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
-                              <input
-                                type="text"
-                                value={item.name}
-                                onChange={(e) => {
-                                  const newItems = [...(aiResult.items || [])]
-                                  newItems[i] = { ...newItems[i], name: e.target.value }
-                                  setAiResult({ ...aiResult, items: newItems })
-                                }}
-                                style={{
-                                  flex: 1, fontSize: '13px', fontWeight: 600, color: '#374151',
-                                  border: '1px solid #e5e7eb', borderRadius: '6px', padding: '4px 8px',
-                                  background: 'white', outline: 'none', minWidth: 0,
-                                }}
-                                placeholder="食品名"
-                              />
+                            {/* 食品名 + 量の説明 + 削除ボタン */}
+                            <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', alignItems: 'flex-start' }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <input
+                                  type="text"
+                                  value={item.name}
+                                  onChange={(e) => {
+                                    const newItems = [...(aiResult.items || [])]
+                                    newItems[i] = { ...newItems[i], name: e.target.value }
+                                    setAiResult({ ...aiResult, items: newItems })
+                                  }}
+                                  style={{
+                                    width: '100%', fontSize: '14px', fontWeight: 700, color: '#1f2937',
+                                    border: 'none', borderBottom: '1px dashed #d1d5db', borderRadius: '0',
+                                    padding: '2px 0', background: 'transparent', outline: 'none', minWidth: 0,
+                                  }}
+                                  placeholder="料理名を入力"
+                                />
+                                {item.amount && (
+                                  <span style={{ fontSize: '11px', color: '#9ca3af', display: 'block', marginTop: '2px' }}>
+                                    📏 {item.amount}
+                                  </span>
+                                )}
+                              </div>
                               <button
                                 onClick={() => {
                                   const newItems = (aiResult.items || []).filter((_, idx) => idx !== i)
                                   recalcTotals(newItems)
                                 }}
                                 style={{
-                                  fontSize: '16px', color: '#EF4444', background: 'none', border: 'none',
-                                  cursor: 'pointer', padding: '0 4px', lineHeight: 1,
+                                  fontSize: '14px', color: '#EF4444', background: '#fef2f2', border: '1px solid #fecaca',
+                                  cursor: 'pointer', padding: '2px 6px', lineHeight: 1, borderRadius: '6px',
+                                  flexShrink: 0,
                                 }}
                               >×</button>
                             </div>
-                            {/* グラム数入力 + 量の説明 */}
-                            <div style={{ display: 'flex', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            {/* グラム数入力 + 栄養素 */}
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '3px', flexShrink: 0 }}>
                                 <input
                                   type="number"
                                   inputMode="numeric"
@@ -1345,54 +1382,49 @@ export default function MealPage() {
                                     recalcTotals(newItems)
                                   }}
                                   style={{
-                                    width: '70px', fontSize: '14px', fontWeight: 700, color: '#7C3AED',
-                                    border: '2px solid #c4b5fd', borderRadius: '8px', padding: '4px 8px',
+                                    width: '60px', fontSize: '15px', fontWeight: 800, color: '#7C3AED',
+                                    border: '2px solid #c4b5fd', borderRadius: '8px', padding: '4px 6px',
                                     background: '#faf5ff', outline: 'none', textAlign: 'center',
                                     WebkitAppearance: 'none', MozAppearance: 'textfield',
                                   }}
                                 />
-                                <span style={{ fontSize: '13px', fontWeight: 600, color: '#7C3AED' }}>g</span>
+                                <span style={{ fontSize: '12px', fontWeight: 700, color: '#7C3AED' }}>g</span>
                               </div>
-                              <span style={{ fontSize: '11px', color: '#9ca3af' }}>({item.amount})</span>
-                            </div>
-                            {/* 栄養素（表示・直接編集も可能） */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '4px' }}>
-                              {[
-                                { key: 'kcal' as const, label: 'kcal', color: '#EA580C' },
-                                { key: 'protein' as const, label: 'P(g)', color: '#2563EB' },
-                                { key: 'fat' as const, label: 'F(g)', color: '#CA8A04' },
-                                { key: 'carbs' as const, label: 'C(g)', color: '#16A34A' },
-                              ].map((n) => (
-                                <div key={n.key} style={{ textAlign: 'center' }}>
-                                  <input
-                                    type="number"
-                                    inputMode="decimal"
-                                    value={item[n.key]}
-                                    onChange={(e) => {
-                                      const val = parseFloat(e.target.value) || 0
-                                      const newItems = [...(aiResult.items || [])]
-                                      newItems[i] = { ...newItems[i], [n.key]: val }
-                                      recalcTotals(newItems)
-                                    }}
-                                    style={{
-                                      width: '100%', fontSize: '12px', fontWeight: 700, color: n.color,
-                                      border: '1px solid #e5e7eb', borderRadius: '6px', padding: '3px 4px',
-                                      background: 'white', outline: 'none', textAlign: 'center',
-                                      WebkitAppearance: 'none', MozAppearance: 'textfield',
-                                    }}
-                                  />
-                                  <span style={{ fontSize: '9px', color: '#9ca3af' }}>{n.label}</span>
-                                </div>
-                              ))}
+                              {/* 栄養素（コンパクト表示） */}
+                              <div style={{ display: 'flex', gap: '4px', flex: 1, justifyContent: 'space-around' }}>
+                                {[
+                                  { key: 'kcal' as const, label: 'kcal', color: '#EA580C' },
+                                  { key: 'protein' as const, label: 'P', color: '#2563EB' },
+                                  { key: 'fat' as const, label: 'F', color: '#CA8A04' },
+                                  { key: 'carbs' as const, label: 'C', color: '#16A34A' },
+                                ].map((n) => (
+                                  <div key={n.key} style={{ textAlign: 'center', flex: 1 }}>
+                                    <input
+                                      type="number"
+                                      inputMode="decimal"
+                                      value={item[n.key]}
+                                      onChange={(e) => {
+                                        const val = parseFloat(e.target.value) || 0
+                                        const newItems = [...(aiResult.items || [])]
+                                        newItems[i] = { ...newItems[i], [n.key]: val }
+                                        recalcTotals(newItems)
+                                      }}
+                                      style={{
+                                        width: '100%', fontSize: '12px', fontWeight: 700, color: n.color,
+                                        border: '1px solid #e5e7eb', borderRadius: '6px', padding: '3px 2px',
+                                        background: 'white', outline: 'none', textAlign: 'center',
+                                        WebkitAppearance: 'none', MozAppearance: 'textfield',
+                                      }}
+                                    />
+                                    <span style={{ fontSize: '9px', color: '#9ca3af' }}>{n.label}</span>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           </div>
                           )
                         })}
                       </div>
-                    )}
-
-                    {aiResult.comment && (
-                      <p style={{ fontSize: '11px', color: '#6b7280', margin: '4px 0 0', background: '#f0fdf4', padding: '6px 8px', borderRadius: '6px' }}>💡 {aiResult.comment}</p>
                     )}
                   </div>
                 )}
@@ -1521,7 +1553,7 @@ export default function MealPage() {
 
                         return {
                           ...item,
-                          name: dbMatch ? dbMatch.name : item.name,
+                          name: item.name,  // AIの丁寧な料理名をそのまま使用
                           kcal, protein, fat, carbs, grams,
                           baseGrams: grams,
                           baseKcal: kcal,
