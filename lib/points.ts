@@ -1,5 +1,5 @@
 // ===== ポイントシステム =====
-// 1pt per meal entry: 朝食/昼食/夕食 各1pt (max 3pt) + 間食1pt + 3食コンプリートボーナス1pt = max 5pt/day
+// 1pt per meal entry: 朝食/昼食/夕食 各1pt (max 3pt) + 間食1pt + 3食コンプリートボーナス1pt + 体組成1pt = max 6pt/day
 // 100pt で抽選1回
 
 const POINTS_KEY = 'spomeal_points_v1'
@@ -12,6 +12,7 @@ export interface PointRecord {
   dinner: boolean
   snack: boolean
   bonus: boolean     // 3食コンプリートボーナス
+  body: boolean      // 体組成記録ボーナス
 }
 
 export interface PointsData {
@@ -73,9 +74,12 @@ export function addMealPoint(dateStr: string, mealType: string): { pointsAdded: 
   const data = getPointsData()
   let record = data.records.find(r => r.date === dateStr)
   if (!record) {
-    record = { date: dateStr, breakfast: false, lunch: false, dinner: false, snack: false, bonus: false }
+    record = { date: dateStr, breakfast: false, lunch: false, dinner: false, snack: false, bonus: false, body: false }
     data.records.push(record)
   }
+
+  // 古いレコードにbodyフィールドがない場合の互換性
+  if (record.body === undefined) record.body = false
 
   let pointsAdded = 0
   const mealKey = mealType as keyof Pick<PointRecord, 'breakfast' | 'lunch' | 'dinner' | 'snack'>
@@ -97,13 +101,36 @@ export function addMealPoint(dateStr: string, mealType: string): { pointsAdded: 
   return { pointsAdded, totalPoints: data.totalPoints }
 }
 
+/** 体組成記録時にポイントを付与（1日1回上限） */
+export function addBodyPoint(dateStr: string): { pointsAdded: number; totalPoints: number } {
+  const data = getPointsData()
+  let record = data.records.find(r => r.date === dateStr)
+  if (!record) {
+    record = { date: dateStr, breakfast: false, lunch: false, dinner: false, snack: false, bonus: false, body: false }
+    data.records.push(record)
+  }
+
+  // 古いレコードにbodyフィールドがない場合の互換性
+  if (record.body === undefined) record.body = false
+
+  let pointsAdded = 0
+  if (!record.body) {
+    record.body = true
+    pointsAdded = 1
+    data.totalPoints += 1
+  }
+
+  savePointsData(data)
+  return { pointsAdded, totalPoints: data.totalPoints }
+}
+
 /** 今日のポイント獲得状況 */
 export function getTodayPoints(dateStr: string): { earned: number; max: number; record: PointRecord | null } {
   const data = getPointsData()
   const record = data.records.find(r => r.date === dateStr) ?? null
-  if (!record) return { earned: 0, max: 5, record: null }
-  const earned = [record.breakfast, record.lunch, record.dinner, record.snack, record.bonus].filter(Boolean).length
-  return { earned, max: 5, record }
+  if (!record) return { earned: 0, max: 6, record: null }
+  const earned = [record.breakfast, record.lunch, record.dinner, record.snack, record.bonus, record.body ?? false].filter(Boolean).length
+  return { earned, max: 6, record }
 }
 
 /** 抽選を実行（100pt消費） */

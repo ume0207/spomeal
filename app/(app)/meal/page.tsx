@@ -1437,12 +1437,10 @@ export default function MealPage() {
                     setAiLoading(true)
                     setAiError('')
                     try {
-                      let base64Data = ''
-                      let imageMimeType = 'image/jpeg'
+                      // 全ての写真をリサイズしてbase64に変換（最大5枚対応）
+                      const imageDataList: { data: string; mimeType: string }[] = []
 
-                      if (photos.length > 0) {
-                        // 画像をリサイズしてbase64に変換（HEIC/高画質写真対応）
-                        const photoFile = photos[0].file
+                      const convertPhoto = async (photoFile: File): Promise<{ data: string; mimeType: string }> => {
                         try {
                           const bitmap = await createImageBitmap(photoFile)
                           const canvas = document.createElement('canvas')
@@ -1458,33 +1456,40 @@ export default function MealPage() {
                           ctx.drawImage(bitmap, 0, 0, w, h)
                           bitmap.close()
                           const dataUrl = canvas.toDataURL('image/jpeg', 0.6)
-                          base64Data = dataUrl.split(',')[1]
-                          imageMimeType = 'image/jpeg'
-                          console.log(`画像リサイズ: → ${w}x${h}, base64: ${Math.round(base64Data.length/1024)}KB`)
+                          console.log(`画像リサイズ: → ${w}x${h}, base64: ${Math.round(dataUrl.length/1024)}KB`)
+                          return { data: dataUrl.split(',')[1], mimeType: 'image/jpeg' }
                         } catch (bitmapErr) {
                           console.warn('createImageBitmap失敗、FileReader使用:', bitmapErr)
-                          base64Data = await new Promise<string>((resolve, reject) => {
+                          const base64 = await new Promise<string>((resolve, reject) => {
                             const reader = new FileReader()
-                            reader.onload = () => {
-                              const result = reader.result as string
-                              resolve(result.split(',')[1])
-                            }
+                            reader.onload = () => resolve((reader.result as string).split(',')[1])
                             reader.onerror = () => reject(new Error('ファイルの読み込みに失敗'))
                             reader.readAsDataURL(photoFile)
                           })
-                          imageMimeType = photoFile.type || 'image/jpeg'
-                          if (imageMimeType === 'image/heic' || imageMimeType === 'image/heif') {
-                            imageMimeType = 'image/jpeg'
-                          }
+                          let mime = photoFile.type || 'image/jpeg'
+                          if (mime === 'image/heic' || mime === 'image/heif') mime = 'image/jpeg'
+                          return { data: base64, mimeType: mime }
                         }
+                      }
+
+                      // 全写真を並列変換（最大5枚）
+                      if (photos.length > 0) {
+                        const validPhotos = photos.filter(p => p.file.size > 0).slice(0, 5)
+                        const results = await Promise.all(validPhotos.map(p => convertPhoto(p.file)))
+                        imageDataList.push(...results)
+                        console.log(`写真${imageDataList.length}枚を変換完了`)
                       }
 
                       // サーバーサイドAPI呼び出し（リトライ機能付き）
                       const callAI = async (retryCount: number): Promise<any> => {
                         const body: any = {}
-                        if (base64Data) {
-                          body.image = base64Data
-                          body.mimeType = imageMimeType
+                        if (imageDataList.length > 1) {
+                          // 複数画像
+                          body.images = imageDataList
+                        } else if (imageDataList.length === 1) {
+                          // 単一画像（後方互換）
+                          body.image = imageDataList[0].data
+                          body.mimeType = imageDataList[0].mimeType
                         }
                         if (desc) {
                           body.text = desc

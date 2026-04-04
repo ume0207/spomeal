@@ -14,13 +14,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 
   try {
-    const { text, image, mimeType } = await context.request.json() as {
+    const { text, image, mimeType, images } = await context.request.json() as {
       text?: string
-      image?: string  // base64
+      image?: string  // base64 (単一画像・後方互換)
       mimeType?: string
+      images?: { data: string; mimeType: string }[]  // 複数画像対応
     }
 
-    if (!text && !image) {
+    if (!text && !image && (!images || images.length === 0)) {
       return new Response(JSON.stringify({ error: '食事の説明または写真が必要です' }), {
         status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders },
       })
@@ -33,10 +34,22 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       })
     }
 
-    // メッセージ構築（OpenAI Vision形式）
+    // メッセージ構築（OpenAI Vision形式・複数画像対応）
     const content: any[] = []
 
-    if (image) {
+    // 複数画像対応
+    if (images && images.length > 0) {
+      for (const img of images) {
+        content.push({
+          type: 'image_url',
+          image_url: {
+            url: `data:${img.mimeType || 'image/jpeg'};base64,${img.data}`,
+            detail: 'auto',
+          },
+        })
+      }
+    } else if (image) {
+      // 後方互換: 単一画像
       const mime = mimeType || 'image/jpeg'
       content.push({
         type: 'image_url',
@@ -48,7 +61,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     // プロンプト: 食品名とグラム数の特定（丁寧でわかりやすい料理名＋ソース・調味料も細かく）
-    const foodDesc = text ? `食事: ${text}` : 'この写真の食事'
+    const photoCount = (images && images.length > 0) ? images.length : (image ? 1 : 0)
+    const foodDesc = text
+      ? `食事: ${text}`
+      : (photoCount > 1 ? `これら${photoCount}枚の写真に写っている全ての食事` : 'この写真の食事')
     content.push({
       type: 'text',
       text: `${foodDesc}に含まれる食品・料理をプロの栄養士として徹底的に分析してください。
