@@ -1,7 +1,7 @@
 'use client'
 
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 const navItems = [
@@ -15,6 +15,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const [userName, setUserName] = useState('選手')
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -22,9 +24,48 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       if (data.user) {
         const name = data.user.user_metadata?.full_name || data.user.email || '選手'
         setUserName(name)
+        // アバター読み込み: user_metadata → localStorage fallback
+        const metaAvatar = data.user.user_metadata?.avatar_url
+        if (metaAvatar) {
+          setAvatarUrl(metaAvatar)
+          localStorage.setItem('spomeal_avatar', metaAvatar)
+        } else {
+          const saved = localStorage.getItem('spomeal_avatar')
+          if (saved) setAvatarUrl(saved)
+        }
       }
     })
   }, [])
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      // 画像をリサイズしてbase64に変換（最大120px）
+      const bitmap = await createImageBitmap(file)
+      const canvas = document.createElement('canvas')
+      const MAX = 120
+      let w = bitmap.width, h = bitmap.height
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX }
+        else { w = Math.round(w * MAX / h); h = MAX }
+      }
+      canvas.width = w; canvas.height = h
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(bitmap, 0, 0, w, h)
+      bitmap.close()
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.7)
+
+      setAvatarUrl(dataUrl)
+      localStorage.setItem('spomeal_avatar', dataUrl)
+
+      // Supabase user_metadataにも保存
+      const supabase = createClient()
+      await supabase.auth.updateUser({ data: { avatar_url: dataUrl } })
+    } catch { /* ignore */ }
+    // input をリセット（同じファイルを再選択可能にする）
+    e.target.value = ''
+  }
 
   const handleLogout = async () => {
     const supabase = createClient()
@@ -58,22 +99,50 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       >
         {/* 左: アバター + Welcome */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleAvatarChange}
+            style={{ display: 'none' }}
+          />
           <div
+            onClick={() => fileInputRef.current?.click()}
             style={{
               width: '40px',
               height: '40px',
-              borderRadius: '10px',
+              borderRadius: '50%',
               background: 'rgba(255,255,255,0.22)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
+              cursor: 'pointer',
+              overflow: 'hidden',
+              border: '2px solid rgba(255,255,255,0.5)',
+              position: 'relative',
             }}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
-            </svg>
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+            )}
+            {/* カメラアイコンオーバーレイ */}
+            <div style={{
+              position: 'absolute', bottom: '-1px', right: '-1px',
+              width: '16px', height: '16px', borderRadius: '50%',
+              background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+            }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+            </div>
           </div>
           <div>
             <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.75)', fontWeight: 500, marginBottom: '1px' }}>
