@@ -63,9 +63,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       }
     }
 
+    let pendingDeletion = false
+    let scheduledDeletionAt: string | null = null
+
     if (profileQuery) {
       const profileRes = await fetch(
-        `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?${profileQuery}&select=subscription_status,subscription_plan`,
+        `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?${profileQuery}&select=subscription_status,subscription_plan,pending_deletion,scheduled_deletion_at`,
         {
           headers: {
             'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
@@ -74,12 +77,29 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         }
       )
       if (profileRes.ok) {
-        const profiles = await profileRes.json() as Array<{ subscription_status?: string; subscription_plan?: string }>
+        const profiles = await profileRes.json() as Array<{
+          subscription_status?: string
+          subscription_plan?: string
+          pending_deletion?: boolean
+          scheduled_deletion_at?: string
+        }>
         if (profiles.length > 0) {
           subscriptionStatus = profiles[0].subscription_status || ''
           subscriptionPlan = profiles[0].subscription_plan || ''
+          pendingDeletion = profiles[0].pending_deletion || false
+          scheduledDeletionAt = profiles[0].scheduled_deletion_at || null
         }
       }
+    }
+
+    // 削除予定日を過ぎている場合はアクセス不可
+    if (pendingDeletion && scheduledDeletionAt && new Date(scheduledDeletionAt) <= new Date()) {
+      return new Response(JSON.stringify({
+        active: false,
+        subscription_status: 'deleted',
+        subscription_plan: subscriptionPlan || 'none',
+        reason: 'account_deleted',
+      }), { status: 200, headers: cors })
     }
 
     // 3. profilesにデータがない場合、Stripeから直接確認（フォールバック）

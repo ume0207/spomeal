@@ -18,6 +18,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [subscriptionLocked, setSubscriptionLocked] = useState(false)
   const [subscriptionChecked, setSubscriptionChecked] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteMessage, setDeleteMessage] = useState('')
+  const [pendingDeletion, setPendingDeletion] = useState(false)
+  const [scheduledDeletionAt, setScheduledDeletionAt] = useState<string | null>(null)
+  const [periodEnd, setPeriodEnd] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -91,6 +97,55 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const supabase = createClient()
     await supabase.auth.signOut()
     router.push('/login')
+  }
+
+  // 退会状態を取得
+  const loadDeletionStatus = async () => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data } = await supabase
+      .from('profiles')
+      .select('pending_deletion, scheduled_deletion_at, subscription_current_period_end')
+      .eq('id', user.id)
+      .single()
+    if (data) {
+      setPendingDeletion(!!data.pending_deletion)
+      setScheduledDeletionAt(data.scheduled_deletion_at || null)
+      setPeriodEnd(data.subscription_current_period_end || null)
+    }
+  }
+
+  useEffect(() => { loadDeletionStatus() }, [])
+
+  const callDeletionApi = async (action: 'request' | 'cancel') => {
+    setDeleteLoading(true)
+    setDeleteMessage('')
+    try {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('ログインが必要です')
+      const res = await fetch('/api/user/request-deletion', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ action }),
+      })
+      const json = await res.json() as { success: boolean; message?: string; error?: string }
+      if (!json.success) throw new Error(json.error || '処理に失敗しました')
+      setDeleteMessage(json.message || '完了しました')
+      await loadDeletionStatus()
+      if (action === 'request' && !json.message?.includes('期間終了時')) {
+        // 即時削除の場合はログアウト扱い
+        setTimeout(() => { router.push('/login') }, 2000)
+      }
+    } catch (err) {
+      setDeleteMessage(`エラー: ${(err as Error).message}`)
+    } finally {
+      setDeleteLoading(false)
+    }
   }
 
   return (
@@ -344,11 +399,157 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             >
               ログアウト
             </button>
+
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              style={{
+                display: 'block',
+                width: '100%',
+                background: 'transparent',
+                color: '#dc2626',
+                padding: '8px',
+                border: 'none',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                marginTop: '4px',
+                textDecoration: 'underline',
+              }}
+            >
+              退会する
+            </button>
           </div>
         </div>
       ) : (
         /* ページコンテンツ */
-        children
+        <>
+          {/* 退会予約中バナー */}
+          {pendingDeletion && scheduledDeletionAt && (
+            <div style={{
+              background: '#fef3c7',
+              borderBottom: '1px solid #f59e0b',
+              padding: '10px 16px',
+              fontSize: '13px',
+              color: '#92400e',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px',
+              flexWrap: 'wrap',
+            }}>
+              <span>
+                ⚠ <strong>{new Date(scheduledDeletionAt).toLocaleDateString('ja-JP')}</strong> にアカウントが削除されます
+              </span>
+              <button
+                onClick={() => callDeletionApi('cancel')}
+                disabled={deleteLoading}
+                style={{
+                  padding: '6px 12px',
+                  background: '#16a34a',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: deleteLoading ? 'wait' : 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                {deleteLoading ? '処理中…' : '退会をキャンセル'}
+              </button>
+            </div>
+          )}
+          {children}
+          {/* フッター: 退会リンク */}
+          {!pendingDeletion && (
+            <div style={{
+              padding: '24px 16px 40px',
+              textAlign: 'center',
+              background: '#f3f4f6',
+            }}>
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                style={{
+                  background: 'transparent',
+                  color: '#9ca3af',
+                  border: 'none',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  fontFamily: 'inherit',
+                  padding: '6px 12px',
+                }}
+              >
+                退会する
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* 退会確認モーダル */}
+      {showDeleteModal && (
+        <div
+          onClick={() => !deleteLoading && setShowDeleteModal(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 2000, padding: '20px',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#fff', borderRadius: '16px', padding: '28px 24px',
+              maxWidth: '420px', width: '100%',
+            }}
+          >
+            <h3 style={{ margin: '0 0 12px', fontSize: '18px', fontWeight: 800, color: '#111827' }}>
+              本当に退会しますか？
+            </h3>
+            <p style={{ fontSize: '14px', lineHeight: 1.7, color: '#4b5563', margin: '0 0 16px' }}>
+              {periodEnd ? (
+                <>現在のサブスク期間の終了日（<strong>{new Date(periodEnd).toLocaleDateString('ja-JP')}</strong>）にアカウントが完全に削除されます。<br />期間終了までは引き続きスポミールをご利用いただけます。<br /><br />※期間終了までは退会をキャンセルできます。</>
+              ) : (
+                <>アカウントとすべてのデータが完全に削除されます。この操作は取り消せません。</>
+              )}
+            </p>
+            {deleteMessage && (
+              <p style={{
+                fontSize: '13px', padding: '10px 12px', borderRadius: '8px',
+                background: deleteMessage.startsWith('エラー') ? '#fee2e2' : '#dcfce7',
+                color: deleteMessage.startsWith('エラー') ? '#991b1b' : '#166534',
+                margin: '0 0 16px',
+              }}>{deleteMessage}</p>
+            )}
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => { setShowDeleteModal(false); setDeleteMessage('') }}
+                disabled={deleteLoading}
+                style={{
+                  padding: '10px 18px', background: '#f3f4f6', color: '#374151',
+                  border: 'none', borderRadius: '8px', fontSize: '14px',
+                  fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={() => callDeletionApi('request')}
+                disabled={deleteLoading}
+                style={{
+                  padding: '10px 18px', background: '#dc2626', color: '#fff',
+                  border: 'none', borderRadius: '8px', fontSize: '14px',
+                  fontWeight: 700, cursor: deleteLoading ? 'wait' : 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                {deleteLoading ? '処理中…' : '退会を確定'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
