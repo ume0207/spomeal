@@ -29,7 +29,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [tutorialStep, setTutorialStep] = useState(0)
 
   // ログインページの場合はガードをスキップ
-  const isLoginPage = pathname === '/admin/login'
+  const isLoginPage = pathname === '/admin/login' || pathname === '/admin/login/'
 
   useEffect(() => {
     if (isLoginPage) {

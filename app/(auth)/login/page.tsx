@@ -191,7 +191,7 @@ function LoginForm() {
           }}
         >
           <a
-            href="/admin"
+            href="/admin/login/"
             style={{
               display: 'inline-block',
               background: 'linear-gradient(135deg, #22c55e, #16a34a)',

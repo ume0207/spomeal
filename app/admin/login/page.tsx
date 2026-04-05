@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation'
 
 export default function AdminLoginPage() {
   const router = useRouter()
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
+  const [loginId, setLoginId] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -15,8 +14,8 @@ export default function AdminLoginPage() {
     e.preventDefault()
     setError('')
 
-    if (!name.trim() || !email.trim() || !password.trim()) {
-      setError('すべての項目を入力してください')
+    if (!loginId.trim() || !password.trim()) {
+      setError('ログインIDとパスワードを入力してください')
       return
     }
 
@@ -26,10 +25,10 @@ export default function AdminLoginPage() {
       const res = await fetch('/api/admin/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), email: email.trim(), password }),
+        body: JSON.stringify({ loginId: loginId.trim(), password }),
       })
 
-      const data = await res.json() as { success?: boolean; error?: string; isFirstLogin?: boolean }
+      const data = await res.json() as { success?: boolean; error?: string }
 
       if (!data.success) {
         setError(data.error || '認証に失敗しました')
@@ -39,18 +38,12 @@ export default function AdminLoginPage() {
 
       // 管理者セッションをlocalStorageに保存
       const session = {
-        name: name.trim(),
-        email: email.trim(),
+        name: loginId.trim(),
+        email: loginId.trim(),
         loggedIn: true,
         loginAt: new Date().toISOString(),
-        isFirstLogin: data.isFirstLogin,
       }
       localStorage.setItem('spomeal_admin_session', JSON.stringify(session))
-
-      // 初回ログインならチュートリアルフラグ設定
-      if (data.isFirstLogin) {
-        localStorage.setItem('spomeal_admin_tutorial', 'pending')
-      }
 
       router.push('/admin')
     } catch {
@@ -119,45 +112,21 @@ export default function AdminLoginPage() {
           fontSize: '13px', color: 'rgba(255,255,255,0.45)',
           textAlign: 'center', margin: '0 0 28px',
         }}>
-          管理者情報を入力してください
+          ログインIDとパスワードを入力してください
         </p>
 
         <form onSubmit={handleLogin}>
-          {/* 名前 */}
+          {/* ログインID */}
           <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '6px' }}>
-              名前
+              ログインID
             </label>
             <input
               type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="管理者名を入力"
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                background: 'rgba(255,255,255,0.07)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: '12px',
-                color: 'white',
-                fontSize: '15px',
-                outline: 'none',
-                boxSizing: 'border-box',
-                fontFamily: 'inherit',
-              }}
-            />
-          </div>
-
-          {/* メールアドレス */}
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '6px' }}>
-              メールアドレス
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@example.com"
+              value={loginId}
+              onChange={(e) => setLoginId(e.target.value)}
+              placeholder="ログインIDを入力"
+              autoComplete="username"
               style={{
                 width: '100%',
                 padding: '12px 16px',
@@ -183,6 +152,7 @@ export default function AdminLoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="パスワードを入力"
+              autoComplete="current-password"
               style={{
                 width: '100%',
                 padding: '12px 16px',
