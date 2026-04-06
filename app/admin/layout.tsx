@@ -55,6 +55,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
     // 未ログイン → ログインページへ
     router.replace('/admin/login')
+    setChecked(true)
   }, [isLoginPage, router])
 
   const handleLogout = () => {

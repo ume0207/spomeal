@@ -62,8 +62,16 @@ interface NutritionistComment {
   date: string
   staffName: string
   targetMember: string
+  targetMemberName?: string
   category: string
   comment: string
+}
+
+interface StaffMember {
+  id: string
+  name: string
+  role: string
+  active?: boolean
 }
 
 const COMMENTS_KEY = 'nutritionist_comments_v1'
@@ -140,10 +148,24 @@ function MemberDetailContent() {
 
   // コメント入力
   const [showCommentForm, setShowCommentForm] = useState(false)
+  const [staffList, setStaffList] = useState<StaffMember[]>([])
   const [commentStaff, setCommentStaff] = useState('管理栄養士')
   const [commentCategory, setCommentCategory] = useState('食事')
   const [commentText, setCommentText] = useState('')
   const [commentSaved, setCommentSaved] = useState(false)
+
+  // スタッフ一覧読み込み
+  useEffect(() => {
+    try {
+      const rawStaff = localStorage.getItem('staff_v1')
+      if (rawStaff) {
+        const parsed: StaffMember[] = JSON.parse(rawStaff)
+        const activeStaff = parsed.filter(s => s.active !== false)
+        setStaffList(activeStaff)
+        if (activeStaff.length > 0) setCommentStaff(activeStaff[0].name)
+      }
+    } catch {}
+  }, [])
 
   useEffect(() => {
     if (!memberId) return
@@ -235,6 +257,7 @@ function MemberDetailContent() {
       date: `${dateStr} ${timeStr}`,
       staffName: commentStaff || '管理栄養士',
       targetMember: member.id,
+      targetMemberName: member.name,
       category: commentCategory,
       comment: commentText.trim(),
     }
@@ -587,14 +610,34 @@ function MemberDetailContent() {
                 <button onClick={() => setShowCommentForm(false)} style={{ fontSize: '18px', color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
               </div>
 
-              {/* 担当者名 */}
+              {/* 送信者（担当者） */}
               <div style={{ marginBottom: '12px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: '#4b5563', marginBottom: '4px', display: 'block' }}>担当者名</label>
-                <input
-                  type="text" value={commentStaff} onChange={e => setCommentStaff(e.target.value)}
-                  placeholder="管理栄養士"
-                  style={{ width: '100%', background: '#f9fafb', border: '1.5px solid #e5e7eb', borderRadius: '10px', padding: '10px 14px', fontSize: '13px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
-                />
+                <label style={{ fontSize: '12px', fontWeight: 700, color: '#4b5563', marginBottom: '4px', display: 'block' }}>送信者（担当者）</label>
+                {staffList.length > 0 ? (
+                  <select
+                    value={commentStaff}
+                    onChange={e => setCommentStaff(e.target.value)}
+                    style={{
+                      width: '100%', background: '#f9fafb', border: '1.5px solid #e5e7eb', borderRadius: '10px',
+                      padding: '10px 14px', fontSize: '13px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
+                      appearance: 'none', backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3e%3cpath fill=\'%236b7280\' d=\'M6 9L1 4h10z\'/%3e%3c/svg%3e")',
+                      backgroundRepeat: 'no-repeat', backgroundPosition: 'right 14px center', paddingRight: '36px',
+                    }}
+                  >
+                    {staffList.map(s => (
+                      <option key={s.id} value={s.name}>{s.name}（{s.role}）</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text" value={commentStaff} onChange={e => setCommentStaff(e.target.value)}
+                    placeholder="管理栄養士"
+                    style={{ width: '100%', background: '#f9fafb', border: '1.5px solid #e5e7eb', borderRadius: '10px', padding: '10px 14px', fontSize: '13px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                  />
+                )}
+                {staffList.length === 0 && (
+                  <p style={{ fontSize: '10px', color: '#9ca3af', margin: '4px 0 0' }}>※ スタッフ管理でスタッフを登録すると選択式になります</p>
+                )}
               </div>
 
               {/* カテゴリ */}
@@ -657,17 +700,32 @@ function MemberDetailContent() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {comments.map(c => {
                 const cat = categoryColors[c.category] || categoryColors['全般']
+                const targetName = c.targetMember === '__all__'
+                  ? '全員'
+                  : (c.targetMemberName || member.name)
                 return (
                   <div key={c.id} style={{ background: 'white', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '12px 14px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', flexWrap: 'wrap' }}>
                       <span style={{ fontSize: '10px', fontWeight: 700, color: cat.color, background: cat.bg, padding: '2px 8px', borderRadius: '6px' }}>{cat.icon} {c.category}</span>
                       <span style={{ fontSize: '10px', color: '#9ca3af' }}>{c.date}</span>
-                      <span style={{ fontSize: '10px', color: '#6b7280' }}>by {c.staffName}</span>
-                      {c.targetMember === '__all__' && <span style={{ fontSize: '9px', color: '#f59e0b', background: '#fffbeb', padding: '1px 6px', borderRadius: '4px' }}>全体</span>}
                       <button
                         onClick={() => deleteComment(c.id)}
                         style={{ marginLeft: 'auto', fontSize: '12px', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px' }}
                       >🗑</button>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: '#1d4ed8', background: '#dbeafe', padding: '2px 8px', borderRadius: '6px' }}>
+                        👤 {c.staffName}
+                      </span>
+                      <span style={{ fontSize: '11px', color: '#6b7280', fontWeight: 700 }}>→</span>
+                      <span style={{
+                        fontSize: '10px', fontWeight: 700,
+                        color: c.targetMember === '__all__' ? '#a16207' : '#15803d',
+                        background: c.targetMember === '__all__' ? '#fef9c3' : '#dcfce7',
+                        padding: '2px 8px', borderRadius: '6px',
+                      }}>
+                        {c.targetMember === '__all__' ? '📢 全員' : `🎯 ${targetName}`}
+                      </span>
                     </div>
                     <p style={{ fontSize: '13px', color: '#374151', margin: 0, lineHeight: 1.6 }}>{c.comment}</p>
                   </div>
