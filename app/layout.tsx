@@ -24,6 +24,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja" className="h-full">
+      <head>
+        <script dangerouslySetInnerHTML={{
+          __html: `window.addEventListener('pageshow',function(e){if(e.persisted)window.location.reload();});`
+        }} />
+      </head>
       <body className="min-h-full bg-[#f3f4f6] text-[#1a1a1a]">
         {children}
       </body>
