@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 function ForgotPasswordLink() {
@@ -95,9 +95,8 @@ function ForgotPasswordLink() {
 
 function LoginForm() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const isPaid = searchParams.get('paid') === 'true'
-  const redirect = searchParams.get('redirect') || '/dashboard'
+  const isPaid = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('paid') === 'true'
+  const redirect = (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('redirect')) || '/dashboard'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -517,9 +516,5 @@ function LoginForm() {
 }
 
 export default function LoginPage() {
-  return (
-    <Suspense fallback={null}>
-      <LoginForm />
-    </Suspense>
-  )
+  return <LoginForm />
 }
