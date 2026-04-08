@@ -60,21 +60,39 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       })
     }
 
-    // プロンプト: 食品名とグラム数の特定（丁寧でわかりやすい料理名＋ソース・調味料も細かく）
+    // テキストのみか写真ありかで完全に別プロンプトを使い分ける
     const photoCount = (images && images.length > 0) ? images.length : (image ? 1 : 0)
-    const isTextOnly = !text || photoCount === 0
-    const foodDesc = text
-      ? `食事: ${text}`
-      : (photoCount > 1 ? `これら${photoCount}枚の写真に写っている全ての食事` : 'この写真の食事')
+    const isTextOnly = !!text && photoCount === 0
 
-    // テキストのみの場合はPFC値も返すよう指示
-    const responseFormat = isTextOnly
-      ? `{"items":[{"name":"丁寧な料理名","amount":"わかりやすい量の説明","grams":200,"kcal":300,"protein":25,"fat":8,"carbs":30}],"comment":"食事全体の一言説明"}`
-      : `{"items":[{"name":"丁寧な料理名","amount":"わかりやすい量の説明","grams":200}],"comment":"食事全体の一言説明"}`
+    if (isTextOnly) {
+      // ===== テキスト入力専用プロンプト =====
+      // ルール: ユーザーが入力した料理名をそのまま使う・分解しない・PFC値も返す
+      content.push({
+        type: 'text',
+        text: `以下の食事内容の栄養情報をJSON形式で返してください。
 
-    content.push({
-      type: 'text',
-      text: `${foodDesc}に含まれる食品・料理をプロの栄養士として徹底的に分析してください。
+食事内容: ${text}
+
+## ルール（重要）
+- ユーザーが入力した料理・食品名をそのまま使うこと（分解・細分化しない）
+- 例: 「ラーメン」→「ラーメン」1品として返す（スープと麺に分けない）
+- 例: 「唐揚げ定食」→「唐揚げ定食」1品（唐揚げ・ごはん・味噌汁に分けない）
+- ユーザーが複数品を入力した場合はその品数分だけ返す
+- 量が未指定の場合は一般的な1人前のグラム数を推定する
+- kcal・protein・fat・carbsは日本食品標準成分表に基づいた正確な値を入れること
+
+## 回答形式（JSONのみ、他のテキスト不要）
+{"items":[{"name":"料理名（入力のまま）","amount":"1人前（約Xg）","grams":500,"kcal":450,"protein":17,"fat":12,"carbs":68}],"comment":"一言コメント"}`,
+      })
+    } else {
+      // ===== 写真解析プロンプト =====
+      const foodDesc = text
+        ? `食事: ${text}`
+        : (photoCount > 1 ? `これら${photoCount}枚の写真に写っている全ての食事` : 'この写真の食事')
+
+      content.push({
+        type: 'text',
+        text: `${foodDesc}に含まれる食品・料理をプロの栄養士として徹底的に分析してください。
 
 ## 分析ルール
 
@@ -87,22 +105,21 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 ### ソース・調味料・ドレッシングの分析（重要）
 - ソースや調味料は必ず別の品目として分けて記載すること
 - 何のソースか具体的に特定する（「ソース」だけはNG）
-- 良い例: 「デミグラスソース」「タルタルソース」「和風ドレッシング」「ケチャップ」「マヨネーズ」「ポン酢」「ごまだれ」「焼肉のたれ」「トマトソース」「ホワイトソース」
-- 悪い例: 「ソース」「たれ」「ドレッシング」（種類を特定しないのはNG）
+- 良い例: 「デミグラスソース」「タルタルソース」「和風ドレッシング」「ケチャップ」「マヨネーズ」
 - 写真から判断できない場合は料理に合う一般的なソースを推定して記載
 
 ### その他の注意
 - 飲み物（お茶、コーヒー、ジュースなど）も必ず含める
 - サラダの場合はドレッシングを別品目で記載
-- 揚げ物の場合は付け合わせのソースも記載
 - 丼物・麺類のつゆ・スープも別品目で記載
 - 量の説明は具体的に（「お茶碗1杯分」「手のひらサイズ1枚」「小鉢1杯」「大さじ1杯分」）
 - 写真がある場合は見た目から量を正確に推定
 - commentは食事全体のわかりやすい説明
 
 ## 回答形式（JSONのみ、他のテキスト不要）
-${responseFormat}`,
-    })
+{"items":[{"name":"丁寧な料理名","amount":"わかりやすい量の説明","grams":200}],"comment":"食事全体の一言説明"}`,
+      })
+    }
 
     // OpenAI API呼び出し（GPT-4o）
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
