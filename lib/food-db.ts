@@ -1072,7 +1072,7 @@ export const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: nu
 
 
 
-  'BCAA': { kcal: 0, p: 5.0, f: 0.0, c: 0.0, g: 5 },
+  'BCAA': { kcal: 20, p: 5.0, f: 0.0, c: 0.0, g: 5 },
 
 
 
@@ -3952,7 +3952,7 @@ export const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: nu
 
 
 
-  'たらこ': { kcal: 140, p: 24.0, f: 2.0, c: 0.5, g: 100 },
+  'たらこ': { kcal: 131, p: 24.0, f: 2.3, c: 0.4, g: 100 },
 
 
 
@@ -6972,7 +6972,7 @@ export const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: nu
 
 
 
-  'ヘンプシード': { kcal: 560, p: 10, f: 30, c: 12, g: 50 },
+  'ヘンプシード': { kcal: 280, p: 8.0, f: 24.5, c: 4.0, g: 50 },
 
 
 
@@ -9420,7 +9420,7 @@ export const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: nu
 
 
 
-  'しいたけ(乾)': { kcal: 182, p: 19.3, f: 3.7, c: 63.4, g: 100 },
+  'しいたけ(乾)': { kcal: 258, p: 19.3, f: 3.7, c: 28.0, g: 100 },
 
 
 
@@ -9432,7 +9432,7 @@ export const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: nu
 
 
 
-  'のり(焼きのり)': { kcal: 188, p: 41.4, f: 3.7, c: 44.3, g: 100 },
+  'のり(焼きのり)': { kcal: 297, p: 41.4, f: 3.7, c: 44.3, g: 100 },
 
 
 
@@ -9448,7 +9448,7 @@ export const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: nu
 
 
 
-  'めかぶ': { kcal: 11, p: 0.9, f: 0.6, c: 3.4, g: 100 },
+  'めかぶ': { kcal: 14, p: 0.9, f: 0.6, c: 3.4, g: 100 },
 
 
 
@@ -12936,7 +12936,7 @@ export const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: nu
 'プレワークアウトドリンク': { kcal: 240, p: 4.2, f: 0, c: 58.1, g: 250 },
 
 
-'BCAA(トレーニング中)': { kcal: 160, p: 32.2, f: 0, c: 2.1, g: 10 },
+'BCAA(トレーニング中)': { kcal: 40, p: 10.0, f: 0, c: 0, g: 10 },
 
 
 'デキストリン(30g)': { kcal: 120, p: 0, f: 0, c: 30.2, g: 30 },
