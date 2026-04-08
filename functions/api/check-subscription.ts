@@ -51,12 +51,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     } else if (email) {
       // emailでユーザーIDを取得してからprofilesを確認
       const userRes = await fetch(
-        `${env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users?page=1&per_page=50`,
+        `${env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users?email=${encodeURIComponent(email)}&page=1&per_page=1`,
         { headers: { 'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`, 'apikey': env.SUPABASE_SERVICE_ROLE_KEY } }
       )
       if (userRes.ok) {
         const userData = await userRes.json() as { users?: Array<{ id: string; email?: string }> }
-        const user = userData.users?.find((u) => u.email?.toLowerCase() === email.toLowerCase())
+        const user = userData.users?.[0]
         if (user) {
           profileQuery = `id=eq.${user.id}`
         }
@@ -142,6 +142,17 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // 4. 判定
     const activeStatuses = ['active', 'trialing']
     const isActive = activeStatuses.includes(subscriptionStatus)
+
+    // Supabaseにもstripeにもデータがない場合（webhook未着・新規登録直後等）は
+    // ロックせずに通す（ユーザー体験優先・管理画面で確認可能）
+    if (!subscriptionStatus || subscriptionStatus === 'unknown' || subscriptionStatus === 'no_customer') {
+      return new Response(JSON.stringify({
+        active: true,
+        subscription_status: subscriptionStatus || 'unknown',
+        subscription_plan: subscriptionPlan || 'none',
+        reason: 'status_unknown_defaulting_to_active',
+      }), { status: 200, headers: cors })
+    }
 
     return new Response(JSON.stringify({
       active: isActive,
