@@ -6940,7 +6940,7 @@ export const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: nu
 
 
 
-  'オイコス ヨーグルト': { kcal: 71, p: 12.0, f: 0.0, c: 5.2, g: 113 },
+  'オイコス ヨーグルト': { kcal: 67, p: 10.5, f: 0.0, c: 7.1, g: 113 },
 
 
 
