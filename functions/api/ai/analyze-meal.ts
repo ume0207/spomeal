@@ -62,9 +62,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     // プロンプト: 食品名とグラム数の特定（丁寧でわかりやすい料理名＋ソース・調味料も細かく）
     const photoCount = (images && images.length > 0) ? images.length : (image ? 1 : 0)
+    const isTextOnly = !text || photoCount === 0
     const foodDesc = text
       ? `食事: ${text}`
       : (photoCount > 1 ? `これら${photoCount}枚の写真に写っている全ての食事` : 'この写真の食事')
+
+    // テキストのみの場合はPFC値も返すよう指示
+    const responseFormat = isTextOnly
+      ? `{"items":[{"name":"丁寧な料理名","amount":"わかりやすい量の説明","grams":200,"kcal":300,"protein":25,"fat":8,"carbs":30}],"comment":"食事全体の一言説明"}`
+      : `{"items":[{"name":"丁寧な料理名","amount":"わかりやすい量の説明","grams":200}],"comment":"食事全体の一言説明"}`
+
     content.push({
       type: 'text',
       text: `${foodDesc}に含まれる食品・料理をプロの栄養士として徹底的に分析してください。
@@ -94,7 +101,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 - commentは食事全体のわかりやすい説明
 
 ## 回答形式（JSONのみ、他のテキスト不要）
-{"items":[{"name":"丁寧な料理名","amount":"わかりやすい量の説明","grams":200}],"comment":"食事全体の一言説明"}`,
+${responseFormat}`,
     })
 
     // OpenAI API呼び出し（GPT-4o）

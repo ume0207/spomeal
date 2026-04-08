@@ -14353,7 +14353,9 @@ export function searchFoodDB(query: string): Array<{ name: string; kcal: number;
     } else if (lowerName.startsWith(lowerQuery)) {
       score = 50; // 前方一致
     } else if (lowerName.includes(lowerQuery)) {
-      score = 10; // 部分一致
+      score = 10; // 部分一致（DB名がクエリを含む）
+    } else if (lowerName.length >= 2 && lowerQuery.includes(lowerName)) {
+      score = 8; // 逆部分一致（AIが生成した詳細名 "鶏むね肉のグリル" → DB "鶏むね肉" にヒット）
     } else {
       continue; // マッチなし
     }

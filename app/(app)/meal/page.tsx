@@ -1629,21 +1629,23 @@ export default function MealPage() {
                           carbs = Math.round(dbMatch.c * ratio * 10) / 10
                           console.log(`DB照合: ${item.name} → ${dbMatch.name} (${dbMatch.g}gあたり ${dbMatch.kcal}kcal, ${grams}gで${kcal}kcal)`)
                         } else {
-                          // DBにない場合: AIが栄養値を返していなければ概算
-                          // ゼロカロリー食品の判定（水、お茶、炭酸水など）
+                          // DBにない場合
                           const zeroCaloricKeywords = ['水', 'お茶', '緑茶', 'ウーロン茶', '烏龍茶', 'むぎ茶', '麦茶', 'ほうじ茶', '紅茶（ストレート）', 'ブラックコーヒー', '白湯', '炭酸水', 'ミネラルウォーター', '天然水', '氷']
                           const isZeroCal = zeroCaloricKeywords.some(kw => item.name.includes(kw))
-                          if (!kcal) {
-                            if (isZeroCal) {
-                              kcal = 0; protein = 0; fat = 0; carbs = 0
-                            } else {
-                              kcal = Math.round(grams * 1.5)
-                              protein = Math.round(grams * 0.1 * 10) / 10
-                              fat = Math.round(grams * 0.05 * 10) / 10
-                              carbs = Math.round(grams * 0.2 * 10) / 10
-                            }
+                          if (isZeroCal) {
+                            kcal = 0; protein = 0; fat = 0; carbs = 0
+                            console.log(`DB未ヒット: ${item.name} → 0kcal食品`)
+                          } else if (kcal > 0) {
+                            // AIがPFC値を返している（テキスト入力時）→ そのまま使用
+                            console.log(`DB未ヒット: ${item.name} → AI推定値使用 (${kcal}kcal)`)
+                          } else {
+                            // 粗い概算（最終フォールバック）
+                            kcal = Math.round(grams * 1.5)
+                            protein = Math.round(grams * 0.1 * 10) / 10
+                            fat = Math.round(grams * 0.05 * 10) / 10
+                            carbs = Math.round(grams * 0.2 * 10) / 10
+                            console.log(`DB未ヒット: ${item.name} → 概算 ${kcal}kcal`)
                           }
-                          console.log(`DB未ヒット: ${item.name} (${grams}g, ${isZeroCal ? '0kcal食品' : '概算' + kcal + 'kcal'})`)
                         }
 
                         return {
