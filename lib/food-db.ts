@@ -964,11 +964,11 @@ export const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: nu
 
 
 
-  '醤油': { kcal: 71, p: 10.5, f: 0.5, c: 4.2, g: 15 },
+  '醤油': { kcal: 13, p: 1.6, f: 0.1, c: 1.7, g: 15 },
 
 
 
-  'しょうゆ': { kcal: 71, p: 10.5, f: 0.5, c: 4.2, g: 15 },
+  'しょうゆ': { kcal: 13, p: 1.6, f: 0.1, c: 1.7, g: 15 },
 
 
 
@@ -5124,11 +5124,11 @@ export const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: nu
 
 
 
-  'お好みソース': { kcal: 85, p: 1.2, f: 0.0, c: 20.0, g: 20 },
+  'お好みソース': { kcal: 76, p: 1.0, f: 0.0, c: 18.0, g: 20 },
 
 
 
-  'たこ焼きソース': { kcal: 85, p: 1.2, f: 0.0, c: 20.0, g: 20 },
+  'たこ焼きソース': { kcal: 76, p: 1.0, f: 0.0, c: 18.0, g: 20 },
 
 
 
@@ -5160,11 +5160,11 @@ export const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: nu
 
 
 
-  'わさび(チューブ)': { kcal: 98, p: 4.0, f: 1.5, c: 18.0, g: 20 },
+  'わさび(チューブ)': { kcal: 69, p: 3.0, f: 1.0, c: 12.0, g: 20 },
 
 
 
-  '柚子胡椒': { kcal: 110, p: 3.0, f: 2.0, c: 20.0, g: 20 },
+  '柚子胡椒': { kcal: 77, p: 2.0, f: 1.0, c: 15.0, g: 20 },
 
 
 
@@ -6952,7 +6952,7 @@ export const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: nu
 
 
 
-  'ザバス MILK PROTEIN(200ml)': { kcal: 270, p: 12, f: 8, c: 26, g: 200 },
+  'ザバス MILK PROTEIN(200ml)': { kcal: 120, p: 15, f: 3, c: 10, g: 200 },
 
 
 
@@ -6996,7 +6996,7 @@ export const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: nu
 
 
 
-  'コラーゲン(粉末1杯)': { kcal: 50, p: 12, f: 0, c: 1, g: 5 },
+  'コラーゲン(粉末1杯)': { kcal: 10, p: 2.5, f: 0, c: 0.1, g: 5 },
 
 
 
@@ -8980,7 +8980,7 @@ export const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: nu
 
 
 
-  'しらたき': { kcal: 6, p: 0.1, f: 0.0, c: 3.0, g: 100 },
+  'しらたき': { kcal: 6, p: 0.1, f: 0.0, c: 0.1, g: 100 },
 
 
 
@@ -9396,7 +9396,7 @@ export const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: nu
 
 
 
-  'まいたけ': { kcal: 15, p: 2.0, f: 0.5, c: 4.4, g: 100 },
+  'まいたけ': { kcal: 22, p: 2.0, f: 0.5, c: 3.0, g: 100 },
 
 
 
@@ -9664,7 +9664,7 @@ export const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: nu
 
 
 
-  '黒酢': { kcal: 66, p: 0.5, f: 0.0, c: 1.5, g: 100 },
+  '黒酢': { kcal: 54, p: 0.1, f: 0.0, c: 9.0, g: 100 },
 
 
 
@@ -11956,7 +11956,7 @@ export const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: nu
 
 
 
-  'コラーゲン(1回分)': { kcal: 50, p: 12.5, f: 0.0, c: 0.0, g: 10 },
+  'コラーゲン(1回分)': { kcal: 38, p: 9.5, f: 0.0, c: 0.0, g: 10 },
 
 
 
@@ -12837,10 +12837,10 @@ export const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: nu
 'さつまいもマッシュ': { kcal: 82, p: 0.9, f: 0.2, c: 19.2, g: 100 },
 
 
-'ベビーせんべい': { kcal: 380, p: 8.2, f: 2.3, c: 82.1, g: 50 },
+'ベビーせんべい': { kcal: 380, p: 8.2, f: 2.3, c: 82.1, g: 100 },
 
 
-'ボーロ': { kcal: 420, p: 6.2, f: 12.3, c: 72.2, g: 50 },
+'ボーロ': { kcal: 420, p: 6.2, f: 12.3, c: 72.2, g: 100 },
 
 
 'ベビーダノン': { kcal: 90, p: 2.2, f: 2.8, c: 14.2, g: 100 },
@@ -12903,13 +12903,13 @@ export const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: nu
 'アミノバリュー(500ml)': { kcal: 160, p: 2.2, f: 0, c: 38.2, g: 500 },
 
 
-'ザバスミルクプロテイン(430ml)': { kcal: 380, p: 15.2, f: 4.8, c: 58.1, g: 430 },
+'ザバスミルクプロテイン(430ml)': { kcal: 215, p: 32.0, f: 0.0, c: 21.5, g: 430 },
 
 
-'ザバスミルクプロテイン(200ml)': { kcal: 180, p: 7.2, f: 2.4, c: 27.2, g: 200 },
+'ザバスミルクプロテイン(200ml)': { kcal: 100, p: 15.0, f: 0.0, c: 10.0, g: 200 },
 
 
-'明治プロテインドリンク': { kcal: 360, p: 14.1, f: 4.2, c: 52.3, g: 250 },
+'明治プロテインドリンク': { kcal: 200, p: 20.0, f: 2.0, c: 26.0, g: 250 },
 
 
 'R-1ヨーグルト(ドリンク)': { kcal: 320, p: 6.2, f: 4.8, c: 62.1, g: 200 },
@@ -12945,22 +12945,22 @@ export const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: nu
 'マルトデキストリン(30g)': { kcal: 120, p: 0, f: 0, c: 30.1, g: 30 },
 
 
-'ウエイトゲイナー(1スクープ)': { kcal: 380, p: 14.2, f: 4.8, c: 72.1, g: 40 },
+'ウエイトゲイナー(1スクープ)': { kcal: 380, p: 14.2, f: 4.8, c: 72.1, g: 100 },
 
 
-'リカバリープロテイン': { kcal: 420, p: 30.2, f: 2.1, c: 42.3, g: 40 },
+'リカバリープロテイン': { kcal: 420, p: 30.2, f: 2.1, c: 42.3, g: 100 },
 
 
-'HMB(1日分)': { kcal: 24, p: 4.8, f: 0.2, c: 0.1, g: 3 },
+'HMB(1日分)': { kcal: 12, p: 2.8, f: 0.1, c: 0.1, g: 3 },
 
 
-'アルギニン(1回)': { kcal: 32, p: 8.1, f: 0, c: 0.2, g: 4 },
+'アルギニン(1回)': { kcal: 15, p: 3.8, f: 0, c: 0.1, g: 4 },
 
 
-'シトルリン(1回)': { kcal: 28, p: 6.8, f: 0, c: 0.1, g: 3 },
+'シトルリン(1回)': { kcal: 11, p: 2.8, f: 0, c: 0.1, g: 3 },
 
 
-'ベータアラニン(1回)': { kcal: 16, p: 4.2, f: 0, c: 0, g: 2 },
+'ベータアラニン(1回)': { kcal: 8, p: 2.0, f: 0, c: 0, g: 2 },
 
 
 'カーボドリンク': { kcal: 280, p: 0, f: 0, c: 70.2, g: 250 },
@@ -12972,19 +12972,19 @@ export const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: nu
 'アミノバイタルゼリー': { kcal: 240, p: 2.1, f: 0, c: 62.2, g: 180 },
 
 
-'アミノバイタルパウダー': { kcal: 200, p: 6.2, f: 0, c: 48.1, g: 20 },
+'アミノバイタルパウダー': { kcal: 200, p: 6.2, f: 0, c: 48.1, g: 100 },
 
 
 'ウイダーinゼリースーパーエネルギー': { kcal: 280, p: 2.2, f: 0, c: 72.3, g: 180 },
 
 
-'塩分タブレット': { kcal: 120, p: 0, f: 0, c: 30.2, g: 12 },
+'塩分タブレット': { kcal: 14, p: 0, f: 0, c: 3.6, g: 12 },
 
 
 '経口補水ゼリー': { kcal: 140, p: 0, f: 0, c: 32.1, g: 100 },
 
 
-'スポーツドリンクパウダー': { kcal: 240, p: 0, f: 0, c: 60.2, g: 30 },
+'スポーツドリンクパウダー': { kcal: 240, p: 0, f: 0, c: 60.2, g: 100 },
 
 
 'ホエイアイソレート(WPI/1杯)': { kcal: 120, p: 27.0, f: 0.5, c: 1.0, g: 30 },
@@ -13002,13 +13002,13 @@ export const FOOD_DB: Record<string, { kcal: number; p: number; f: number; c: nu
 'コラーゲンペプチド(1回)': { kcal: 38, p: 9.5, f: 0.0, c: 0.1, g: 10 },
 
 
-'グルコサミン(1日分)': { kcal: 32, p: 0, f: 0, c: 8.2, g: 3 },
+'グルコサミン(1日分)': { kcal: 1, p: 0, f: 0, c: 0.3, g: 3 },
 
 
 'コエンザイムQ10(1粒)': { kcal: 8, p: 0, f: 0.8, c: 0, g: 1 },
 
 
-'ビタミンC(1000mg)': { kcal: 12, p: 0, f: 0, c: 3.2, g: 1 },
+'ビタミンC(1000mg)': { kcal: 0, p: 0, f: 0, c: 0, g: 1 },
 
 
 'ビタミンD(1粒)': { kcal: 8, p: 0, f: 0.1, c: 0, g: 1 },
