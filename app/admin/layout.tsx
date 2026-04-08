@@ -249,7 +249,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {/* アプリに戻る */}
             <div style={{ position: 'relative' }} data-tutorial="admin-back">
               <Link
-                href="/dashboard"
+                href="/"
                 style={{
                   fontSize: '11px', color: '#9ca3af', textDecoration: 'none',
                   display: 'flex', alignItems: 'center', gap: '4px',
@@ -262,7 +262,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <polyline points="15 18 9 12 15 6"/>
                 </svg>
-                アプリに戻る
+                トップへ
               </Link>
               {showTutorial && currentStep?.targetId === 'admin-back' && (
                 <TutorialTooltip
