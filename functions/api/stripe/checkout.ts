@@ -81,6 +81,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         'line_items[0][quantity]': '1',
         'mode': 'subscription',
         'subscription_data[trial_period_days]': '14',
+        ...(userId ? { 'subscription_data[metadata][userId]': userId } : {}),
+        'subscription_data[metadata][planId]': planId,
         'success_url': `${appUrl}/login?paid=true`,
         'cancel_url': `${appUrl}/plans`,
         ...(customerEmail ? { 'customer_email': customerEmail } : {}),
