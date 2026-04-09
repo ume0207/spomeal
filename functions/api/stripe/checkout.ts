@@ -98,9 +98,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const session = JSON.parse(sessionText) as { url?: string; error?: { message: string; type?: string; code?: string } }
 
     if (!session.url) {
-      const errMsg = `[${stripeRes.status}] ${session.error?.message || sessionText}`
-      console.error('Stripe error:', errMsg)
-      return new Response(JSON.stringify({ error: errMsg }), {
+      // デバッグ: Stripeの完全なレスポンスを返す
+      return new Response(JSON.stringify({
+        debug: {
+          stripeStatus: stripeRes.status,
+          stripeBody: sessionText,
+          successUrl: `${appUrl}/login?paid=true`,
+          cancelUrl: `${appUrl}/plans`,
+          priceId,
+          hasStripeKey: !!(env.STRIPE_SECRET_KEY),
+          stripeKeyPrefix: env.STRIPE_SECRET_KEY?.substring(0, 7),
+        }
+      }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
