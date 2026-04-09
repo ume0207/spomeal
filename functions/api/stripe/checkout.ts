@@ -64,10 +64,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       })
     }
 
-    // www.や末尾スラッシュを除去して確実にリダイレクトが通るようにする
-    const appUrl = (env.NEXT_PUBLIC_APP_URL || 'https://spomeal.jp')
-      .replace(/^https?:\/\/www\./, 'https://')
-      .replace(/\/$/, '')
+    // リクエスト元のオリジンを使用（環境変数の値に依存しない確実な方法）
+    const reqOrigin = new URL(request.url).origin
+    const appUrl = reqOrigin.includes('localhost')
+      ? 'https://spomeal.jp'
+      : reqOrigin
 
     const stripeRes = await fetch('https://api.stripe.com/v1/checkout/sessions', {
       method: 'POST',
