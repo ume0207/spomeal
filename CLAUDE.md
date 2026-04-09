@@ -86,7 +86,8 @@ git push         # 本番デプロイ（自動）
 
 | 日付 | 問題 | 解決策 |
 |------|------|--------|
-| （例）2026-04-07 | ビルドエラー | next.config.tsの○○を修正 |
+| 2026-04-09 | iOS 26.4 betaでspomeal.jpにログインできない | DNS/ECH修正だけでは不十分で、**Supabaseの会員データ（テストアカウント等）を削除したことでログインできるようになった**。会員情報の状態がログインに影響する可能性あり。次回同じ症状が出たらSupabaseのユーザーデータを確認・整理すること。 |
+| 2026-04-07 | Cloudflare Pages ビルドエラー「Output directory 'out' not found」 | next.config.tsから`output: 'export'`が消えていた。復元して解決。 |
 
 ---
 
