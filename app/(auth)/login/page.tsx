@@ -109,21 +109,26 @@ function LoginForm() {
     setLoading(true)
     setError('')
 
-    const supabase = createClient()
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    try {
+      const supabase = createClient()
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
-    if (authError) {
-      setError('メールアドレスまたはパスワードが正しくありません')
+      if (authError) {
+        setError('メールアドレスまたはパスワードが正しくありません')
+        setLoading(false)
+        return
+      }
+
+      // router.push + router.refresh の同時呼び出しはiOS Safariでループを起こすため
+      // window.location.href によるハードナビゲーションに変更
+      window.location.href = redirect
+    } catch {
+      setError('通信エラーが発生しました。ネットワークを確認してください。')
       setLoading(false)
-      return
     }
-
-    // router.push + router.refresh の同時呼び出しはiOS Safariでループを起こすため
-    // window.location.href によるハードナビゲーションに変更
-    window.location.href = redirect
   }
 
   return (
