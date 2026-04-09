@@ -27,9 +27,7 @@ export default function RootLayout({
     <html lang="ja" className="h-full">
       <body className="min-h-full bg-[#f3f4f6] text-[#1a1a1a]">
         {children}
-        <Script id="pageshow-reload" strategy="afterInteractive">{`
-          window.addEventListener('pageshow',function(e){if(e.persisted)window.location.reload();});
-        `}</Script>
+        {/* pageshow reloadはiOS Safariでログインループのトリガーになるため削除 */}
       </body>
     </html>
   )

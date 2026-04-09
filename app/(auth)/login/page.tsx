@@ -121,8 +121,9 @@ function LoginForm() {
       return
     }
 
-    router.push(redirect)
-    router.refresh()
+    // router.push + router.refresh の同時呼び出しはiOS Safariでループを起こすため
+    // window.location.href によるハードナビゲーションに変更
+    window.location.href = redirect
   }
 
   return (
