@@ -148,6 +148,31 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // サブスク確認中はローディング（未払いユーザーへのコンテンツ一瞬表示を防ぐ）
+  if (!subscriptionChecked) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#f3f4f6',
+        fontFamily: "'Helvetica Neue', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif",
+      }}>
+        <div style={{ textAlign: 'center', color: '#9ca3af' }}>
+          <div style={{
+            width: '40px', height: '40px', border: '3px solid #e5e7eb',
+            borderTopColor: '#22c55e', borderRadius: '50%',
+            margin: '0 auto 12px',
+            animation: 'spin 0.8s linear infinite',
+          }} />
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          <div style={{ fontSize: '13px' }}>読み込み中...</div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div
       style={{

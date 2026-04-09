@@ -143,20 +143,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const activeStatuses = ['active', 'trialing']
     const isActive = activeStatuses.includes(subscriptionStatus)
 
-    // Supabaseにもstripeにもデータがない場合（webhook未着・新規登録直後等）は
-    // ロックせずに通す（ユーザー体験優先・管理画面で確認可能）
-    if (!subscriptionStatus || subscriptionStatus === 'unknown' || subscriptionStatus === 'no_customer') {
-      return new Response(JSON.stringify({
-        active: true,
-        subscription_status: subscriptionStatus || 'unknown',
-        subscription_plan: subscriptionPlan || 'none',
-        reason: 'status_unknown_defaulting_to_active',
-      }), { status: 200, headers: cors })
-    }
-
+    // 未決済・未登録ユーザーはロック（Stripe決済完了後のみアクセス可）
+    // no_customer = Stripeに顧客なし = 未払い → ロック
+    // '' / unknown = profileなし or webhook未着 → ロック
     return new Response(JSON.stringify({
       active: isActive,
-      subscription_status: subscriptionStatus || 'unknown',
+      subscription_status: subscriptionStatus || 'none',
       subscription_plan: subscriptionPlan || 'none',
     }), { status: 200, headers: cors })
 
