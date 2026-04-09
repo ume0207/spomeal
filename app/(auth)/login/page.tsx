@@ -111,22 +111,61 @@ function LoginForm() {
 
     try {
       const supabase = createClient()
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
 
-      if (authError) {
-        setError('メールアドレスまたはパスワードが正しくありません')
-        setLoading(false)
-        return
+      // まずサーバーサイドプロキシ経由でログイン試行
+      // （iOS 26.4 betaがsupabase.coに直接接続できない問題への対策）
+      let sessionData: { access_token: string; refresh_token: string } | null = null
+
+      try {
+        const proxyRes = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        })
+
+        if (proxyRes.status === 401) {
+          setError('メールアドレスまたはパスワードが正しくありません')
+          setLoading(false)
+          return
+        }
+
+        if (proxyRes.ok) {
+          const data = await proxyRes.json() as { success?: boolean; session?: { access_token: string; refresh_token: string } }
+          if (data.success && data.session?.access_token) {
+            sessionData = data.session
+          }
+        }
+      } catch {
+        // プロキシが使えない場合は直接接続にフォールバック
       }
 
-      // router.push + router.refresh の同時呼び出しはiOS Safariでループを起こすため
-      // window.location.href によるハードナビゲーションに変更
+      if (sessionData) {
+        // プロキシ経由成功: セッションをクライアントに設定
+        await supabase.auth.setSession({
+          access_token: sessionData.access_token,
+          refresh_token: sessionData.refresh_token,
+        })
+      } else {
+        // フォールバック: 直接Supabase接続（タイムアウト付き）
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('timeout')), 15000)
+        )
+        const authPromise = supabase.auth.signInWithPassword({ email, password })
+        const { error: authError } = await Promise.race([authPromise, timeoutPromise])
+
+        if (authError) {
+          setError('メールアドレスまたはパスワードが正しくありません')
+          setLoading(false)
+          return
+        }
+      }
+
       window.location.href = redirect
-    } catch {
-      setError('通信エラーが発生しました。ネットワークを確認してください。')
+    } catch (err) {
+      const isTimeout = err instanceof Error && err.message === 'timeout'
+      setError(isTimeout
+        ? '接続がタイムアウトしました。Wi-Fiまたは別のネットワークでお試しください。'
+        : '通信エラーが発生しました。ネットワークを確認してください。')
       setLoading(false)
     }
   }
