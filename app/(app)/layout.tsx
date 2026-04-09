@@ -28,38 +28,48 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (data.user) {
-        const name = data.user.user_metadata?.full_name || data.user.email || '選手'
-        setUserName(name)
-        // アバター読み込み: user_metadata → localStorage fallback
-        const metaAvatar = data.user.user_metadata?.avatar_url
-        if (metaAvatar) {
-          setAvatarUrl(metaAvatar)
-          localStorage.setItem('spomeal_avatar', metaAvatar)
-        } else {
-          const saved = localStorage.getItem('spomeal_avatar')
-          if (saved) setAvatarUrl(saved)
-        }
+    // getUser()はsupabase.coへの通信が必要でiOS 26.4 betaで失敗する
+    // getSession()はローカル保存のトークンを読むだけなので通信不要
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const user = session?.user
 
-        // サブスクリプション状態チェック
-        try {
-          const email = data.user.email
-          const userId = data.user.id
-          const res = await fetch(`/api/check-subscription?email=${encodeURIComponent(email || '')}&userId=${userId}`)
-          if (res.ok) {
-            const subData = await res.json() as { active: boolean; reason?: string }
-            if (!subData.active) {
-              setSubscriptionLocked(true)
-            }
-          }
-        } catch {
-          // APIエラー時はロックしない（ユーザー体験優先）
-        }
-        setSubscriptionChecked(true)
-      } else {
-        setSubscriptionChecked(true)
+      if (!user) {
+        // 未ログイン → ログインページへ
+        window.location.href = '/login'
+        return
       }
+
+      const name = user.user_metadata?.full_name || user.email || '選手'
+      setUserName(name)
+      // アバター読み込み: user_metadata → localStorage fallback
+      const metaAvatar = user.user_metadata?.avatar_url
+      if (metaAvatar) {
+        setAvatarUrl(metaAvatar)
+        localStorage.setItem('spomeal_avatar', metaAvatar)
+      } else {
+        const saved = localStorage.getItem('spomeal_avatar')
+        if (saved) setAvatarUrl(saved)
+      }
+
+      // サブスクリプション状態チェック
+      try {
+        const email = user.email
+        const userId = user.id
+        const res = await fetch(`/api/check-subscription?email=${encodeURIComponent(email || '')}&userId=${userId}`)
+        if (res.ok) {
+          const subData = await res.json() as { active: boolean; reason?: string }
+          if (!subData.active) {
+            setSubscriptionLocked(true)
+          }
+        } else {
+          // APIエラー（5xx等）→ 安全のためロック
+          setSubscriptionLocked(true)
+        }
+      } catch {
+        // ネットワークエラー → 安全のためロック
+        setSubscriptionLocked(true)
+      }
+      setSubscriptionChecked(true)
     })
   }, [])
 
