@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState, useEffect, useCallback } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { getPointsData, getTodayPoints, doLottery, getAvailableLotteries, getLotteryHistory, getRarityColor, getRarityLabel } from '@/lib/points'
 import { toJSTDateStr } from '@/lib/date-utils'
 import type { LotteryResult } from '@/lib/points'
@@ -99,7 +100,7 @@ export default function DashboardPage() {
   }
 
   // データ読み込み関数（初回＋ページ復帰時に実行）
-  const loadAllData = useCallback(() => {
+  const loadAllData = useCallback(async () => {
     if (typeof window === 'undefined') return
 
     // 管理栄養士コメントの読み込み
@@ -187,13 +188,34 @@ export default function DashboardPage() {
     }
     setLotteryHistory(getLotteryHistory().results.slice(0, 10))
 
+    // 予約データをAPI優先で読み込む
     try {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      const todayStr = toJSTDateStr()
+
+      if (session?.user?.id) {
+        // APIから取得を試みる
+        try {
+          const res = await fetch(`/api/reservations?userId=${session.user.id}`)
+          if (res.ok) {
+            const apiData: Reservation[] = await res.json()
+            const upcoming = apiData
+              .filter(r => r.status === 'confirmed' && r.date >= todayStr)
+              .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
+            setNextReservation(upcoming[0] ?? null)
+            return
+          }
+        } catch { /* ignore */ }
+      }
+
+      // APIが失敗した場合はlocalStorageにフォールバック
       const raw = localStorage.getItem('reservations_v1')
       if (raw) {
         const all: Reservation[] = JSON.parse(raw)
-        const todayStr = toJSTDateStr()
+        const todayStr2 = toJSTDateStr()
         const upcoming = all
-          .filter(r => r.status === 'confirmed' && r.date >= todayStr)
+          .filter(r => r.status === 'confirmed' && r.date >= todayStr2)
           .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
         setNextReservation(upcoming[0] ?? null)
       }

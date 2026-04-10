@@ -50,10 +50,34 @@ export default function AdminCalendarPage() {
   const [meetInputValue, setMeetInputValue] = useState('')
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('reservations_v1')
-      if (saved) setReservations(JSON.parse(saved))
-    } catch {}
+    // 予約をAPI + localStorageからマージして読み込む
+    const loadReservations = async () => {
+      let localData: Reservation[] = []
+      try {
+        const saved = localStorage.getItem('reservations_v1')
+        if (saved) localData = JSON.parse(saved)
+      } catch {}
+
+      try {
+        const res = await fetch('/api/reservations?admin=true')
+        if (res.ok) {
+          const apiData: Reservation[] = await res.json()
+          // IDが被った場合はAPIデータを優先してマージ
+          const merged = new Map<string, Reservation>()
+          for (const r of localData) merged.set(r.id, r)
+          for (const r of apiData) merged.set(r.id, r)
+          const mergedArr = Array.from(merged.values())
+          setReservations(mergedArr)
+          localStorage.setItem('reservations_v1', JSON.stringify(mergedArr))
+          return
+        }
+      } catch {}
+
+      // APIが失敗した場合はlocalStorageのみ
+      setReservations(localData)
+    }
+
+    loadReservations()
     setGcalConnected(gcal_isConnected())
     const savedClientId = localStorage.getItem('google_client_id') || ''
     setGcalClientId(savedClientId)
@@ -64,7 +88,16 @@ export default function AdminCalendarPage() {
     localStorage.setItem('reservations_v1', JSON.stringify(data))
   }
 
-  const updateStatus = (id: string, status: Reservation['status']) => {
+  const updateStatus = async (id: string, status: Reservation['status']) => {
+    // Supabaseのステータスを更新（バックグラウンド）
+    try {
+      await fetch(`/api/reservations/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })
+    } catch {}
+
     const updated = reservations.map((r) => r.id === id ? { ...r, status } : r)
     saveAllReservations(updated)
     if (detail) {
@@ -99,9 +132,19 @@ export default function AdminCalendarPage() {
     setGcalConnected(false)
   }
 
-  const handleSaveMeetLink = (id: string, link: string) => {
+  const handleSaveMeetLink = async (id: string, link: string) => {
     const trimmed = link.trim()
     if (!trimmed) return
+
+    // Supabaseのmeet_linkを更新（バックグラウンド）
+    try {
+      await fetch(`/api/reservations/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ meetLink: trimmed }),
+      })
+    } catch {}
+
     const updated = reservations.map((res) =>
       res.id === id ? { ...res, meetLink: trimmed } : res
     )
@@ -122,7 +165,16 @@ export default function AdminCalendarPage() {
     setCreatingMeet(r.id)
     await gcal_createEvent(
       r,
-      (meetLink, calEventId) => {
+      async (meetLink, calEventId) => {
+        // Supabaseのmeet_linkとcalendar_event_idを更新（バックグラウンド）
+        try {
+          await fetch(`/api/reservations/${r.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ meetLink, calendarEventId: calEventId }),
+          })
+        } catch {}
+
         const updated = reservations.map((res) =>
           res.id === r.id ? { ...res, meetLink, calendarEventId: calEventId } : res
         )

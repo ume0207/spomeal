@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 interface Reservation {
   id: string
@@ -113,10 +114,40 @@ export default function ReservePage() {
     setToday(now)
     setCurYear(now.getFullYear())
     setCurMonth(now.getMonth())
-    try {
-      const saved = localStorage.getItem('reservations_v1')
-      if (saved) setReservations(JSON.parse(saved))
-    } catch {}
+
+    // 予約をlocalStorage + APIからマージして読み込む
+    const loadReservations = async () => {
+      let localData: Reservation[] = []
+      try {
+        const saved = localStorage.getItem('reservations_v1')
+        if (saved) localData = JSON.parse(saved)
+      } catch {}
+
+      try {
+        const supabase = createClient()
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user?.id) {
+          const res = await fetch(`/api/reservations?userId=${session.user.id}`)
+          if (res.ok) {
+            const apiData: Reservation[] = await res.json()
+            // IDが被った場合はAPIデータを優先してマージ
+            const merged = new Map<string, Reservation>()
+            for (const r of localData) merged.set(r.id, r)
+            for (const r of apiData) merged.set(r.id, r)
+            const mergedArr = Array.from(merged.values())
+            setReservations(mergedArr)
+            localStorage.setItem('reservations_v1', JSON.stringify(mergedArr))
+            return
+          }
+        }
+      } catch {}
+
+      // APIが失敗した場合はlocalStorageのみ
+      setReservations(localData)
+    }
+
+    loadReservations()
+
     try {
       const savedSlots = localStorage.getItem('timeSlots_v1')
       const parsed: TimeSlot[] = savedSlots ? JSON.parse(savedSlots) : []
@@ -233,10 +264,23 @@ export default function ReservePage() {
     if (!confirmSlot) return
     setBookingLoading(true)
     try {
+      // Supabaseセッションからuser_idとmember_nameを取得
+      let userId: string | undefined
+      let userEmail: string | undefined
+      let memberName = '会員'
+      try {
+        const supabase = createClient()
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user) {
+          userId = session.user.id
+          userEmail = session.user.email
+          memberName = session.user.user_metadata?.full_name || session.user.email || '会員'
+        }
+      } catch {}
+
       let meetLink: string | null = null
       let calendarEventId: string | null = null
       try {
-        const memberName = '選手'
         const gcalRes = await fetch('/api/gcal/create-event', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -268,6 +312,22 @@ export default function ReservePage() {
         meetLink: meetLink ?? undefined,
         calendarEventId: calendarEventId ?? undefined,
       }
+
+      // Supabaseに保存（バックグラウンド・エラーは無視）
+      try {
+        await fetch('/api/reservations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...newRes,
+            userId,
+            userEmail,
+            memberName,
+          }),
+        })
+      } catch {}
+
+      // localStorageにも保存（オフライン対応・後方互換）
       saveReservations([...reservations, newRes])
       setShowConfirm(false)
       if (meetLink) {
@@ -280,8 +340,19 @@ export default function ReservePage() {
     }
   }
 
-  const cancelReservation = (id: string) => {
+  const cancelReservation = async (id: string) => {
     if (!confirm('この予約をキャンセルしますか？')) return
+
+    // Supabaseのステータスを更新（バックグラウンド・エラーは無視）
+    try {
+      await fetch(`/api/reservations/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'cancelled' }),
+      })
+    } catch {}
+
+    // localStorageも更新
     saveReservations(reservations.map((r) => r.id === id ? { ...r, status: 'cancelled' as const } : r))
   }
 
