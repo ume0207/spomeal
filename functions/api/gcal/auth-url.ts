@@ -18,7 +18,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 
   // redirect_uriはGoogleコンソールに登録済みのものと一致させる
-  const redirectUri = 'https://spomeal.jp/api/gcal/callback'
+  const redirectUri = 'https://spomeal.jp/admin/gcal-setup/'
 
   const params = new URLSearchParams({
     client_id: env.GOOGLE_CLIENT_ID,
