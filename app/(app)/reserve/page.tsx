@@ -278,29 +278,35 @@ export default function ReservePage() {
         }
       } catch {}
 
-      let meetLink: string | null = null
-      let calendarEventId: string | null = null
+      // Supabaseに保存 + サーバー側でGoogle Meet自動作成
+      let savedRes: Reservation | null = null
       try {
-        const gcalRes = await fetch('/api/gcal/create-event', {
+        const apiRes = await fetch('/api/reservations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            id: Date.now().toString(),
             date: confirmSlot.date,
             time: confirmSlot.time,
-            memberName,
+            staffId: confirmSlot.staffId,
+            staffName: confirmSlot.staffName,
             notes: confirmNotes,
-            refreshToken: localStorage.getItem('gcal_refresh_token') || undefined,
+            status: 'confirmed',
+            createdAt: new Date().toISOString(),
+            userId,
+            userEmail,
+            memberName,
           }),
         })
-        const gcalData = await gcalRes.json() as { meetLink?: string; eventId?: string; skipped?: boolean }
-        meetLink = gcalData.meetLink ?? null
-        calendarEventId = gcalData.eventId ?? null
-        setGcalStatus(meetLink ? 'linked' : 'idle')
+        if (apiRes.ok) {
+          savedRes = await apiRes.json() as Reservation
+          setGcalStatus(savedRes?.meetLink ? 'linked' : 'idle')
+        }
       } catch {
         setGcalStatus('error')
       }
 
-      const newRes: Reservation = {
+      const newRes: Reservation = savedRes ?? {
         id: Date.now().toString(),
         date: confirmSlot.date,
         time: confirmSlot.time,
@@ -309,29 +315,13 @@ export default function ReservePage() {
         notes: confirmNotes,
         status: 'confirmed',
         createdAt: new Date().toISOString(),
-        meetLink: meetLink ?? undefined,
-        calendarEventId: calendarEventId ?? undefined,
       }
-
-      // Supabaseに保存（バックグラウンド・エラーは無視）
-      try {
-        await fetch('/api/reservations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...newRes,
-            userId,
-            userEmail,
-            memberName,
-          }),
-        })
-      } catch {}
 
       // localStorageにも保存（オフライン対応・後方互換）
       saveReservations([...reservations, newRes])
       setShowConfirm(false)
-      if (meetLink) {
-        alert(`予約が完了しました！\n\n担当: ${confirmSlot.staffName}\nGoogle Meet リンク:\n${meetLink}`)
+      if (newRes.meetLink) {
+        alert(`予約が完了しました！\n\n担当: ${confirmSlot.staffName}\nGoogle Meet リンク:\n${newRes.meetLink}`)
       } else {
         alert(`予約が完了しました！\n担当: ${confirmSlot.staffName}`)
       }

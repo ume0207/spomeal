@@ -3,6 +3,10 @@ type PagesFunction<Env = Record<string, unknown>> = (context: { request: Request
 interface Env {
   NEXT_PUBLIC_SUPABASE_URL: string
   SUPABASE_SERVICE_ROLE_KEY: string
+  GOOGLE_CLIENT_ID: string
+  GOOGLE_CLIENT_SECRET: string
+  GOOGLE_REFRESH_TOKEN: string
+  GOOGLE_CALENDAR_ID: string
 }
 
 const cors = {
@@ -50,6 +54,77 @@ function toSnake(obj: Record<string, unknown>): Record<string, unknown> {
   }
 }
 
+// Google Meet リンクをサーバー側で自動作成
+async function createMeetLink(env: Env, body: Record<string, unknown>): Promise<{ meetLink: string | null; calendarEventId: string | null }> {
+  if (!env.GOOGLE_REFRESH_TOKEN || !env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
+    return { meetLink: null, calendarEventId: null }
+  }
+
+  try {
+    // アクセストークン取得
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: env.GOOGLE_CLIENT_ID,
+        client_secret: env.GOOGLE_CLIENT_SECRET,
+        refresh_token: env.GOOGLE_REFRESH_TOKEN,
+        grant_type: 'refresh_token',
+      }),
+    })
+    const tokenData = await tokenRes.json() as { access_token?: string }
+    if (!tokenData.access_token) return { meetLink: null, calendarEventId: null }
+
+    // 開始・終了時刻（30分）
+    const date = String(body.date || '')
+    const time = String(body.time || '00:00')
+    const [hour, min] = time.split(':').map(Number)
+    const endTotalMin = hour * 60 + min + 30
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const startDateTime = `${date}T${pad(hour)}:${pad(min)}:00+09:00`
+    const endDateTime = `${date}T${pad(Math.floor(endTotalMin / 60))}:${pad(endTotalMin % 60)}:00+09:00`
+
+    const calendarId = env.GOOGLE_CALENDAR_ID || 'spomeal20260323@gmail.com'
+    const memberName = String(body.memberName || body.member_name || 'お客様')
+    const notes = String(body.notes || '')
+
+    const event = {
+      summary: `【スポミル】ミーティング - ${memberName}`,
+      description: notes ? `内容: ${notes}` : 'スポミル ミーティング',
+      start: { dateTime: startDateTime, timeZone: 'Asia/Tokyo' },
+      end: { dateTime: endDateTime, timeZone: 'Asia/Tokyo' },
+      conferenceData: {
+        createRequest: {
+          requestId: `spomeal-${body.id || Date.now()}`,
+          conferenceSolutionKey: { type: 'hangoutsMeet' },
+        },
+      },
+    }
+
+    const calRes = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?conferenceDataVersion=1`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${tokenData.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(event),
+      }
+    )
+
+    const calData = await calRes.json() as {
+      id?: string
+      conferenceData?: { entryPoints?: Array<{ entryPointType: string; uri: string }> }
+    }
+
+    const meetLink = calData.conferenceData?.entryPoints?.find(e => e.entryPointType === 'video')?.uri ?? null
+    return { meetLink, calendarEventId: calData.id ?? null }
+  } catch {
+    return { meetLink: null, calendarEventId: null }
+  }
+}
+
 // GET: ?userId=xxx → その会員の予約 / ?admin=true → 全予約
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { request, env } = context
@@ -67,12 +142,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
     }
 
-    let query = ''
-    if (isAdmin) {
-      query = 'order=date.asc,time.asc'
-    } else {
-      query = `user_id=eq.${userId}&order=date.asc,time.asc`
-    }
+    const query = isAdmin
+      ? 'order=date.asc,time.asc'
+      : `user_id=eq.${userId}&order=date.asc,time.asc`
 
     const res = await fetch(
       `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/reservations?${query}`,
@@ -85,15 +157,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     const rows = await res.json() as Record<string, unknown>[]
-    const data = rows.map(toCamel)
-
-    return new Response(JSON.stringify(data), { status: 200, headers: cors })
+    return new Response(JSON.stringify(rows.map(toCamel)), { status: 200, headers: cors })
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: cors })
   }
 }
 
-// POST: 新規予約作成
+// POST: 新規予約作成（Google Meet リンクも自動生成）
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { request, env } = context
 
@@ -102,6 +172,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     if (!body.id || !body.date || !body.time) {
       return new Response(JSON.stringify({ error: 'id, date, time are required' }), { status: 400, headers: cors })
+    }
+
+    // Google Meet リンクをサーバー側で自動生成
+    const { meetLink, calendarEventId } = await createMeetLink(env, body)
+    if (meetLink) {
+      body.meetLink = meetLink
+      body.calendarEventId = calendarEventId
     }
 
     const supaHeaders = {
