@@ -474,7 +474,7 @@ function RegisterForm() {
               続けてプランを選択・決済してください。
             </p>
             <Link
-              href="/plans"
+              href="/login?redirect=/plans"
               style={{
                 display: 'inline-block',
                 padding: '14px 32px',

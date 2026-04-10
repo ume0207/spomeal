@@ -140,15 +140,29 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       if (supabaseUrl && serviceKey) {
         let resolvedUserId = userId
 
-        // userId がない場合はメールアドレスで検索
+        // userId がない場合はメールアドレスで検索（Supabase auth admin API）
         if (!resolvedUserId && email) {
+          // 方法1: admin users API でメール検索
           const userRes = await fetch(
             `${supabaseUrl}/auth/v1/admin/users?email=${encodeURIComponent(email)}&page=1&per_page=1`,
             { headers: { 'Authorization': `Bearer ${serviceKey}`, 'apikey': serviceKey } }
           )
           if (userRes.ok) {
-            const userData = await userRes.json() as { users?: Array<{ id: string }> }
-            resolvedUserId = userData.users?.[0]?.id
+            const userData = await userRes.json() as { users?: Array<{ id: string; email?: string }> }
+            // emailが一致するユーザーだけを採用（フィルタが効かない場合に備えて照合）
+            const matchedUser = userData.users?.find(u => u.email?.toLowerCase() === email.toLowerCase())
+            resolvedUserId = matchedUser?.id
+          }
+          // 方法2: profilesテーブルのemail列で検索（方法1で見つからない場合）
+          if (!resolvedUserId) {
+            const profRes = await fetch(
+              `${supabaseUrl}/rest/v1/profiles?email=eq.${encodeURIComponent(email)}&select=id&limit=1`,
+              { headers: { 'Authorization': `Bearer ${serviceKey}`, 'apikey': serviceKey } }
+            )
+            if (profRes.ok) {
+              const profData = await profRes.json() as Array<{ id: string }>
+              resolvedUserId = profData[0]?.id
+            }
           }
         }
 
