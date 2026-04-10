@@ -238,6 +238,43 @@ export default function MealPage() {
   const [bottomTab, setBottomTab] = useState<'search' | 'favorite' | 'manual' | 'history'>('search')
   const [searchQuery, setSearchQuery] = useState('')
   const [favorites, setFavorites] = useState<string[]>([])
+  // 検索で選択した食品リスト（複数選択・PFC合計計算用）
+  const [selectedSearchFoods, setSelectedSearchFoods] = useState<Array<{name: string; kcal: number; p: number; f: number; c: number; g: number}>>([])
+
+  // 検索から食品を追加し、手動入力欄の合計を更新するヘルパー
+  const addSearchFood = (item: {name: string; kcal: number; p: number; f: number; c: number; g: number}) => {
+    setSelectedSearchFoods(prev => {
+      const next = [...prev, item]
+      const totalKcal = next.reduce((s, x) => s + x.kcal, 0)
+      const totalP = next.reduce((s, x) => s + x.p, 0)
+      const totalF = next.reduce((s, x) => s + x.f, 0)
+      const totalC = next.reduce((s, x) => s + x.c, 0)
+      setManualKcal(String(Math.round(totalKcal)))
+      setManualProtein(totalP.toFixed(1))
+      setManualFat(totalF.toFixed(1))
+      setManualCarbs(totalC.toFixed(1))
+      setAiText(next.map(x => x.name).join('、'))
+      setAiResult(null)
+      return next
+    })
+    setSearchQuery('')
+  }
+
+  const removeSearchFood = (idx: number) => {
+    setSelectedSearchFoods(prev => {
+      const next = prev.filter((_, i) => i !== idx)
+      if (next.length === 0) {
+        setManualKcal(''); setManualProtein(''); setManualFat(''); setManualCarbs(''); setAiText('')
+      } else {
+        setManualKcal(String(Math.round(next.reduce((s, x) => s + x.kcal, 0))))
+        setManualProtein(next.reduce((s, x) => s + x.p, 0).toFixed(1))
+        setManualFat(next.reduce((s, x) => s + x.f, 0).toFixed(1))
+        setManualCarbs(next.reduce((s, x) => s + x.c, 0).toFixed(1))
+        setAiText(next.map(x => x.name).join('、'))
+      }
+      return next
+    })
+  }
 
   // 写真ビューアとエディット
   const [viewPhoto, setViewPhoto] = useState<string | null>(null)
@@ -454,6 +491,7 @@ export default function MealPage() {
       setManualProtein('')
       setManualFat('')
       setManualCarbs('')
+      setSelectedSearchFoods([])
     }
     setShowAddModal(true)
   }
@@ -1775,8 +1813,35 @@ export default function MealPage() {
                           boxSizing: 'border-box', fontFamily: 'inherit', marginBottom: '10px',
                         }}
                       />
+                      {/* 選択済み食品リスト */}
+                      {selectedSearchFoods.length > 0 && (
+                        <div style={{ marginBottom: '10px', background: '#f0fdf4', borderRadius: '12px', padding: '10px 12px' }}>
+                          <p style={{ fontSize: '12px', fontWeight: 700, color: '#16a34a', marginBottom: '8px' }}>✅ 選択中の食品</p>
+                          {selectedSearchFoods.map((food, idx) => (
+                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: idx < selectedSearchFoods.length - 1 ? '1px solid #dcfce7' : 'none' }}>
+                              <div>
+                                <span style={{ fontSize: '14px', fontWeight: 600, color: '#111827' }}>{food.name}</span>
+                                <span style={{ fontSize: '12px', color: '#6b7280', marginLeft: '8px' }}>{food.kcal}kcal</span>
+                                <span style={{ fontSize: '11px', color: '#9ca3af', marginLeft: '6px' }}>P{food.p}g F{food.f}g C{food.c}g</span>
+                              </div>
+                              <button onClick={() => removeSearchFood(idx)} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '16px', cursor: 'pointer', padding: '0 4px', fontFamily: 'inherit' }}>✕</button>
+                            </div>
+                          ))}
+                          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #bbf7d0', display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 700, color: '#16a34a' }}>
+                            <span>合計</span>
+                            <span>
+                              {Math.round(selectedSearchFoods.reduce((s, x) => s + x.kcal, 0))}kcal &nbsp;
+                              P{selectedSearchFoods.reduce((s, x) => s + x.p, 0).toFixed(1)}g &nbsp;
+                              F{selectedSearchFoods.reduce((s, x) => s + x.f, 0).toFixed(1)}g &nbsp;
+                              C{selectedSearchFoods.reduce((s, x) => s + x.c, 0).toFixed(1)}g
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 検索結果 */}
                       {searchQuery.trim() ? (
-                        <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                        <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
                           {(() => {
                             const results = searchFoodDB(searchQuery).slice(0, 20)
                             if (results.length === 0) {
@@ -1785,29 +1850,27 @@ export default function MealPage() {
                             return results.map((item) => (
                               <button
                                 key={item.name}
-                                onClick={() => {
-                                  setManualKcal(String(item.kcal))
-                                  setManualProtein(String(item.p))
-                                  setManualFat(String(item.f))
-                                  setManualCarbs(String(item.c))
-                                  setAiText(prev => prev ? `${prev}、${item.name}` : item.name)
-                                  setSearchQuery('')
-                                }}
+                                onClick={() => addSearchFood({ name: item.name, kcal: item.kcal, p: item.p, f: item.f, c: item.c, g: item.g })}
                                 style={{
-                                  width: '100%', textAlign: 'left', padding: '14px 12px',
+                                  width: '100%', textAlign: 'left', padding: '12px',
                                   background: 'none', border: 'none', borderBottom: '1px solid #f3f4f6',
                                   cursor: 'pointer', fontSize: '15px', color: '#374151', fontFamily: 'inherit',
                                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                                 }}
                               >
-                                <span style={{ fontWeight: 600 }}>{item.name}</span>
-                                <span style={{ fontSize: '13px', color: '#9ca3af' }}>{item.kcal}kcal / {item.g}g</span>
+                                <div>
+                                  <span style={{ fontWeight: 600, display: 'block' }}>{item.name}</span>
+                                  <span style={{ fontSize: '11px', color: '#9ca3af' }}>P{item.p}g / F{item.f}g / C{item.c}g</span>
+                                </div>
+                                <span style={{ fontSize: '13px', color: '#22c55e', fontWeight: 700 }}>＋ {item.kcal}kcal</span>
                               </button>
                             ))
                           })()}
                         </div>
                       ) : (
-                        <p style={{ fontSize: '14px', color: '#9ca3af', textAlign: 'center', padding: '12px 0' }}>食品名を入力して検索してください</p>
+                        <p style={{ fontSize: '14px', color: '#9ca3af', textAlign: 'center', padding: '12px 0' }}>
+                          {selectedSearchFoods.length > 0 ? '追加したい食品を検索できます' : '食品名を入力して検索してください'}
+                        </p>
                       )}
                     </div>
                   )}
@@ -1820,13 +1883,7 @@ export default function MealPage() {
                           return info ? (
                             <button
                               key={name}
-                              onClick={() => {
-                                setManualKcal(String(info.kcal))
-                                setManualProtein(String(info.p))
-                                setManualFat(String(info.f))
-                                setManualCarbs(String(info.c))
-                                setAiText(prev => prev ? `${prev}、${name}` : name)
-                              }}
+                              onClick={() => addSearchFood({ name, kcal: info.kcal, p: info.p, f: info.f, c: info.c, g: info.g })}
                               style={{
                                 width: '100%', textAlign: 'left', padding: '14px 12px',
                                 background: 'none', border: 'none', borderBottom: '1px solid #f3f4f6',
@@ -1878,13 +1935,7 @@ export default function MealPage() {
                           {[...new Map(records.map(r => [r.foodName, r])).values()].slice(0, 20).map((rec) => (
                             <button
                               key={rec.id}
-                              onClick={() => {
-                                setAiText(rec.foodName)
-                                setManualKcal(String(rec.caloriesKcal))
-                                setManualProtein(String(rec.proteinG))
-                                setManualFat(String(rec.fatG))
-                                setManualCarbs(String(rec.carbsG))
-                              }}
+                              onClick={() => addSearchFood({ name: rec.foodName, kcal: Math.round(rec.caloriesKcal || 0), p: rec.proteinG || 0, f: rec.fatG || 0, c: rec.carbsG || 0, g: 0 })}
                               style={{
                                 width: '100%', textAlign: 'left', padding: '14px 12px',
                                 background: 'none', border: 'none', borderBottom: '1px solid #f3f4f6',
