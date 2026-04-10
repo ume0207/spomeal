@@ -35,7 +35,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     body: JSON.stringify({
       type: 'recovery',
       email,
-      options: { redirectTo: 'https://spomeal.jp/reset-password' },
+      options: { redirectTo: 'https://spomeal.jp' },
     }),
   })
 

@@ -7,7 +7,13 @@ export default function RootPage() {
   const router = useRouter()
 
   useEffect(() => {
-    router.replace('/login')
+    // パスワードリセットのリカバリートークンが含まれている場合は再設定ページへ
+    const hash = typeof window !== 'undefined' ? window.location.hash : ''
+    if (hash.includes('type=recovery')) {
+      router.replace('/reset-password' + hash)
+    } else {
+      router.replace('/login')
+    }
   }, [router])
 
   return (
