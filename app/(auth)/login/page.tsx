@@ -14,10 +14,14 @@ function ForgotPasswordLink() {
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
     setSending(true)
-    const supabase = createClient()
-    await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://spomeal.jp/reset-password',
-    })
+    try {
+      // Resend経由でパスワードリセットメールを送信（信頼性が高い）
+      await fetch('/api/auth/send-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+    } catch { /* エラーでも成功扱い（セキュリティ上） */ }
     setSent(true)
     setSending(false)
   }

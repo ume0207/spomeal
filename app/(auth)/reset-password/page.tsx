@@ -14,17 +14,28 @@ function ResetPasswordForm() {
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    // Supabaseがハッシュからセッションを自動復元するのを待つ
     const supabase = createClient()
-    supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
+
+    // PASSWORD_RECOVERYイベントを待つ（メールリンクからのアクセス）
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
         setReady(true)
       }
     })
-    // すでにセッションがある場合もOK
+
+    // すでにセッションがある場合もOK（リロード時など）
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) setReady(true)
     })
+
+    // URLハッシュにtokenがある場合、Supabaseに処理させる
+    if (typeof window !== 'undefined' && window.location.hash) {
+      supabase.auth.getSession().then(({ data }) => {
+        if (data.session) setReady(true)
+      })
+    }
+
+    return () => subscription.unsubscribe()
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
