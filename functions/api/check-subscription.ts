@@ -102,8 +102,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       }), { status: 200, headers: cors })
     }
 
-    // 3. profilesにデータがない場合、Stripeから直接確認（フォールバック）
-    if (!subscriptionStatus && email && env.STRIPE_SECRET_KEY) {
+    // 3. profilesがない or active/trialing以外の場合、Stripeから直接確認（フォールバック）
+    const activeStatuses = ['active', 'trialing']
+    if (!activeStatuses.includes(subscriptionStatus) && email && env.STRIPE_SECRET_KEY) {
       // Stripe顧客をメールで検索
       const custRes = await fetch(
         `https://api.stripe.com/v1/customers?email=${encodeURIComponent(email)}&limit=1`,
@@ -140,7 +141,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     // 4. 判定
-    const activeStatuses = ['active', 'trialing']
     const isActive = activeStatuses.includes(subscriptionStatus)
 
     // 未決済・未登録ユーザーはロック（Stripe決済完了後のみアクセス可）
