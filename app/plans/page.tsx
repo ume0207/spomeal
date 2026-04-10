@@ -85,9 +85,14 @@ export default function PlansPage() {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => {
-      setUserEmail(data.user?.email ?? null)
-      setUserId(data.user?.id ?? null)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        // 未ログインの場合は登録ページへ（決済後に戻れるようにredirect付き）
+        window.location.href = '/register?redirect=/plans'
+        return
+      }
+      setUserEmail(session.user?.email ?? null)
+      setUserId(session.user?.id ?? null)
     })
   }, [])
 
