@@ -78,10 +78,11 @@ export default function ShiftPage() {
   const [bulkMode, setBulkMode] = useState<'weekday' | 'pick'>('weekday')
 
   useEffect(() => {
-    try {
-      const savedStaff = localStorage.getItem('staff_v1')
-      if (savedStaff) setStaff(JSON.parse(savedStaff))
-    } catch {}
+    // スタッフ一覧をAPIから取得
+    fetch('/api/staff')
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setStaff(data))
+      .catch(() => {})
     try {
       const savedShifts = localStorage.getItem('shifts_v1')
       if (savedShifts) setShifts(migrateLegacyShifts(JSON.parse(savedShifts)))

@@ -154,17 +154,16 @@ function MemberDetailContent() {
   const [commentText, setCommentText] = useState('')
   const [commentSaved, setCommentSaved] = useState(false)
 
-  // スタッフ一覧読み込み
+  // スタッフ一覧読み込み（Supabase API）
   useEffect(() => {
-    try {
-      const rawStaff = localStorage.getItem('staff_v1')
-      if (rawStaff) {
-        const parsed: StaffMember[] = JSON.parse(rawStaff)
+    fetch('/api/staff')
+      .then(r => r.ok ? r.json() : [])
+      .then((parsed: StaffMember[]) => {
         const activeStaff = parsed.filter(s => s.active !== false)
         setStaffList(activeStaff)
         if (activeStaff.length > 0) setCommentStaff(activeStaff[0].name)
-      }
-    } catch {}
+      })
+      .catch(() => {})
   }, [])
 
   useEffect(() => {

@@ -115,14 +115,8 @@ export default function ReservePage() {
     setCurYear(now.getFullYear())
     setCurMonth(now.getMonth())
 
-    // 予約をlocalStorage + APIからマージして読み込む
+    // 予約をAPIから取得（ユーザーIDでフィルター済み）
     const loadReservations = async () => {
-      let localData: Reservation[] = []
-      try {
-        const saved = localStorage.getItem('reservations_v1')
-        if (saved) localData = JSON.parse(saved)
-      } catch {}
-
       try {
         const supabase = createClient()
         const { data: { session } } = await supabase.auth.getSession()
@@ -130,20 +124,12 @@ export default function ReservePage() {
           const res = await fetch(`/api/reservations?userId=${session.user.id}`)
           if (res.ok) {
             const apiData: Reservation[] = await res.json()
-            // IDが被った場合はAPIデータを優先してマージ
-            const merged = new Map<string, Reservation>()
-            for (const r of localData) merged.set(r.id, r)
-            for (const r of apiData) merged.set(r.id, r)
-            const mergedArr = Array.from(merged.values())
-            setReservations(mergedArr)
-            localStorage.setItem('reservations_v1', JSON.stringify(mergedArr))
+            setReservations(apiData)
             return
           }
         }
       } catch {}
-
-      // APIが失敗した場合はlocalStorageのみ
-      setReservations(localData)
+      setReservations([])
     }
 
     loadReservations()
@@ -161,10 +147,11 @@ export default function ReservePage() {
       const defaults = generateDefaultTimeSlots()
       setTimeSlots(defaults)
     }
-    try {
-      const savedStaff = localStorage.getItem('staff_v1')
-      if (savedStaff) setAllStaff(JSON.parse(savedStaff))
-    } catch {}
+    // スタッフ一覧をAPIから取得
+    fetch('/api/staff')
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setAllStaff(data))
+      .catch(() => {})
     try {
       const savedShifts = localStorage.getItem('shifts_v1')
       if (savedShifts) setShifts(JSON.parse(savedShifts))
@@ -173,7 +160,6 @@ export default function ReservePage() {
 
   const saveReservations = (data: Reservation[]) => {
     setReservations(data)
-    localStorage.setItem('reservations_v1', JSON.stringify(data))
   }
 
   const activeStaff = allStaff.filter(s => s.active !== false)
