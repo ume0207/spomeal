@@ -293,6 +293,17 @@ export default function ShiftPage() {
           style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid #e5e7eb', background: 'white', color: '#374151', fontSize: '11px', cursor: 'pointer', fontFamily: 'inherit' }}>
           今月
         </button>
+        <button
+          onClick={() => {
+            if (!confirm('全シフトデータを削除しますか？')) return
+            localStorage.removeItem('shifts_v1')
+            localStorage.removeItem('timeSlots_v1')
+            setShifts([])
+            alert('シフトデータを削除しました')
+          }}
+          style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid #fca5a5', background: 'white', color: '#ef4444', fontSize: '11px', cursor: 'pointer', fontFamily: 'inherit', marginLeft: 'auto' }}>
+          🗑 シフトをリセット
+        </button>
       </div>
 
       {/* 一括登録ボタン */}
