@@ -20,7 +20,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     hasClientId: !!env.GOOGLE_CLIENT_ID,
     hasClientSecret: !!env.GOOGLE_CLIENT_SECRET,
     hasRefreshToken: !!env.GOOGLE_REFRESH_TOKEN,
-    clientIdPrefix: env.GOOGLE_CLIENT_ID ? env.GOOGLE_CLIENT_ID.substring(0, 20) + '...' : null,
+    clientId: env.GOOGLE_CLIENT_ID || null,
     refreshTokenPrefix: env.GOOGLE_REFRESH_TOKEN ? env.GOOGLE_REFRESH_TOKEN.substring(0, 10) + '...' : null,
   }
 
