@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 
 // ========== チュートリアルステップ定義 ==========
-const tutorialSteps = [
+const tutorialSteps: Array<{ target: string; title: string; description: string; position: 'top' | 'bottom'; icon: string }> = [
   {
     target: 'quick-record',
     title: 'クイック記録',
@@ -15,21 +15,21 @@ const tutorialSteps = [
     target: 'nav-meal',
     title: '食事記録',
     description: '写真やAIで食事を簡単に記録。PFC（タンパク質・脂質・炭水化物）も自動計算されます。',
-    position: 'top' as const,
+    position: 'bottom' as const,
     icon: '🍽',
   },
   {
     target: 'nav-body',
     title: '体組成データ',
     description: '体重・体脂肪率・筋肉量を記録してグラフで推移を確認できます。',
-    position: 'top' as const,
+    position: 'bottom' as const,
     icon: '📊',
   },
   {
     target: 'nav-reserve',
     title: '予約管理',
     description: '栄養相談の予約ができます。管理栄養士があなたの食事をサポートします。',
-    position: 'top' as const,
+    position: 'bottom' as const,
     icon: '📅',
   },
   {
