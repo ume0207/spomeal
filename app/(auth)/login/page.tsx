@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -103,6 +103,20 @@ function LoginForm() {
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
+
+  // 決済完了後にリダイレクトされてきた場合、すでにセッションがあればそのままダッシュボードへ
+  useEffect(() => {
+    if (!isPaid) return
+    const supabase = createClient()
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        // サブスク状態の更新を少し待ってからリダイレクト（webhookの処理時間）
+        setTimeout(() => {
+          window.location.href = '/dashboard'
+        }, 1500)
+      }
+    })
+  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()

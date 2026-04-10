@@ -471,12 +471,10 @@ function RegisterForm() {
             </p>
             <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', marginBottom: '24px' }}>
               会員登録が完了しました。<br />
-              {redirectTo === '/plans'
-                ? '次にログインしてからプランを選択・決済してください。'
-                : 'ログインしてプランを選択してください。'}
+              続けてプランを選択・決済してください。
             </p>
             <Link
-              href={redirectTo === '/plans' ? '/login?redirect=/plans' : '/login'}
+              href="/plans"
               style={{
                 display: 'inline-block',
                 padding: '14px 32px',
@@ -489,7 +487,7 @@ function RegisterForm() {
                 marginBottom: '12px',
               }}
             >
-              {redirectTo === '/plans' ? 'ログインしてプランを選択する →' : '続けてプランを選択・決済する →'}
+              続けてプランを選択・決済する →
             </Link>
           </div>
         </div>
