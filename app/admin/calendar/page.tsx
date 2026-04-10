@@ -46,6 +46,8 @@ export default function AdminCalendarPage() {
   const [gcalClientId, setGcalClientId] = useState('')
   const [showGcalSettings, setShowGcalSettings] = useState(false)
   const [creatingMeet, setCreatingMeet] = useState<string | null>(null)
+  const [meetInputId, setMeetInputId] = useState<string | null>(null)
+  const [meetInputValue, setMeetInputValue] = useState('')
 
   useEffect(() => {
     try {
@@ -95,6 +97,25 @@ export default function AdminCalendarPage() {
   const handleGcalSignOut = () => {
     gcal_signOut()
     setGcalConnected(false)
+  }
+
+  const handleSaveMeetLink = (id: string, link: string) => {
+    const trimmed = link.trim()
+    if (!trimmed) return
+    const updated = reservations.map((res) =>
+      res.id === id ? { ...res, meetLink: trimmed } : res
+    )
+    saveAllReservations(updated)
+    if (detail) {
+      setDetail({
+        ...detail,
+        list: detail.list.map((res) =>
+          res.id === id ? { ...res, meetLink: trimmed } : res
+        ),
+      })
+    }
+    setMeetInputId(null)
+    setMeetInputValue('')
   }
 
   const handleCreateMeet = async (r: Reservation) => {
@@ -352,8 +373,20 @@ export default function AdminCalendarPage() {
                     {dayRes.slice(0, 3).map((r) => {
                       const sc = STATUS_COLORS[r.status]
                       return (
-                        <div key={r.id} style={{ fontSize: '10px', padding: '2px 5px', borderRadius: '4px', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', background: sc.bg, color: sc.color, fontWeight: 600 }}>
-                          {r.time} {r.staffName} {r.meetLink ? '🎥' : ''}
+                        <div key={r.id} style={{ fontSize: '10px', padding: '2px 5px', borderRadius: '4px', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', background: sc.bg, color: sc.color, fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.time} {r.staffName}</span>
+                          {r.meetLink && (
+                            <a
+                              href={r.meetLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              style={{ flexShrink: 0, fontSize: '11px', textDecoration: 'none' }}
+                              title="Google Meet に参加"
+                            >
+                              🎥
+                            </a>
+                          )}
                         </div>
                       )
                     })}
@@ -386,7 +419,22 @@ export default function AdminCalendarPage() {
                       const sc = STATUS_COLORS[r.status]
                       return (
                         <div key={r.id} onClick={() => setDetail({ date: dateKey, list: dayRes })} style={{ fontSize: '10px', padding: '4px 6px', borderRadius: '6px', marginBottom: '4px', background: sc.bg, color: sc.color, fontWeight: 600, cursor: 'pointer' }}>
-                          {r.time}<br />{r.staffName}{r.meetLink ? ' 🎥' : ''}
+                          <div>{r.time}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '3px' }}>
+                            <span>{r.staffName}</span>
+                            {r.meetLink && (
+                              <a
+                                href={r.meetLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                style={{ textDecoration: 'none', fontSize: '12px' }}
+                                title="Google Meet に参加"
+                              >
+                                🎥
+                              </a>
+                            )}
+                          </div>
                         </div>
                       )
                     })}
@@ -429,22 +477,117 @@ export default function AdminCalendarPage() {
                     </div>
                     {r.notes && <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px' }}>{r.notes}</div>}
 
-                    {/* Meet リンク表示 */}
-                    {r.meetLink && (
-                      <a
-                        href={r.meetLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          display: 'inline-flex', alignItems: 'center', gap: '5px',
-                          marginTop: '8px', padding: '5px 10px', borderRadius: '6px',
-                          background: '#1e88e5', color: 'white', fontSize: '11px',
-                          fontWeight: 700, textDecoration: 'none',
-                        }}
-                      >
-                        🎥 Meet に参加
-                      </a>
-                    )}
+                    {/* ===== Meet セクション ===== */}
+                    <div style={{ marginTop: '10px', borderTop: '1px solid #f0f0f0', paddingTop: '10px' }}>
+                      {r.meetLink ? (
+                        /* Meetリンクあり → 大きなボタンで表示 */
+                        <a
+                          href={r.meetLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                            padding: '10px 14px', borderRadius: '10px',
+                            background: 'linear-gradient(135deg, #1e88e5 0%, #1565c0 100%)',
+                            color: 'white', fontSize: '13px', fontWeight: 800,
+                            textDecoration: 'none', boxShadow: '0 2px 8px rgba(30,136,229,0.35)',
+                          }}
+                        >
+                          🎥 Google Meet に参加する
+                        </a>
+                      ) : meetInputId === r.id ? (
+                        /* リンク入力フォーム */
+                        <div>
+                          <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '6px' }}>
+                            meet.google.com/xxx のURLを貼り付けてください
+                          </div>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <input
+                              type="text"
+                              value={meetInputValue}
+                              onChange={(e) => setMeetInputValue(e.target.value)}
+                              placeholder="https://meet.google.com/abc-defg-hij"
+                              autoFocus
+                              style={{
+                                flex: 1, padding: '7px 10px', borderRadius: '8px',
+                                border: '1.5px solid #93c5fd', fontSize: '11px',
+                                outline: 'none', fontFamily: 'inherit',
+                              }}
+                            />
+                            <button
+                              onClick={() => handleSaveMeetLink(r.id, meetInputValue)}
+                              style={{
+                                padding: '7px 12px', borderRadius: '8px', border: 'none',
+                                background: '#1e88e5', color: 'white', fontSize: '11px',
+                                fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+                              }}
+                            >
+                              保存
+                            </button>
+                            <button
+                              onClick={() => { setMeetInputId(null); setMeetInputValue('') }}
+                              style={{
+                                padding: '7px 10px', borderRadius: '8px', border: '1px solid #e5e7eb',
+                                background: 'white', color: '#9ca3af', fontSize: '11px',
+                                fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        /* Meetリンクなし → 作成/入力ボタン */
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          {/* Google Meetを今すぐ新規作成して貼り付ける */}
+                          <a
+                            href="https://meet.google.com/new"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => {
+                              setTimeout(() => {
+                                setMeetInputId(r.id)
+                                setMeetInputValue('')
+                              }, 500)
+                            }}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '4px',
+                              padding: '7px 12px', borderRadius: '8px', border: 'none',
+                              background: '#1e88e5', color: 'white', fontSize: '11px',
+                              fontWeight: 700, textDecoration: 'none',
+                            }}
+                          >
+                            🎥 Meet を新規作成
+                          </a>
+                          {/* URLを直接入力 */}
+                          <button
+                            onClick={() => { setMeetInputId(r.id); setMeetInputValue('') }}
+                            style={{
+                              padding: '7px 12px', borderRadius: '8px', border: '1.5px solid #93c5fd',
+                              background: 'white', color: '#1e88e5', fontSize: '11px',
+                              fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                            }}
+                          >
+                            🔗 URLを貼り付け
+                          </button>
+                          {/* Google Calendar連携でMeet作成 */}
+                          {gcalConnected && (
+                            <button
+                              onClick={() => handleCreateMeet(r)}
+                              disabled={creatingMeet === r.id}
+                              style={{
+                                padding: '7px 12px', borderRadius: '8px', border: 'none',
+                                background: creatingMeet === r.id ? '#9ca3af' : '#34a853',
+                                color: 'white', fontSize: '11px', fontWeight: 700,
+                                cursor: creatingMeet === r.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                              }}
+                            >
+                              {creatingMeet === r.id ? '作成中...' : '📅 Gcal連携で作成'}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
 
                     {r.status === 'confirmed' && (
                       <div style={{ display: 'flex', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
@@ -460,25 +603,6 @@ export default function AdminCalendarPage() {
                         >
                           キャンセル
                         </button>
-                        {!r.meetLink && gcalConnected && (
-                          <button
-                            onClick={() => handleCreateMeet(r)}
-                            disabled={creatingMeet === r.id}
-                            style={{
-                              padding: '5px 10px', borderRadius: '7px', border: 'none',
-                              background: creatingMeet === r.id ? '#9ca3af' : '#1e88e5',
-                              color: 'white', fontSize: '11px', fontWeight: 700,
-                              cursor: creatingMeet === r.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
-                            }}
-                          >
-                            {creatingMeet === r.id ? '作成中...' : '🎥 Meet作成'}
-                          </button>
-                        )}
-                        {!r.meetLink && !gcalConnected && (
-                          <span style={{ fontSize: '10px', color: '#9ca3af', alignSelf: 'center' }}>
-                            Google連携でMeet作成可
-                          </span>
-                        )}
                       </div>
                     )}
                   </div>
