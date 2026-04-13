@@ -243,7 +243,13 @@ function MemberDetailContent() {
   }, [memberId])
 
   const handleSendComment = async () => {
-    if (!commentText.trim() || !member) return
+    if (!commentText.trim()) return
+    // member.id が取れない場合はURLパラメータのmemberIdをフォールバックで使用
+    const targetMemberId = member?.id || memberId
+    if (!targetMemberId) {
+      setCommentError('会員IDが取得できませんでした。ページを再読み込みしてください。')
+      return
+    }
     setCommentSending(true)
     setCommentError('')
     try {
@@ -251,7 +257,7 @@ function MemberDetailContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          memberId: member.id,
+          memberId: targetMemberId,
           staffName: commentStaff || '管理栄養士',
           category: commentCategory,
           comment: commentText.trim(),
