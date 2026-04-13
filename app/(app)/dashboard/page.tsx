@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { getPointsData, getTodayPoints, doLottery, getAvailableLotteries, getLotteryHistory, getRarityColor, getRarityLabel } from '@/lib/points'
+import { getRarityColor, getRarityLabel } from '@/lib/points'
 import { toJSTDateStr } from '@/lib/date-utils'
 import type { LotteryResult } from '@/lib/points'
 import { SpotlightTutorial, UsageGuide } from '@/components/Tutorial'
@@ -120,10 +120,6 @@ export default function DashboardPage() {
       } catch { /* ignore */ }
     }
 
-    const mealKey = currentUserId ? `mealRecords_v1_${currentUserId}` : 'mealRecords_v1'
-    const bodyKey = currentUserId ? `bodyRecords_v1_${currentUserId}` : 'bodyRecords_v1'
-    const goalsKey = currentUserId ? `goals_v1_${currentUserId}` : 'goals_v1'
-
     // 管理栄養士コメントの読み込み（このユーザー宛のみ）
     try {
       const commentsRaw = localStorage.getItem('nutritionist_comments_v1')
@@ -138,85 +134,101 @@ export default function DashboardPage() {
       }
     } catch { /* ignore */ }
 
-    try {
-      const raw = localStorage.getItem(goalsKey)
-      if (raw) {
-        const parsed = JSON.parse(raw)
-        if (parsed['__default__']) {
-          setGoal(parsed['__default__'])
-        }
-      }
-    } catch { /* ignore */ }
+    if (currentUserId) {
+      // 目標データをAPIから取得
+      fetch(`/api/user-goals?userId=${currentUserId}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(gData => {
+          if (gData) {
+            setGoal({
+              cal: gData.cal || 2000,
+              protein: gData.protein || 150,
+              fat: gData.fat || 55,
+              carbs: gData.carbs || 220,
+            })
+          }
+        }).catch(() => {})
 
-    // 食事記録データ読み込み
-    try {
-      const mealRaw = localStorage.getItem(mealKey)
-      if (mealRaw) {
-        const allRecords: MealRecord[] = JSON.parse(mealRaw)
-        const today = toJSTDateStr()
-        const todayRecs = allRecords.filter(r => r.mealDate === today)
-        setTodayMealRecords(todayRecs)
-        const totals = todayRecs.reduce((acc, r) => ({
-          calories: acc.calories + (r.caloriesKcal || 0),
-          protein: acc.protein + (r.proteinG || 0),
-          fat: acc.fat + (r.fatG || 0),
-          carbs: acc.carbs + (r.carbsG || 0),
-        }), { calories: 0, protein: 0, fat: 0, carbs: 0 })
-        setTodayNutrition(totals)
-      } else {
-        setTodayMealRecords([])
-        setTodayNutrition({ calories: 0, protein: 0, fat: 0, carbs: 0 })
-      }
-    } catch { /* ignore */ }
+      // 食事記録データをAPIから取得（今日分）
+      const today = toJSTDateStr()
+      fetch(`/api/meals?userId=${currentUserId}&from=${today}&to=${today}`)
+        .then(r => r.ok ? r.json() : [])
+        .then((data: any[]) => {
+          const todayRecs: MealRecord[] = (data || []).map((r: any) => ({
+            id: r.id,
+            mealDate: r.meal_date,
+            mealType: r.meal_type,
+            foodName: r.food_name || '',
+            caloriesKcal: Number(r.calories_kcal) || 0,
+            proteinG: Number(r.protein_g) || 0,
+            fatG: Number(r.fat_g) || 0,
+            carbsG: Number(r.carbs_g) || 0,
+            fiberG: 0, saltG: 0,
+            items: Array.isArray(r.items) ? r.items : [],
+          }))
+          setTodayMealRecords(todayRecs)
+          const totals = todayRecs.reduce((acc, r) => ({
+            calories: acc.calories + (r.caloriesKcal || 0),
+            protein: acc.protein + (r.proteinG || 0),
+            fat: acc.fat + (r.fatG || 0),
+            carbs: acc.carbs + (r.carbsG || 0),
+          }), { calories: 0, protein: 0, fat: 0, carbs: 0 })
+          setTodayNutrition(totals)
+        }).catch(() => {
+          setTodayMealRecords([])
+          setTodayNutrition({ calories: 0, protein: 0, fat: 0, carbs: 0 })
+        })
 
-    // 体組成データ読み込み
-    try {
-      const bodyRaw = localStorage.getItem(bodyKey)
-      if (bodyRaw) {
-        const allBody: BodyRecord[] = JSON.parse(bodyRaw)
-        const sorted = [...allBody].sort((a, b) => b.date.localeCompare(a.date))
-        if (sorted.length > 0) {
-          const latest = sorted[0]
-          const prev = sorted.length > 1 ? sorted[1] : null
-          const wChange = prev && latest.weight != null && prev.weight != null
-            ? (latest.weight - prev.weight).toFixed(1) : '—'
-          const fChange = prev && latest.bodyFat != null && prev.bodyFat != null
-            ? (latest.bodyFat - prev.bodyFat).toFixed(1) : '—'
-          const mChange = prev && latest.muscleMass != null && prev.muscleMass != null
-            ? (latest.muscleMass - prev.muscleMass).toFixed(1) : '—'
-          setLatestBody({
-            weight: latest.weight != null ? latest.weight.toFixed(1) : '—',
-            bodyFat: latest.bodyFat != null ? latest.bodyFat.toFixed(1) : '—',
-            muscle: latest.muscleMass != null ? latest.muscleMass.toFixed(1) : '—',
-            weightChange: wChange !== '—' ? (Number(wChange) >= 0 ? '+' + wChange : wChange) : '—',
-            fatChange: fChange !== '—' ? (Number(fChange) >= 0 ? '+' + fChange : fChange) : '—',
-            muscleChange: mChange !== '—' ? (Number(mChange) >= 0 ? '+' + mChange : mChange) : '—',
-          })
-        } else {
-          setLatestBody(null)
-        }
-      } else {
-        setLatestBody(null)
-      }
-    } catch { /* ignore */ }
+      // 体組成データをAPIから取得
+      fetch(`/api/body-records?userId=${currentUserId}`)
+        .then(r => r.ok ? r.json() : [])
+        .then((data: any[]) => {
+          const sorted = (data || []).sort((a: any, b: any) => b.date.localeCompare(a.date))
+          if (sorted.length > 0) {
+            const latest = sorted[0]
+            const prev = sorted.length > 1 ? sorted[1] : null
+            const wChange = prev ? (latest.weight - prev.weight).toFixed(1) : '—'
+            const fChange = prev ? (latest.body_fat - prev.body_fat).toFixed(1) : '—'
+            const mChange = prev ? (latest.muscle - prev.muscle).toFixed(1) : '—'
+            setLatestBody({
+              weight: latest.weight != null ? String(Number(latest.weight).toFixed(1)) : '—',
+              bodyFat: latest.body_fat != null ? String(Number(latest.body_fat).toFixed(1)) : '—',
+              muscle: latest.muscle != null ? String(Number(latest.muscle).toFixed(1)) : '—',
+              weightChange: wChange !== '—' ? (Number(wChange) >= 0 ? '+' + wChange : wChange) : '—',
+              fatChange: fChange !== '—' ? (Number(fChange) >= 0 ? '+' + fChange : fChange) : '—',
+              muscleChange: mChange !== '—' ? (Number(mChange) >= 0 ? '+' + mChange : mChange) : '—',
+            })
+          } else {
+            setLatestBody(null)
+          }
+        }).catch(() => setLatestBody(null))
 
-    // ポイントデータ読み込み（userId別）
-    const ptData = getPointsData(currentUserId ?? undefined)
-    setTotalPoints(ptData.totalPoints)
-    setAvailableLotteries(getAvailableLotteries(currentUserId ?? undefined))
-    const today = toJSTDateStr()
-    const todayPt = getTodayPoints(today, currentUserId ?? undefined)
-    setTodayEarned(todayPt.earned)
-    if (todayPt.record) {
-      setTodayMeals({
-        breakfast: todayPt.record.breakfast,
-        lunch: todayPt.record.lunch,
-        dinner: todayPt.record.dinner,
-        snack: todayPt.record.snack,
-        bonus: todayPt.record.bonus,
-      })
+      // ポイントデータをAPIから取得
+      fetch(`/api/user-points?userId=${currentUserId}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(ptData => {
+          if (ptData) {
+            setTotalPoints(ptData.total_points ?? 0)
+            setAvailableLotteries(Math.floor((ptData.total_points ?? 0) / 100))
+            const todayStr = toJSTDateStr()
+            const todayRec = (ptData.records || []).find((r: any) => r.date === todayStr)
+            if (todayRec) {
+              const earned = [todayRec.breakfast, todayRec.lunch, todayRec.dinner, todayRec.snack, todayRec.bonus, todayRec.body].filter(Boolean).length
+              setTodayEarned(earned)
+              setTodayMeals({
+                breakfast: todayRec.breakfast || false,
+                lunch: todayRec.lunch || false,
+                dinner: todayRec.dinner || false,
+                snack: todayRec.snack || false,
+                bonus: todayRec.bonus || false,
+              })
+            } else {
+              setTodayEarned(0)
+            }
+            setLotteryHistory((ptData.lottery_history || []).slice(0, 10))
+          }
+        }).catch(() => {})
     }
-    setLotteryHistory(getLotteryHistory(currentUserId ?? undefined).results.slice(0, 10))
 
     // 予約データをAPI優先で読み込む
     try {
@@ -936,16 +948,25 @@ export default function DashboardPage() {
                   </div>
                   <button
                     onClick={() => {
+                      if (!userId) return
                       setIsSpinning(true)
-                      setTimeout(() => {
-                        const result = doLottery(userId ?? undefined)
-                        if (result) {
-                          setLotteryResult(result)
-                          const ptData = getPointsData(userId ?? undefined)
-                          setTotalPoints(ptData.totalPoints)
-                          setAvailableLotteries(getAvailableLotteries(userId ?? undefined))
-                          setLotteryHistory(getLotteryHistory(userId ?? undefined).results.slice(0, 10))
-                        }
+                      setTimeout(async () => {
+                        try {
+                          const res = await fetch('/api/user-points', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ userId, action: 'lottery' }),
+                          })
+                          if (res.ok) {
+                            const data = await res.json()
+                            if (data.lotteryResult) {
+                              setLotteryResult(data.lotteryResult)
+                              setTotalPoints(data.total_points ?? 0)
+                              setAvailableLotteries(Math.floor((data.total_points ?? 0) / 100))
+                              setLotteryHistory((data.lottery_history || []).slice(0, 10))
+                            }
+                          }
+                        } catch { /* ignore */ }
                         setIsSpinning(false)
                       }, 1500)
                     }}

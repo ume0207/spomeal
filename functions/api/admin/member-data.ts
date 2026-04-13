@@ -30,6 +30,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseKey = env.SUPABASE_SERVICE_ROLE_KEY
 
+    // ユーザー基本情報を取得
     const userRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
       headers: { Authorization: `Bearer ${supabaseKey}`, apikey: supabaseKey },
     })
@@ -40,14 +41,49 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const userData = await userRes.json()
     const meta = userData.user_metadata || {}
 
+    // 食事記録を新テーブルから取得（最新90件）
+    const mealRes = await fetch(
+      `${supabaseUrl}/rest/v1/meal_records?user_id=eq.${userId}&order=meal_date.desc,created_at.desc&limit=90`,
+      { headers: { Authorization: `Bearer ${supabaseKey}`, apikey: supabaseKey } }
+    )
+    const mealData = mealRes.ok ? await mealRes.json() : []
+    const meal_activity = (mealData || []).map((r: any) => ({
+      mealType: r.meal_type,
+      items: (r.items || []).map((i: any) => ({ name: i.foodName || i.name, kcal: i.caloriesKcal || i.kcal, protein: i.proteinG || i.protein, fat: i.fatG || i.fat, carbs: i.carbsG || i.carbs })),
+      totalKcal: r.calories_kcal, totalProtein: r.protein_g, totalFat: r.fat_g, totalCarbs: r.carbs_g,
+      date: r.meal_date, time: '', updatedAt: r.created_at,
+    }))
+
+    // 体組成記録を新テーブルから取得
+    const bodyRes = await fetch(
+      `${supabaseUrl}/rest/v1/body_records?user_id=eq.${userId}&order=date.desc&limit=30`,
+      { headers: { Authorization: `Bearer ${supabaseKey}`, apikey: supabaseKey } }
+    )
+    const bodyData = bodyRes.ok ? await bodyRes.json() : []
+    const body_activity = (bodyData || []).map((r: any) => ({
+      date: r.date, weight: r.weight, bodyFat: r.body_fat, muscle: r.muscle, bmi: r.bmi, recordedAt: r.created_at,
+    }))
+
+    // 目標データを新テーブルから取得
+    const goalRes = await fetch(
+      `${supabaseUrl}/rest/v1/user_goals?user_id=eq.${userId}&limit=1`,
+      { headers: { Authorization: `Bearer ${supabaseKey}`, apikey: supabaseKey } }
+    )
+    const goalData = goalRes.ok ? await goalRes.json() : []
+    const goal = goalData[0] ? {
+      cal: goalData[0].cal, protein: goalData[0].protein, fat: goalData[0].fat, carbs: goalData[0].carbs,
+      targetWeight: goalData[0].target_weight, height: goalData[0].height,
+      activityLevel: goalData[0].activity_level, goalType: goalData[0].goal_type,
+    } : (meta.goal_data || null)
+
     return new Response(JSON.stringify({
-      meal_activity: meta.meal_activity || [],
-      body_activity: meta.body_activity || [],
-      goal_data: meta.goal_data || null,
+      meal_activity: meal_activity.length > 0 ? meal_activity : (meta.meal_activity || []),
+      body_activity: body_activity.length > 0 ? body_activity : (meta.body_activity || []),
+      goal_data: goal,
       display_name: meta.display_name || userData.email || '',
       email: userData.email || '',
     }), { headers: cors })
-  } catch (e) {
+  } catch (e: any) {
     return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: cors })
   }
 }

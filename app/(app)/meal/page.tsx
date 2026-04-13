@@ -335,36 +335,71 @@ export default function MealPage() {
     setCurrentDate(new Date())
   }, [])
 
-  // userId取得＆localStorage読み込み
+  // userId取得＆Supabase読み込み
   useEffect(() => {
     if (typeof window === 'undefined') return
     const supabase = createClient()
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       const uid = session?.user?.id ?? null
       setUserId(uid)
-      const MEAL_KEY = getMealKey(uid)
-      const GOAL_KEY = getGoalKey(uid)
+      if (!uid) return
+
+      // 食事記録をAPIから取得
       try {
-        const raw = localStorage.getItem(MEAL_KEY)
-        if (raw) setRecords(JSON.parse(raw))
+        const res = await fetch(`/api/meals?userId=${uid}`)
+        if (res.ok) {
+          const data = await res.json()
+          const records: MealRecord[] = (data || []).map((r: any) => ({
+            id: r.id,
+            mealDate: r.meal_date,
+            mealType: r.meal_type,
+            foodName: r.food_name || '',
+            caloriesKcal: Number(r.calories_kcal) || 0,
+            proteinG: Number(r.protein_g) || 0,
+            fatG: Number(r.fat_g) || 0,
+            carbsG: Number(r.carbs_g) || 0,
+            fiberG: 0,
+            saltG: 0,
+            items: Array.isArray(r.items) ? r.items : [],
+            photoUrl: r.photo_url || undefined,
+            advice: r.advice || undefined,
+          }))
+          setRecords(records)
+        }
       } catch { /* ignore */ }
+
+      // 目標データをAPIから取得
       try {
-        const raw = localStorage.getItem(GOAL_KEY)
-        if (raw) {
-          const parsed = JSON.parse(raw)
-          if (parsed['__default__']) setGoal(parsed['__default__'])
+        const gRes = await fetch(`/api/user-goals?userId=${uid}`)
+        if (gRes.ok) {
+          const gData = await gRes.json()
+          if (gData) {
+            setGoal({
+              cal: gData.cal || 2000,
+              protein: gData.protein || 150,
+              fat: gData.fat || 55,
+              carbs: gData.carbs || 220,
+              targetWeight: gData.target_weight || undefined,
+              height: gData.height || undefined,
+              activityLevel: gData.activity_level || undefined,
+              goalType: gData.goal_type || undefined,
+              pfcP: gData.pfc_p || 25,
+              pfcF: gData.pfc_f || 20,
+              pfcC: gData.pfc_c || 55,
+            })
+          }
         }
       } catch { /* ignore */ }
     })
   }, [])
 
+  // APIで個別レコードを保存（楽観的更新）
   const saveRecords = useCallback((newRecords: MealRecord[]) => {
     setRecords(newRecords)
     if (typeof window !== 'undefined') {
-      localStorage.setItem(getMealKey(userId), JSON.stringify(newRecords))
       window.dispatchEvent(new Event('mealRecordsUpdated'))
     }
-  }, [userId])
+  }, [])
 
   // 当日フィルタ（currentDate が null の間はローディング扱い）
   const dateStr = currentDate ? toDateStr(currentDate) : ''
@@ -428,6 +463,9 @@ export default function MealPage() {
 
   const deleteRecord = (id: string) => {
     if (confirm('この記録を削除しますか？')) {
+      if (userId) {
+        fetch(`/api/meals?id=${id}&userId=${userId}`, { method: 'DELETE' }).catch(() => {})
+      }
       saveRecords(records.filter(r => r.id !== id))
     }
   }
@@ -450,6 +488,20 @@ export default function MealPage() {
       if (r.id !== recordId) return r
       return { ...r, items: inlineEditItems, caloriesKcal: totalKcal, proteinG: totalP, fatG: totalF, carbsG: totalC, foodName }
     })
+    // APIでも更新
+    const rec = records.find(r => r.id === recordId)
+    if (userId && rec) {
+      fetch('/api/meals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId, id: recordId,
+          mealDate: rec.mealDate, mealType: rec.mealType,
+          foodName, caloriesKcal: totalKcal, proteinG: totalP, fatG: totalF, carbsG: totalC,
+          items: inlineEditItems,
+        }),
+      }).catch(() => {})
+    }
     saveRecords(updated)
     setInlineEditRecordId(null)
   }
@@ -573,70 +625,76 @@ export default function MealPage() {
       advice: adviceText,
     }
 
+    // Supabase APIに保存
+    if (userId) {
+      try {
+        const saved = await fetch('/api/meals', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            id: editingRecordId || undefined,
+            mealDate: mealDateStr,
+            mealType: catName,
+            foodName: foodName,
+            caloriesKcal: kcal,
+            proteinG: protein,
+            fatG: fat,
+            carbsG: carbs,
+            items: recordItems,
+            photoUrl: photoUrl || null,
+            advice: adviceText || null,
+          }),
+        })
+        if (saved.ok) {
+          const data = await saved.json()
+          // DBから返ってきたIDで更新
+          if (!editingRecordId && data[0]?.id) {
+            newRecord.id = data[0].id
+          }
+        }
+      } catch { /* ignore */ }
+
+      // 管理者フィード用にも同期
+      fetch('/api/meal-activity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          mealType: catName,
+          items: recordItems.map(i => ({ name: i.foodName, kcal: i.caloriesKcal, protein: i.proteinG, fat: i.fatG, carbs: i.carbsG })),
+          totalKcal: kcal, totalProtein: protein, totalFat: fat, totalCarbs: carbs,
+        }),
+      }).catch(() => {})
+    }
+
     let updatedRecords: MealRecord[]
     if (editingRecordId) {
-      // Update existing record
       updatedRecords = records.map(r => r.id === editingRecordId ? newRecord : r)
     } else {
-      // Create new record
       updatedRecords = [...records, newRecord]
     }
     saveRecords(updatedRecords)
 
-    // 管理者フィード用: 食事活動をSupabaseユーザーメタデータに記録
-    try {
-      const supabase = createClient()
-      const { data: authData } = await supabase.auth.getUser()
-      if (authData?.user?.id) {
-        const mealPayload = {
-          userId: authData.user.id,
-          mealType: catName,
-          items: recordItems.map(i => ({
-            name: i.foodName, kcal: i.caloriesKcal, protein: i.proteinG, fat: i.fatG, carbs: i.carbsG,
-          })),
-          totalKcal: kcal,
-          totalProtein: protein,
-          totalFat: fat,
-          totalCarbs: carbs,
-        }
-        // awaitで確実に送信し、失敗時は1回リトライ
-        try {
-          const res = await fetch('/api/meal-activity', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(mealPayload),
-          })
-          if (!res.ok) {
-            // リトライ
-            await fetch('/api/meal-activity', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(mealPayload),
-            }).catch(() => {})
-          }
-        } catch {
-          // リトライ
-          try {
-            await fetch('/api/meal-activity', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(mealPayload),
-            })
-          } catch { /* 最終的にサイレント失敗 */ }
-        }
-      }
-    } catch { /* サイレント失敗 */ }
-
-    // ポイント付与（新規記録のみ）
-    if (!editingRecordId) {
+    // ポイント付与（新規記録のみ・API経由）
+    if (!editingRecordId && userId) {
       const mealTypeEn = activeMealType || 'lunch'
-      const result = addMealPoint(mealDateStr, mealTypeEn, userId ?? undefined)
-      if (result.pointsAdded > 0) {
-        setTimeout(() => {
-          const bonusMsg = result.pointsAdded > 1 ? `（3食コンプリートボーナス +1pt!）` : ''
-          alert(`🎉 +${result.pointsAdded}pt 獲得！${bonusMsg}\n累計: ${result.totalPoints}pt`)
-        }, 300)
-      }
+      fetch('/api/user-points', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, action: 'addMeal', dateStr: mealDateStr, mealType: mealTypeEn }),
+      }).then(async res => {
+        if (res.ok) {
+          const ptData = await res.json()
+          const added = ptData.total_points - (ptData.total_points - 1)
+          if (ptData.total_points > 0) {
+            const bonusMsg = ptData.lotteryResult ? '' : ''
+            setTimeout(() => {
+              // ポイントメッセージは控えめに（アラートなし）
+            }, 300)
+          }
+        }
+      }).catch(() => {})
     }
     setShowAddModal(false)
     setEditingRecordId(null)
@@ -682,31 +740,21 @@ export default function MealPage() {
       pfcP: goalPfcP, pfcF: goalPfcF, pfcC: goalPfcC,
     }
     setGoal(newGoal)
-    if (typeof window !== 'undefined') {
-      try {
-        const GOAL_KEY = getGoalKey(userId)
-        const raw = localStorage.getItem(GOAL_KEY)
-        const parsed = raw ? JSON.parse(raw) : {}
-        parsed['__default__'] = newGoal
-        localStorage.setItem(GOAL_KEY, JSON.stringify(parsed))
-      } catch { /* ignore */ }
-    }
 
-    // Supabaseにも目標データを同期
-    try {
-      const supabase = createClient()
-      const { data: authData } = await supabase.auth.getUser()
-      if (authData?.user?.id) {
-        fetch('/api/goal-activity', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: authData.user.id,
-            ...newGoal,
-          }),
-        }).catch(() => {})
-      }
-    } catch {}
+    // Supabase APIに目標データを保存
+    if (userId) {
+      fetch('/api/user-goals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, ...newGoal }),
+      }).catch(() => {})
+      // 管理者フィード用にも同期
+      fetch('/api/goal-activity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, ...newGoal }),
+      }).catch(() => {})
+    }
 
     setShowGoalModal(false)
   }

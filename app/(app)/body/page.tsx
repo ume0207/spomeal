@@ -29,28 +29,35 @@ export default function BodyPage() {
   const [pointMessage, setPointMessage] = useState('')
   const [userId, setUserId] = useState<string | null>(null)
 
-  // ユーザーIDを取得しlocalStorageから体組成記録を読み込み
+  // ユーザーIDを取得しSupabaseから体組成記録を読み込み
   const loadRecords = useCallback(async () => {
     try {
       const supabase = createClient()
       const { data: { session } } = await supabase.auth.getSession()
       const uid = session?.user?.id ?? null
       if (uid) setUserId(uid)
-      const bodyKey = uid ? `bodyRecords_v1_${uid}` : 'bodyRecords_v1'
-      const goalsKey = uid ? `goals_v1_${uid}` : 'goals_v1'
+      if (!uid) return
 
-      const raw = localStorage.getItem(bodyKey)
-      if (raw) {
-        const parsed = JSON.parse(raw)
-        setSavedRecords(Array.isArray(parsed) ? parsed.sort((a: BodyRecord, b: BodyRecord) => b.date.localeCompare(a.date)) : [])
+      // 体組成データをAPIから取得
+      const res = await fetch(`/api/body-records?userId=${uid}`)
+      if (res.ok) {
+        const data = await res.json()
+        const records: BodyRecord[] = (data || []).map((r: any) => ({
+          date: r.date,
+          weight: r.weight,
+          bodyFat: r.body_fat,
+          muscle: r.muscle,
+          bmi: r.bmi,
+        }))
+        setSavedRecords(records)
       }
+
+      // 目標データをAPIから取得
       try {
-        const gRaw = localStorage.getItem(goalsKey)
-        if (gRaw) {
-          const parsed = JSON.parse(gRaw)
-          if (parsed['__default__']?.targetWeight != null) {
-            setTargetWeight(parsed['__default__'].targetWeight)
-          }
+        const gRes = await fetch(`/api/user-goals?userId=${uid}`)
+        if (gRes.ok) {
+          const gData = await gRes.json()
+          if (gData?.target_weight != null) setTargetWeight(gData.target_weight)
         }
       } catch { /* ignore */ }
     } catch { /* ignore */ }
@@ -66,30 +73,45 @@ export default function BodyPage() {
     const dateStr = toJSTDateStr()
 
     const newRecord: BodyRecord = { date: dateStr, weight: w, bodyFat: bf, muscle: m, bmi }
+
+    // Supabaseに保存
+    try {
+      await fetch('/api/body-records', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, date: dateStr, weight: w, bodyFat: bf, muscle: m, bmi }),
+      })
+      // 管理者フィード用にも同期
+      fetch('/api/body-activity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, date: dateStr, weight: w, bodyFat: bf, muscle: m, bmi }),
+      }).catch(() => {})
+    } catch { /* ignore */ }
+
+    // 画面をすぐ更新（楽観的更新）
     const existing = savedRecords.filter(r => r.date !== dateStr)
     const updated = [newRecord, ...existing].sort((a, b) => b.date.localeCompare(a.date))
-
-    const bodyKey = userId ? `bodyRecords_v1_${userId}` : 'bodyRecords_v1'
-    localStorage.setItem(bodyKey, JSON.stringify(updated))
     setSavedRecords(updated)
 
-    // Supabaseにも同期
+    // ポイント付与（API経由）
     try {
       if (userId) {
-        fetch('/api/body-activity', {
+        const ptRes = await fetch('/api/user-points', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, date: dateStr, weight: w, bodyFat: bf, muscle: m, bmi }),
-        }).catch(() => {})
+          body: JSON.stringify({ userId, action: 'addBody', dateStr }),
+        })
+        if (ptRes.ok) {
+          const ptData = await ptRes.json()
+          const prevTotal = ptData.total_points - 1
+          if (ptData.total_points > prevTotal) {
+            setPointMessage(`🎉 体組成記録で +1pt！ (累計: ${ptData.total_points}pt)`)
+            setTimeout(() => setPointMessage(''), 3000)
+          }
+        }
       }
-    } catch {}
-
-    // ポイント付与（1日1回・userId別）
-    const result = addBodyPoint(dateStr, userId ?? undefined)
-    if (result.pointsAdded > 0) {
-      setPointMessage(`🎉 体組成記録で +${result.pointsAdded}pt！ (累計: ${result.totalPoints}pt)`)
-      setTimeout(() => setPointMessage(''), 3000)
-    }
+    } catch { /* ignore */ }
 
     setNewWeight('')
     setNewBodyFat('')
@@ -457,8 +479,11 @@ export default function BodyPage() {
                         <button
                           onClick={() => {
                             if (!confirm('この記録を削除しますか？')) return
+                            const rec = savedRecords[i]
+                            if (userId && rec) {
+                              fetch(`/api/body-records?userId=${userId}&date=${rec.date}`, { method: 'DELETE' }).catch(() => {})
+                            }
                             const updated = savedRecords.filter((_, idx) => idx !== i)
-                            localStorage.setItem('bodyRecords_v1', JSON.stringify(updated))
                             setSavedRecords(updated)
                           }}
                           style={{
