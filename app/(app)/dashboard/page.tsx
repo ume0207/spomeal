@@ -80,6 +80,10 @@ export default function DashboardPage() {
   const [isSpinning, setIsSpinning] = useState(false)
   const [lotteryHistory, setLotteryHistory] = useState<LotteryResult[]>([])
 
+  // サブスクリプション情報
+  const [subscriptionPlan, setSubscriptionPlan] = useState<string>('free')
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string>('none')
+
   // チュートリアル＆ガイド
   const [showTutorial, setShowTutorial] = useState(false)
   const [showGuide, setShowGuide] = useState(false)
@@ -196,6 +200,19 @@ export default function DashboardPage() {
       const todayStr = toJSTDateStr()
 
       if (session?.user?.id) {
+        // サブスクリプション情報を取得
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('subscription_plan, subscription_status')
+            .eq('id', session.user.id)
+            .single()
+          if (profile) {
+            setSubscriptionPlan(profile.subscription_plan || 'free')
+            setSubscriptionStatus(profile.subscription_status || 'none')
+          }
+        } catch { /* ignore */ }
+
         // APIから取得を試みる
         try {
           const res = await fetch(`/api/reservations?userId=${session.user.id}`)
@@ -441,6 +458,73 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* ===== 現在のプラン ===== */}
+        {(() => {
+          const planInfo: Record<string, { name: string; color: string; bg: string; border: string; icon: string; rank: number }> = {
+            light:    { name: 'ライト',        color: '#0891b2', bg: 'linear-gradient(135deg,#ecfeff,#cffafe)', border: '#a5f3fc', icon: '🌱', rank: 1 },
+            standard: { name: 'スタンダード',  color: '#d97706', bg: 'linear-gradient(135deg,#fffbeb,#fef3c7)', border: '#fde68a', icon: '⭐', rank: 2 },
+            premium:  { name: 'プレミアム',    color: '#7c3aed', bg: 'linear-gradient(135deg,#f5f3ff,#ede9fe)', border: '#c4b5fd', icon: '👑', rank: 3 },
+          }
+          const statusLabel: Record<string, string> = {
+            trialing: '無料トライアル中',
+            active: '利用中',
+            cancelling: '解約予定',
+            cancelled: '解約済み',
+            free: '無料',
+            none: '',
+          }
+          const plan = planInfo[subscriptionPlan] || planInfo['light']
+          const statusText = statusLabel[subscriptionStatus] || ''
+          const isPremium = subscriptionPlan === 'premium'
+          return (
+            <div style={{
+              background: plan.bg,
+              border: `1.5px solid ${plan.border}`,
+              borderRadius: '16px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              marginBottom: '12px',
+              padding: '14px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '24px' }}>{plan.icon}</span>
+                <div>
+                  <div style={{ fontSize: '11px', color: '#6b7280', fontWeight: 600, marginBottom: '2px' }}>現在のプラン</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '16px', fontWeight: 900, color: plan.color }}>{plan.name}</span>
+                    {statusText && (
+                      <span style={{
+                        fontSize: '10px', fontWeight: 700,
+                        background: subscriptionStatus === 'trialing' ? '#dcfce7' : 'rgba(255,255,255,0.7)',
+                        color: subscriptionStatus === 'trialing' ? '#16a34a' : '#6b7280',
+                        padding: '2px 7px', borderRadius: '20px',
+                        border: subscriptionStatus === 'trialing' ? '1px solid #86efac' : '1px solid #e5e7eb',
+                      }}>
+                        {statusText}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              {!isPremium && (
+                <Link href="/upgrade" style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '4px',
+                  padding: '9px 14px', borderRadius: '10px',
+                  background: 'linear-gradient(90deg,#7c3aed,#6d28d9)',
+                  color: 'white', fontSize: '12px', fontWeight: 800,
+                  textDecoration: 'none', whiteSpace: 'nowrap',
+                  boxShadow: '0 2px 8px rgba(124,58,237,0.35)',
+                }}>
+                  ↑ アップグレード
+                </Link>
+              )}
+            </div>
+          )
+        })()}
 
         {/* ===== 🎯 目標と進捗 ===== */}
         {goal && (
@@ -942,6 +1026,56 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+        {/* ===== アップグレードCTA ===== */}
+        {subscriptionPlan !== 'premium' && (
+          <Link href="/upgrade" style={{ display: 'block', textDecoration: 'none', marginBottom: '12px' }}>
+            <div style={{
+              background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)',
+              borderRadius: '18px',
+              padding: '20px',
+              position: 'relative',
+              overflow: 'hidden',
+              boxShadow: '0 4px 20px rgba(109,40,217,0.35)',
+            }}>
+              {/* 背景装飾 */}
+              <div style={{
+                position: 'absolute', top: '-20px', right: '-20px',
+                width: '120px', height: '120px', borderRadius: '50%',
+                background: 'rgba(139,92,246,0.25)',
+                pointerEvents: 'none',
+              }} />
+              <div style={{
+                position: 'absolute', bottom: '-30px', left: '30%',
+                width: '80px', height: '80px', borderRadius: '50%',
+                background: 'rgba(167,139,250,0.15)',
+                pointerEvents: 'none',
+              }} />
+              <div style={{ position: 'relative' }}>
+                <div style={{ fontSize: '11px', color: 'rgba(167,139,250,0.9)', fontWeight: 700, marginBottom: '6px', letterSpacing: '0.5px' }}>
+                  👑 UPGRADE
+                </div>
+                <div style={{ fontSize: '17px', fontWeight: 900, color: 'white', marginBottom: '6px', lineHeight: 1.3 }}>
+                  プランをアップグレードして<br />もっと活用しよう
+                </div>
+                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginBottom: '14px', lineHeight: 1.6 }}>
+                  {subscriptionPlan === 'light'
+                    ? 'ミーティング・フィードバックコメントが使えるようになります'
+                    : 'ミーティング月2回・週1フィードバックで最大限サポート'}
+                </div>
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  background: 'linear-gradient(90deg,#a78bfa,#7c3aed)',
+                  color: 'white', padding: '10px 20px', borderRadius: '12px',
+                  fontSize: '13px', fontWeight: 800,
+                  boxShadow: '0 2px 12px rgba(124,58,237,0.5)',
+                }}>
+                  プランを見る →
+                </div>
+              </div>
+            </div>
+          </Link>
+        )}
 
         {/* ===== 使い方を見るボタン ===== */}
         <div style={{ padding: '8px 0 20px' }}>
