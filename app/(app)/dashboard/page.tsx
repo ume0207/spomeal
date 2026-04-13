@@ -284,6 +284,42 @@ export default function DashboardPage() {
     >
       <div style={{ maxWidth: '640px', margin: '0 auto', padding: '16px 12px 40px' }}>
 
+        {/* ===== 現在のプラン（シンプルバー） ===== */}
+        {(() => {
+          const planNames: Record<string, string> = { light: 'ライト', standard: 'スタンダード', premium: 'プレミアム' }
+          const statusLabel: Record<string, string> = { trialing: '無料トライアル中', active: '利用中', cancelling: '解約予定', cancelled: '解約済み' }
+          const planName = planNames[subscriptionPlan] || 'ライト'
+          const statusText = statusLabel[subscriptionStatus] || ''
+          const isPremium = subscriptionPlan === 'premium'
+          return (
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: '#f9fafb', border: '1px solid #e5e7eb',
+              borderRadius: '10px', padding: '8px 14px', marginBottom: '12px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                <span style={{ fontSize: '11px', color: '#9ca3af' }}>プラン</span>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: '#374151' }}>{planName}</span>
+                {statusText && (
+                  <span style={{
+                    fontSize: '10px', fontWeight: 600, color: '#6b7280',
+                    background: '#f3f4f6', padding: '1px 7px', borderRadius: '20px',
+                    border: '1px solid #e5e7eb',
+                  }}>{statusText}</span>
+                )}
+              </div>
+              {!isPremium && (
+                <Link href="/upgrade" style={{
+                  fontSize: '11px', fontWeight: 700, color: '#7c3aed',
+                  textDecoration: 'none',
+                }}>
+                  アップグレード →
+                </Link>
+              )}
+            </div>
+          )
+        })()}
+
         {/* ===== 管理栄養士からのコメント ===== */}
         {nutritionistComments.length > 0 && (() => {
           const current = nutritionistComments[selectedCommentIndex] || nutritionistComments[0]
@@ -458,73 +494,6 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-
-        {/* ===== 現在のプラン ===== */}
-        {(() => {
-          const planInfo: Record<string, { name: string; color: string; bg: string; border: string; icon: string; rank: number }> = {
-            light:    { name: 'ライト',        color: '#0891b2', bg: 'linear-gradient(135deg,#ecfeff,#cffafe)', border: '#a5f3fc', icon: '🌱', rank: 1 },
-            standard: { name: 'スタンダード',  color: '#d97706', bg: 'linear-gradient(135deg,#fffbeb,#fef3c7)', border: '#fde68a', icon: '⭐', rank: 2 },
-            premium:  { name: 'プレミアム',    color: '#7c3aed', bg: 'linear-gradient(135deg,#f5f3ff,#ede9fe)', border: '#c4b5fd', icon: '👑', rank: 3 },
-          }
-          const statusLabel: Record<string, string> = {
-            trialing: '無料トライアル中',
-            active: '利用中',
-            cancelling: '解約予定',
-            cancelled: '解約済み',
-            free: '無料',
-            none: '',
-          }
-          const plan = planInfo[subscriptionPlan] || planInfo['light']
-          const statusText = statusLabel[subscriptionStatus] || ''
-          const isPremium = subscriptionPlan === 'premium'
-          return (
-            <div style={{
-              background: plan.bg,
-              border: `1.5px solid ${plan.border}`,
-              borderRadius: '16px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-              marginBottom: '12px',
-              padding: '14px 16px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '12px',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '24px' }}>{plan.icon}</span>
-                <div>
-                  <div style={{ fontSize: '11px', color: '#6b7280', fontWeight: 600, marginBottom: '2px' }}>現在のプラン</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '16px', fontWeight: 900, color: plan.color }}>{plan.name}</span>
-                    {statusText && (
-                      <span style={{
-                        fontSize: '10px', fontWeight: 700,
-                        background: subscriptionStatus === 'trialing' ? '#dcfce7' : 'rgba(255,255,255,0.7)',
-                        color: subscriptionStatus === 'trialing' ? '#16a34a' : '#6b7280',
-                        padding: '2px 7px', borderRadius: '20px',
-                        border: subscriptionStatus === 'trialing' ? '1px solid #86efac' : '1px solid #e5e7eb',
-                      }}>
-                        {statusText}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              {!isPremium && (
-                <Link href="/upgrade" style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '4px',
-                  padding: '9px 14px', borderRadius: '10px',
-                  background: 'linear-gradient(90deg,#7c3aed,#6d28d9)',
-                  color: 'white', fontSize: '12px', fontWeight: 800,
-                  textDecoration: 'none', whiteSpace: 'nowrap',
-                  boxShadow: '0 2px 8px rgba(124,58,237,0.35)',
-                }}>
-                  ↑ アップグレード
-                </Link>
-              )}
-            </div>
-          )
-        })()}
 
         {/* ===== 🎯 目標と進捗 ===== */}
         {goal && (
