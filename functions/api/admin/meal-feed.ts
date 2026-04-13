@@ -135,14 +135,20 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         updatedAt: record.created_at || '',
       }
 
-      // 同じmealTypeは最新で上書き
+      // 同じmealTypeでもitemを蓄積（各記録は別の食品）
       const existingIdx = group.meals.findIndex(m => m.mealType === mealEntry.mealType)
       if (existingIdx >= 0) {
-        group.dayTotalKcal -= group.meals[existingIdx].totalKcal
-        group.dayTotalProtein -= group.meals[existingIdx].totalProtein
-        group.dayTotalFat -= group.meals[existingIdx].totalFat
-        group.dayTotalCarbs -= group.meals[existingIdx].totalCarbs
-        group.meals[existingIdx] = mealEntry
+        // 既存のmealTypeにitemsを追加
+        const existing = group.meals[existingIdx]
+        existing.items = [...existing.items, ...mealEntry.items]
+        existing.totalKcal += mealEntry.totalKcal
+        existing.totalProtein += mealEntry.totalProtein
+        existing.totalFat += mealEntry.totalFat
+        existing.totalCarbs += mealEntry.totalCarbs
+        if (mealEntry.updatedAt > existing.updatedAt) {
+          existing.updatedAt = mealEntry.updatedAt
+          existing.time = mealEntry.time
+        }
       } else {
         group.meals.push(mealEntry)
       }
@@ -151,7 +157,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       group.dayTotalProtein += mealEntry.totalProtein
       group.dayTotalFat += mealEntry.totalFat
       group.dayTotalCarbs += mealEntry.totalCarbs
-      group.mealCount = group.meals.length
+      group.mealCount = group.meals.reduce((sum, m) => sum + m.items.length, 0)
 
       if (mealEntry.updatedAt > group.latestUpdatedAt) {
         group.latestUpdatedAt = mealEntry.updatedAt
