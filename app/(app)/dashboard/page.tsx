@@ -60,6 +60,7 @@ interface Reservation {
 }
 
 export default function DashboardPage() {
+  const [userId, setUserId] = useState<string | null>(null)
   const [goal, setGoal] = useState<GoalData | null>(null)
   const [nextReservation, setNextReservation] = useState<Reservation | null>(null)
   const [todayNutrition, setTodayNutrition] = useState({ calories: 0, protein: 0, fat: 0, carbs: 0 })
@@ -105,20 +106,40 @@ export default function DashboardPage() {
   }
 
   // データ読み込み関数（初回＋ページ復帰時に実行）
-  const loadAllData = useCallback(async () => {
+  const loadAllData = useCallback(async (uid?: string) => {
     if (typeof window === 'undefined') return
 
-    // 管理栄養士コメントの読み込み
+    // Supabaseからuserを取得（未取得の場合）
+    let currentUserId = uid || userId
+    if (!currentUserId) {
+      try {
+        const supabase = createClient()
+        const { data: { session } } = await supabase.auth.getSession()
+        currentUserId = session?.user?.id ?? null
+        if (currentUserId) setUserId(currentUserId)
+      } catch { /* ignore */ }
+    }
+
+    const mealKey = currentUserId ? `mealRecords_v1_${currentUserId}` : 'mealRecords_v1'
+    const bodyKey = currentUserId ? `bodyRecords_v1_${currentUserId}` : 'bodyRecords_v1'
+    const goalsKey = currentUserId ? `goals_v1_${currentUserId}` : 'goals_v1'
+
+    // 管理栄養士コメントの読み込み（このユーザー宛のみ）
     try {
       const commentsRaw = localStorage.getItem('nutritionist_comments_v1')
       if (commentsRaw) {
-        const parsed = JSON.parse(commentsRaw)
-        setNutritionistComments(Array.isArray(parsed) ? parsed : [])
+        const parsed: { id: string; date: string; staffName: string; category: string; comment: string; targetMember?: string }[] = JSON.parse(commentsRaw)
+        const filtered = Array.isArray(parsed)
+          ? parsed.filter(c => !c.targetMember || c.targetMember === '__all__' || c.targetMember === currentUserId)
+          : []
+        setNutritionistComments(filtered)
+      } else {
+        setNutritionistComments([])
       }
     } catch { /* ignore */ }
 
     try {
-      const raw = localStorage.getItem('goals_v1')
+      const raw = localStorage.getItem(goalsKey)
       if (raw) {
         const parsed = JSON.parse(raw)
         if (parsed['__default__']) {
@@ -129,7 +150,7 @@ export default function DashboardPage() {
 
     // 食事記録データ読み込み
     try {
-      const mealRaw = localStorage.getItem('mealRecords_v1')
+      const mealRaw = localStorage.getItem(mealKey)
       if (mealRaw) {
         const allRecords: MealRecord[] = JSON.parse(mealRaw)
         const today = toJSTDateStr()
@@ -150,7 +171,7 @@ export default function DashboardPage() {
 
     // 体組成データ読み込み
     try {
-      const bodyRaw = localStorage.getItem('bodyRecords_v1')
+      const bodyRaw = localStorage.getItem(bodyKey)
       if (bodyRaw) {
         const allBody: BodyRecord[] = JSON.parse(bodyRaw)
         const sorted = [...allBody].sort((a, b) => b.date.localeCompare(a.date))
@@ -171,16 +192,20 @@ export default function DashboardPage() {
             fatChange: fChange !== '—' ? (Number(fChange) >= 0 ? '+' + fChange : fChange) : '—',
             muscleChange: mChange !== '—' ? (Number(mChange) >= 0 ? '+' + mChange : mChange) : '—',
           })
+        } else {
+          setLatestBody(null)
         }
+      } else {
+        setLatestBody(null)
       }
     } catch { /* ignore */ }
 
-    // ポイントデータ読み込み
-    const ptData = getPointsData()
+    // ポイントデータ読み込み（userId別）
+    const ptData = getPointsData(currentUserId ?? undefined)
     setTotalPoints(ptData.totalPoints)
-    setAvailableLotteries(getAvailableLotteries())
+    setAvailableLotteries(getAvailableLotteries(currentUserId ?? undefined))
     const today = toJSTDateStr()
-    const todayPt = getTodayPoints(today)
+    const todayPt = getTodayPoints(today, currentUserId ?? undefined)
     setTodayEarned(todayPt.earned)
     if (todayPt.record) {
       setTodayMeals({
@@ -191,7 +216,7 @@ export default function DashboardPage() {
         bonus: todayPt.record.bonus,
       })
     }
-    setLotteryHistory(getLotteryHistory().results.slice(0, 10))
+    setLotteryHistory(getLotteryHistory(currentUserId ?? undefined).results.slice(0, 10))
 
     // 予約データをAPI優先で読み込む
     try {
@@ -200,12 +225,15 @@ export default function DashboardPage() {
       const todayStr = toJSTDateStr()
 
       if (session?.user?.id) {
+        const uid = session.user.id
+        setUserId(uid)
+
         // サブスクリプション情報を取得
         try {
           const { data: profile } = await supabase
             .from('profiles')
             .select('subscription_plan, subscription_status')
-            .eq('id', session.user.id)
+            .eq('id', uid)
             .single()
           if (profile) {
             setSubscriptionPlan(profile.subscription_plan || 'free')
@@ -215,7 +243,7 @@ export default function DashboardPage() {
 
         // APIから取得を試みる
         try {
-          const res = await fetch(`/api/reservations?userId=${session.user.id}`)
+          const res = await fetch(`/api/reservations?userId=${uid}`)
           if (res.ok) {
             const apiData: Reservation[] = await res.json()
             const upcoming = apiData
@@ -240,30 +268,34 @@ export default function DashboardPage() {
     } catch { /* ignore */ }
   }, [])
 
-  // 初回読み込み
+  // 初回読み込み（userId取得後に再ロード）
   useEffect(() => {
     loadAllData()
   }, [loadAllData])
 
+  // userId確定後にデータ再ロード
+  useEffect(() => {
+    if (userId) loadAllData(userId)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId])
+
   // ページに戻ったとき（食事記録ページから戻る等）にデータを再読み込み
   useEffect(() => {
+    const reload = () => loadAllData()
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        loadAllData()
-      }
+      if (document.visibilityState === 'visible') loadAllData()
     }
-    const handleFocus = () => loadAllData()
     document.addEventListener('visibilitychange', handleVisibility)
-    window.addEventListener('focus', handleFocus)
-    window.addEventListener('storage', loadAllData)
-    window.addEventListener('mealRecordsUpdated', loadAllData)
-    window.addEventListener('popstate', loadAllData)
+    window.addEventListener('focus', reload)
+    window.addEventListener('storage', reload)
+    window.addEventListener('mealRecordsUpdated', reload)
+    window.addEventListener('popstate', reload)
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility)
-      window.removeEventListener('focus', handleFocus)
-      window.removeEventListener('storage', loadAllData)
-      window.removeEventListener('mealRecordsUpdated', loadAllData)
-      window.removeEventListener('popstate', loadAllData)
+      window.removeEventListener('focus', reload)
+      window.removeEventListener('storage', reload)
+      window.removeEventListener('mealRecordsUpdated', reload)
+      window.removeEventListener('popstate', reload)
     }
   }, [loadAllData])
 
@@ -906,13 +938,13 @@ export default function DashboardPage() {
                     onClick={() => {
                       setIsSpinning(true)
                       setTimeout(() => {
-                        const result = doLottery()
+                        const result = doLottery(userId ?? undefined)
                         if (result) {
                           setLotteryResult(result)
-                          const ptData = getPointsData()
+                          const ptData = getPointsData(userId ?? undefined)
                           setTotalPoints(ptData.totalPoints)
-                          setAvailableLotteries(getAvailableLotteries())
-                          setLotteryHistory(getLotteryHistory().results.slice(0, 10))
+                          setAvailableLotteries(getAvailableLotteries(userId ?? undefined))
+                          setLotteryHistory(getLotteryHistory(userId ?? undefined).results.slice(0, 10))
                         }
                         setIsSpinning(false)
                       }, 1500)

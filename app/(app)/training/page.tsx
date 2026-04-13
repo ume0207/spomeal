@@ -76,8 +76,9 @@ const weekHasTraining = [true, false, true, false, true, false, false] // 今週
 export default function TrainingPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [activeFilter, setActiveFilter] = useState('すべて')
-  const [expanded, setExpanded] = useState<string | null>('1')
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 2, 25))
+  const [expanded, setExpanded] = useState<string | null>(null)
+  const [currentDate, setCurrentDate] = useState(new Date())
+  const [workouts, setWorkouts] = useState<WorkoutRecord[]>([])
   const [newTitle, setNewTitle] = useState('')
   const [newCategory, setNewCategory] = useState('筋トレ')
   const [newDuration, setNewDuration] = useState('')
@@ -85,8 +86,8 @@ export default function TrainingPage() {
   const [newIntensity, setNewIntensity] = useState('medium')
 
   const filtered = activeFilter === 'すべて'
-    ? demoWorkouts
-    : demoWorkouts.filter((w) => w.category === activeFilter)
+    ? workouts
+    : workouts.filter((w) => w.category === activeFilter)
 
   const prevDay = () => {
     const d = new Date(currentDate)

@@ -83,8 +83,8 @@ const catOptions = [
 const timingOptions = ['🌅 朝食時', '☀️ 起床後', '🏋️ トレーニング前', '⚡ トレーニング後', '🍽 夕食時', '🌙 就寝前']
 
 export default function SupplementPage() {
-  const [todaySupps, setTodaySupps] = useState(demoTodaySupps)
-  const [mySupps, setMySupps] = useState<MySuppItem[]>(demoMySupps)
+  const [todaySupps, setTodaySupps] = useState<typeof demoTodaySupps>([])
+  const [mySupps, setMySupps] = useState<MySuppItem[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
   const [editTarget, setEditTarget] = useState<MySuppItem | null>(null)
 

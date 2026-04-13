@@ -179,8 +179,6 @@ function MemberDetailContent() {
           if (found) { setMember({ ...found, status: 'active' }); return }
         }
       } catch {}
-      const demo = demoMembers.find(m => m.id === memberId)
-      if (demo) setMember(demo)
     }
     loadMember()
 

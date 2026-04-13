@@ -19,21 +19,6 @@ function calcBmi(weight: number) {
   return parseFloat((weight / ((height / 100) ** 2)).toFixed(1))
 }
 
-const demoRecords: BodyRecord[] = [
-  { date: '3月25日', weight: 72.4, bodyFat: 18.5, muscle: 59.0, bmi: calcBmi(72.4) },
-  { date: '3月24日', weight: 72.7, bodyFat: 18.7, muscle: 58.9, bmi: calcBmi(72.7) },
-  { date: '3月23日', weight: 72.9, bodyFat: 18.9, muscle: 58.8, bmi: calcBmi(72.9) },
-  { date: '3月22日', weight: 73.1, bodyFat: 19.0, muscle: 58.7, bmi: calcBmi(73.1) },
-  { date: '3月21日', weight: 73.0, bodyFat: 19.1, muscle: 58.6, bmi: calcBmi(73.0) },
-  { date: '3月20日', weight: 73.4, bodyFat: 19.2, muscle: 58.5, bmi: calcBmi(73.4) },
-  { date: '3月19日', weight: 73.6, bodyFat: 19.4, muscle: 58.4, bmi: calcBmi(73.6) },
-]
-
-// チャート用のデモデータ（実データがあれば上書きされる）
-const demoWeekWeights = demoRecords.map((r) => r.weight).reverse()
-const demoMinW = Math.min(...demoWeekWeights) - 0.5
-const demoMaxW = Math.max(...demoWeekWeights) + 0.5
-
 export default function BodyPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [newWeight, setNewWeight] = useState('')
@@ -42,15 +27,32 @@ export default function BodyPage() {
   const [targetWeight, setTargetWeight] = useState<number | null>(null)
   const [savedRecords, setSavedRecords] = useState<BodyRecord[]>([])
   const [pointMessage, setPointMessage] = useState('')
+  const [userId, setUserId] = useState<string | null>(null)
 
-  // localStorageから体組成記録を読み込み
-  const loadRecords = useCallback(() => {
+  // ユーザーIDを取得しlocalStorageから体組成記録を読み込み
+  const loadRecords = useCallback(async () => {
     try {
-      const raw = localStorage.getItem('bodyRecords_v1')
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      const uid = session?.user?.id ?? null
+      if (uid) setUserId(uid)
+      const bodyKey = uid ? `bodyRecords_v1_${uid}` : 'bodyRecords_v1'
+      const goalsKey = uid ? `goals_v1_${uid}` : 'goals_v1'
+
+      const raw = localStorage.getItem(bodyKey)
       if (raw) {
         const parsed = JSON.parse(raw)
         setSavedRecords(Array.isArray(parsed) ? parsed.sort((a: BodyRecord, b: BodyRecord) => b.date.localeCompare(a.date)) : [])
       }
+      try {
+        const gRaw = localStorage.getItem(goalsKey)
+        if (gRaw) {
+          const parsed = JSON.parse(gRaw)
+          if (parsed['__default__']?.targetWeight != null) {
+            setTargetWeight(parsed['__default__'].targetWeight)
+          }
+        }
+      } catch { /* ignore */ }
     } catch { /* ignore */ }
   }, [])
 
@@ -64,35 +66,26 @@ export default function BodyPage() {
     const dateStr = toJSTDateStr()
 
     const newRecord: BodyRecord = { date: dateStr, weight: w, bodyFat: bf, muscle: m, bmi }
-
     const existing = savedRecords.filter(r => r.date !== dateStr)
     const updated = [newRecord, ...existing].sort((a, b) => b.date.localeCompare(a.date))
 
-    localStorage.setItem('bodyRecords_v1', JSON.stringify(updated))
+    const bodyKey = userId ? `bodyRecords_v1_${userId}` : 'bodyRecords_v1'
+    localStorage.setItem(bodyKey, JSON.stringify(updated))
     setSavedRecords(updated)
 
     // Supabaseにも同期
     try {
-      const supabase = createClient()
-      const { data: authData } = await supabase.auth.getUser()
-      if (authData?.user?.id) {
+      if (userId) {
         fetch('/api/body-activity', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: authData.user.id,
-            date: dateStr,
-            weight: w,
-            bodyFat: bf,
-            muscle: m,
-            bmi,
-          }),
+          body: JSON.stringify({ userId, date: dateStr, weight: w, bodyFat: bf, muscle: m, bmi }),
         }).catch(() => {})
       }
     } catch {}
 
-    // ポイント付与（1日1回）
-    const result = addBodyPoint(dateStr)
+    // ポイント付与（1日1回・userId別）
+    const result = addBodyPoint(dateStr, userId ?? undefined)
     if (result.pointsAdded > 0) {
       setPointMessage(`🎉 体組成記録で +${result.pointsAdded}pt！ (累計: ${result.totalPoints}pt)`)
       setTimeout(() => setPointMessage(''), 3000)
@@ -105,44 +98,27 @@ export default function BodyPage() {
   }
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      // 目標体重の読み込み
-      try {
-        const raw = localStorage.getItem('goals_v1')
-        if (raw) {
-          const parsed = JSON.parse(raw)
-          if (parsed['__default__']?.targetWeight != null) {
-            setTargetWeight(parsed['__default__'].targetWeight)
-          }
-        }
-      } catch {
-        // ignore
-      }
-
-      // 体組成記録の読み込み
-      loadRecords()
-    }
+    if (typeof window !== 'undefined') loadRecords()
   }, [loadRecords])
 
-  // 実データがあればそれを使用、なければデモデータ
-  const displayRecords = savedRecords.length > 0 ? savedRecords : demoRecords
-  const latest = displayRecords[0]
-  const prev = displayRecords.length > 1 ? displayRecords[1] : latest
-  const weightChange = (latest.weight - prev.weight).toFixed(1)
-  const fatChange = (latest.bodyFat - prev.bodyFat).toFixed(1)
-  const muscleChange = (latest.muscle - prev.muscle).toFixed(1)
+  const displayRecords = savedRecords
+  const latest = displayRecords[0] ?? null
+  const prev = displayRecords.length > 1 ? displayRecords[1] : null
+  const weightChange = latest && prev ? (latest.weight - prev.weight).toFixed(1) : null
+  const fatChange = latest && prev ? (latest.bodyFat - prev.bodyFat).toFixed(1) : null
+  const muscleChange = latest && prev ? (latest.muscle - prev.muscle).toFixed(1) : null
 
-  const bmi = latest.bmi
-  const bmiLabel = bmi < 18.5 ? '低体重' : bmi < 25 ? '普通体重' : bmi < 30 ? '肥満(1度)' : '肥満(2度以上)'
-  const bmiColor = bmi < 18.5 ? '#3b82f6' : bmi < 25 ? '#22c55e' : bmi < 30 ? '#f59e0b' : '#ef4444'
-  const bmiPct = Math.min(Math.max(((bmi - 15) / (35 - 15)) * 100, 0), 100)
+  const bmi = latest?.bmi ?? null
+  const bmiLabel = bmi == null ? '' : bmi < 18.5 ? '低体重' : bmi < 25 ? '普通体重' : bmi < 30 ? '肥満(1度)' : '肥満(2度以上)'
+  const bmiColor = bmi == null ? '#9ca3af' : bmi < 18.5 ? '#3b82f6' : bmi < 25 ? '#22c55e' : bmi < 30 ? '#f59e0b' : '#ef4444'
+  const bmiPct = bmi == null ? 0 : Math.min(Math.max(((bmi - 15) / (35 - 15)) * 100, 0), 100)
 
-  const diffToTarget = targetWeight != null ? (latest.weight - targetWeight).toFixed(1) : null
+  const diffToTarget = (targetWeight != null && latest != null) ? (latest.weight - targetWeight).toFixed(1) : null
 
-  // チャート用データ（実データまたはデモ）
+  // チャート用データ
   const weekWeights = displayRecords.slice(0, 7).map(r => r.weight).reverse()
-  const minW = weekWeights.length > 0 ? Math.min(...weekWeights) - 0.5 : demoMinW
-  const maxW = weekWeights.length > 0 ? Math.max(...weekWeights) + 0.5 : demoMaxW
+  const minW = weekWeights.length > 0 ? Math.min(...weekWeights) - 0.5 : 50
+  const maxW = weekWeights.length > 0 ? Math.max(...weekWeights) + 0.5 : 80
 
   const inputStyle: React.CSSProperties = {
     width: '100%',
@@ -218,15 +194,34 @@ export default function BodyPage() {
           </div>
         )}
 
+        {/* ===== データなし表示 ===== */}
+        {latest == null && (
+          <div style={{
+            background: '#f9fafb', border: '1.5px dashed #e5e7eb', borderRadius: '16px',
+            padding: '40px 24px', textAlign: 'center', marginBottom: '16px',
+          }}>
+            <div style={{ fontSize: '40px', marginBottom: '12px' }}>📊</div>
+            <p style={{ fontSize: '15px', fontWeight: 700, color: '#374151', marginBottom: '6px' }}>まだデータがありません</p>
+            <p style={{ fontSize: '13px', color: '#9ca3af', marginBottom: '20px' }}>「データ記録」ボタンから体組成を記録してみましょう</p>
+            <button onClick={() => setShowAddModal(true)} style={{
+              background: '#dc2626', color: 'white', fontWeight: 700, padding: '10px 24px',
+              borderRadius: '10px', fontSize: '14px', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+            }}>
+              ＋ データ記録
+            </button>
+          </div>
+        )}
+
         {/* ===== 統計グリッド（4列）===== */}
+        {latest != null && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '16px' }}
           className="stats-grid-body">
 
           {[
-            { label: '体重', value: latest.weight, unit: 'kg', change: `${parseFloat(weightChange) <= 0 ? '' : '+'}${weightChange}`, isGood: parseFloat(weightChange) <= 0 },
-            { label: '体脂肪率', value: latest.bodyFat, unit: '%', change: `${parseFloat(fatChange) < 0 ? '' : '+'}${fatChange}`, isGood: parseFloat(fatChange) < 0 },
-            { label: '筋肉量', value: latest.muscle, unit: 'kg', change: `${parseFloat(muscleChange) >= 0 ? '+' : ''}${muscleChange}`, isGood: parseFloat(muscleChange) > 0 },
-            { label: 'BMI', value: bmi, unit: '', change: bmiLabel, isGood: bmi < 25 },
+            { label: '体重', value: latest.weight, unit: 'kg', change: weightChange != null ? `${parseFloat(weightChange) <= 0 ? '' : '+'}${weightChange}` : '—', isGood: weightChange != null && parseFloat(weightChange) <= 0 },
+            { label: '体脂肪率', value: latest.bodyFat, unit: '%', change: fatChange != null ? `${parseFloat(fatChange) < 0 ? '' : '+'}${fatChange}` : '—', isGood: fatChange != null && parseFloat(fatChange) < 0 },
+            { label: '筋肉量', value: latest.muscle, unit: 'kg', change: muscleChange != null ? `${parseFloat(muscleChange) >= 0 ? '+' : ''}${muscleChange}` : '—', isGood: muscleChange != null && parseFloat(muscleChange) > 0 },
+            { label: 'BMI', value: bmi ?? '—', unit: '', change: bmiLabel, isGood: bmi != null && bmi < 25 },
           ].map((stat) => (
             <div
               key={stat.label}
@@ -249,6 +244,7 @@ export default function BodyPage() {
             </div>
           ))}
         </div>
+        )}
 
         {/* ===== 体重グラフ ===== */}
         {(() => {

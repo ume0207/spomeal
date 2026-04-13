@@ -175,8 +175,9 @@ interface GoalData {
   pfcC?: number
 }
 
-const MEAL_KEY = 'mealRecords_v1'
-const GOAL_KEY = 'goals_v1'
+// userId別のキー生成（未取得時はグローバルキーにフォールバック）
+function getMealKey(uid?: string | null) { return uid ? `mealRecords_v1_${uid}` : 'mealRecords_v1' }
+function getGoalKey(uid?: string | null) { return uid ? `goals_v1_${uid}` : 'goals_v1' }
 
 const categories = ['朝食', '昼食', '夕食', '間食']
 const catIcons: Record<string, string> = { 朝食: '🌅', 昼食: '☀️', 夕食: '🌙', 間食: '🍪' }
@@ -218,6 +219,7 @@ function toDateStr(d: Date) {
 }
 
 export default function MealPage() {
+  const [userId, setUserId] = useState<string | null>(null)
   const [records, setRecords] = useState<MealRecord[]>([])
   const [goal, setGoal] = useState<GoalData>(defaultGoal)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -333,30 +335,36 @@ export default function MealPage() {
     setCurrentDate(new Date())
   }, [])
 
-  // localStorage読み込み
+  // userId取得＆localStorage読み込み
   useEffect(() => {
     if (typeof window === 'undefined') return
-    try {
-      const raw = localStorage.getItem(MEAL_KEY)
-      if (raw) setRecords(JSON.parse(raw))
-    } catch { /* ignore */ }
-    try {
-      const raw = localStorage.getItem(GOAL_KEY)
-      if (raw) {
-        const parsed = JSON.parse(raw)
-        if (parsed['__default__']) setGoal(parsed['__default__'])
-      }
-    } catch { /* ignore */ }
+    const supabase = createClient()
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const uid = session?.user?.id ?? null
+      setUserId(uid)
+      const MEAL_KEY = getMealKey(uid)
+      const GOAL_KEY = getGoalKey(uid)
+      try {
+        const raw = localStorage.getItem(MEAL_KEY)
+        if (raw) setRecords(JSON.parse(raw))
+      } catch { /* ignore */ }
+      try {
+        const raw = localStorage.getItem(GOAL_KEY)
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          if (parsed['__default__']) setGoal(parsed['__default__'])
+        }
+      } catch { /* ignore */ }
+    })
   }, [])
 
   const saveRecords = useCallback((newRecords: MealRecord[]) => {
     setRecords(newRecords)
     if (typeof window !== 'undefined') {
-      localStorage.setItem(MEAL_KEY, JSON.stringify(newRecords))
-      // ダッシュボード等の他ページにデータ更新を通知
+      localStorage.setItem(getMealKey(userId), JSON.stringify(newRecords))
       window.dispatchEvent(new Event('mealRecordsUpdated'))
     }
-  }, [])
+  }, [userId])
 
   // 当日フィルタ（currentDate が null の間はローディング扱い）
   const dateStr = currentDate ? toDateStr(currentDate) : ''
@@ -622,7 +630,7 @@ export default function MealPage() {
     // ポイント付与（新規記録のみ）
     if (!editingRecordId) {
       const mealTypeEn = activeMealType || 'lunch'
-      const result = addMealPoint(mealDateStr, mealTypeEn)
+      const result = addMealPoint(mealDateStr, mealTypeEn, userId ?? undefined)
       if (result.pointsAdded > 0) {
         setTimeout(() => {
           const bonusMsg = result.pointsAdded > 1 ? `（3食コンプリートボーナス +1pt!）` : ''
@@ -676,6 +684,7 @@ export default function MealPage() {
     setGoal(newGoal)
     if (typeof window !== 'undefined') {
       try {
+        const GOAL_KEY = getGoalKey(userId)
         const raw = localStorage.getItem(GOAL_KEY)
         const parsed = raw ? JSON.parse(raw) : {}
         parsed['__default__'] = newGoal
