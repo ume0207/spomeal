@@ -165,33 +165,103 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       )}
 
       {/* Admin top nav */}
-      <nav style={{ background: '#1a1a1a', color: 'white', padding: '0 16px', position: 'relative', zIndex: showTutorial ? 9999 : 'auto' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: '52px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflowX: 'auto', scrollbarWidth: 'none' }}>
+      <nav style={{ background: '#1a1a1a', color: 'white', position: 'relative', zIndex: showTutorial ? 9999 : 'auto' }}>
+        {/* 上段: ロゴ + アクション */}
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '44px' }}>
             <Link
               href="/admin"
-              style={{ fontSize: '15px', fontWeight: 900, color: 'white', textDecoration: 'none', whiteSpace: 'nowrap', marginRight: '8px', flexShrink: 0 }}
+              style={{ fontSize: '16px', fontWeight: 900, color: 'white', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
             >
               スポ<span style={{ color: '#22c55e' }}>ミル</span>
-              <span style={{ fontSize: '11px', color: '#9ca3af', marginLeft: '6px', fontWeight: 400 }}>Admin</span>
+              <span style={{ fontSize: '10px', color: '#6b7280', fontWeight: 600, background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px' }}>Admin</span>
             </Link>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '11px', color: '#9ca3af' }}>{session.name}</span>
+              {/* ログアウト */}
+              <div style={{ position: 'relative' }} data-tutorial="admin-logout">
+                <button
+                  onClick={handleLogout}
+                  style={{
+                    fontSize: '10px', color: '#ef4444', background: 'rgba(239,68,68,0.1)',
+                    border: '1px solid rgba(239,68,68,0.2)', borderRadius: '6px',
+                    padding: '3px 8px', cursor: 'pointer', fontFamily: 'inherit',
+                    position: 'relative',
+                    zIndex: showTutorial && currentStep?.targetId === 'admin-logout' ? 10000 : 'auto',
+                    boxShadow: showTutorial && currentStep?.targetId === 'admin-logout' ? '0 0 0 3px rgba(34,197,94,0.5)' : 'none',
+                  }}
+                >
+                  ログアウト
+                </button>
+                {showTutorial && currentStep?.targetId === 'admin-logout' && (
+                  <TutorialTooltip
+                    step={tutorialStep}
+                    total={tutorialSteps.length}
+                    title={currentStep.title}
+                    desc={currentStep.desc}
+                    onNext={handleTutorialNext}
+                    onSkip={handleTutorialSkip}
+                  />
+                )}
+              </div>
+              {/* アプリに戻る */}
+              <div style={{ position: 'relative' }} data-tutorial="admin-back">
+                <Link
+                  href="/"
+                  style={{
+                    fontSize: '10px', color: '#9ca3af', textDecoration: 'none',
+                    display: 'flex', alignItems: 'center', gap: '3px',
+                    position: 'relative',
+                    zIndex: showTutorial && currentStep?.targetId === 'admin-back' ? 10000 : 'auto',
+                    boxShadow: showTutorial && currentStep?.targetId === 'admin-back' ? '0 0 0 3px rgba(34,197,94,0.5)' : 'none',
+                    padding: '3px 6px', borderRadius: '6px',
+                  }}
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <polyline points="15 18 9 12 15 6"/>
+                  </svg>
+                  トップ
+                </Link>
+                {showTutorial && currentStep?.targetId === 'admin-back' && (
+                  <TutorialTooltip
+                    step={tutorialStep}
+                    total={tutorialSteps.length}
+                    title={currentStep.title}
+                    desc={currentStep.desc}
+                    onNext={handleTutorialNext}
+                    onSkip={handleTutorialSkip}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 下段: ナビタブ */}
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', maxWidth: '1200px', margin: '0 auto' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '2px',
+            overflowX: 'auto', scrollbarWidth: 'none',
+            padding: '6px 12px',
+            WebkitOverflowScrolling: 'touch',
+          }}>
             {navItems.map((item) => {
               const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
               const isTutorialTarget = showTutorial && currentStep?.targetId === item.tutorialId
               return (
-                <div key={item.href} style={{ position: 'relative' }} data-tutorial={item.tutorialId}>
+                <div key={item.href} style={{ position: 'relative', flexShrink: 0 }} data-tutorial={item.tutorialId}>
                   <Link
                     href={item.href}
                     style={{
-                      padding: '6px 12px',
+                      display: 'block',
+                      padding: '6px 14px',
                       borderRadius: '8px',
                       fontSize: '12px',
-                      fontWeight: isActive ? 700 : 400,
+                      fontWeight: isActive ? 700 : 500,
                       color: isActive ? 'white' : '#9ca3af',
                       background: isTutorialTarget ? 'rgba(34,197,94,0.3)' : isActive ? 'rgba(255,255,255,0.12)' : 'transparent',
                       textDecoration: 'none',
                       whiteSpace: 'nowrap',
-                      flexShrink: 0,
                       transition: 'all 0.12s',
                       position: 'relative',
                       zIndex: isTutorialTarget ? 10000 : 'auto',
@@ -214,67 +284,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </div>
               )
             })}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
-            {/* 管理者名表示 */}
-            <span style={{ fontSize: '11px', color: '#9ca3af' }}>
-              {session.name}
-            </span>
-            {/* ログアウト */}
-            <div style={{ position: 'relative' }} data-tutorial="admin-logout">
-              <button
-                onClick={handleLogout}
-                style={{
-                  fontSize: '11px', color: '#ef4444', background: 'rgba(239,68,68,0.1)',
-                  border: '1px solid rgba(239,68,68,0.2)', borderRadius: '6px',
-                  padding: '4px 10px', cursor: 'pointer', fontFamily: 'inherit',
-                  position: 'relative',
-                  zIndex: showTutorial && currentStep?.targetId === 'admin-logout' ? 10000 : 'auto',
-                  boxShadow: showTutorial && currentStep?.targetId === 'admin-logout' ? '0 0 0 3px rgba(34,197,94,0.5)' : 'none',
-                }}
-              >
-                ログアウト
-              </button>
-              {showTutorial && currentStep?.targetId === 'admin-logout' && (
-                <TutorialTooltip
-                  step={tutorialStep}
-                  total={tutorialSteps.length}
-                  title={currentStep.title}
-                  desc={currentStep.desc}
-                  onNext={handleTutorialNext}
-                  onSkip={handleTutorialSkip}
-                />
-              )}
-            </div>
-            {/* アプリに戻る */}
-            <div style={{ position: 'relative' }} data-tutorial="admin-back">
-              <Link
-                href="/"
-                style={{
-                  fontSize: '11px', color: '#9ca3af', textDecoration: 'none',
-                  display: 'flex', alignItems: 'center', gap: '4px',
-                  position: 'relative',
-                  zIndex: showTutorial && currentStep?.targetId === 'admin-back' ? 10000 : 'auto',
-                  boxShadow: showTutorial && currentStep?.targetId === 'admin-back' ? '0 0 0 3px rgba(34,197,94,0.5)' : 'none',
-                  padding: '4px 8px', borderRadius: '6px',
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="15 18 9 12 15 6"/>
-                </svg>
-                トップへ
-              </Link>
-              {showTutorial && currentStep?.targetId === 'admin-back' && (
-                <TutorialTooltip
-                  step={tutorialStep}
-                  total={tutorialSteps.length}
-                  title={currentStep.title}
-                  desc={currentStep.desc}
-                  onNext={handleTutorialNext}
-                  onSkip={handleTutorialSkip}
-                />
-              )}
-            </div>
           </div>
         </div>
       </nav>
