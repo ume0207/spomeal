@@ -288,7 +288,7 @@ export default function MembersPage() {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
-                <Link
+                <a
                   href={`/admin/members/detail?id=${m.id}`}
                   onClick={(e) => e.stopPropagation()}
                   style={{
@@ -299,7 +299,7 @@ export default function MembersPage() {
                   }}
                 >
                   詳細
-                </Link>
+                </a>
                 <button
                   onClick={(e) => { e.stopPropagation(); openEdit(m) }}
                   style={{
@@ -365,7 +365,7 @@ export default function MembersPage() {
               </div>
             ))}
             <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-              <Link
+              <a
                 href={`/admin/members/detail?id=${showDetail.id}`}
                 style={{
                   flex: 2, padding: '10px', borderRadius: '10px', border: 'none',
@@ -374,7 +374,7 @@ export default function MembersPage() {
                 }}
               >
                 🍽 食事・体組成を確認
-              </Link>
+              </a>
               <button
                 onClick={() => openEdit(showDetail)}
                 style={{
