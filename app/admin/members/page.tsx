@@ -66,6 +66,39 @@ export default function MembersPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showDetail, setShowDetail] = useState<Member | null>(null)
 
+  // パネル内コメント送信
+  const [panelCommentText, setPanelCommentText] = useState('')
+  const [panelCommentCategory, setPanelCommentCategory] = useState('全般')
+  const [panelCommentSending, setPanelCommentSending] = useState(false)
+  const [panelCommentSaved, setPanelCommentSaved] = useState(false)
+  const [panelCommentError, setPanelCommentError] = useState('')
+  const [showPanelComment, setShowPanelComment] = useState(false)
+
+  const handleSendComment = async (memberId: string) => {
+    if (!panelCommentText.trim()) return
+    setPanelCommentSending(true)
+    setPanelCommentError('')
+    try {
+      const res = await fetch('/api/admin/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memberId, staffName: '管理栄養士', category: panelCommentCategory, comment: panelCommentText.trim() }),
+      })
+      if (res.ok) {
+        setPanelCommentSaved(true)
+        setPanelCommentText('')
+        setTimeout(() => { setPanelCommentSaved(false); setShowPanelComment(false) }, 2000)
+      } else {
+        const err = await res.json().catch(() => ({})) as any
+        setPanelCommentError(`送信失敗 (${res.status}): ${err?.error || '不明'}`)
+      }
+    } catch (e) {
+      setPanelCommentError(`通信エラー: ${(e as Error).message}`)
+    } finally {
+      setPanelCommentSending(false)
+    }
+  }
+
   // フォーム
   const [fName, setFName] = useState('')
   const [fKana, setFKana] = useState('')
@@ -396,6 +429,76 @@ export default function MembersPage() {
                 削除
               </button>
             </div>
+
+            {/* ===== コメント送信 ===== */}
+            <div style={{ marginTop: '16px', borderTop: '1px solid #f0f0f0', paddingTop: '16px' }}>
+              {!showPanelComment ? (
+                <button
+                  onClick={() => { setShowPanelComment(true); setPanelCommentText(''); setPanelCommentSaved(false); setPanelCommentError('') }}
+                  style={{
+                    width: '100%', padding: '12px', borderRadius: '12px', border: 'none',
+                    background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+                    color: 'white', fontWeight: 800, fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  💬 {showDetail.name}さんにコメントを送る
+                </button>
+              ) : (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <span style={{ fontWeight: 800, fontSize: '13px', color: '#111827' }}>💬 コメント送信</span>
+                    <button onClick={() => setShowPanelComment(false)} style={{ fontSize: '18px', color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+                  </div>
+                  {/* カテゴリ */}
+                  <div style={{ display: 'flex', gap: '6px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                    {['食事', '体組成', 'トレーニング', '全般'].map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => setPanelCommentCategory(cat)}
+                        style={{
+                          padding: '5px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 700,
+                          border: panelCommentCategory === cat ? '2px solid #16a34a' : '2px solid #e5e7eb',
+                          background: panelCommentCategory === cat ? '#f0fdf4' : 'white',
+                          color: panelCommentCategory === cat ? '#16a34a' : '#6b7280',
+                          cursor: 'pointer', fontFamily: 'inherit',
+                        }}
+                      >{cat}</button>
+                    ))}
+                  </div>
+                  {/* テキストエリア */}
+                  <textarea
+                    value={panelCommentText}
+                    onChange={(e) => setPanelCommentText(e.target.value)}
+                    placeholder={`${showDetail.name}さんへのコメント...`}
+                    rows={3}
+                    style={{
+                      width: '100%', padding: '10px 14px', borderRadius: '10px',
+                      border: '1.5px solid #e5e7eb', fontSize: '13px', outline: 'none',
+                      fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.6,
+                    }}
+                  />
+                  <button
+                    onClick={() => handleSendComment(showDetail.id)}
+                    disabled={!panelCommentText.trim() || panelCommentSending}
+                    style={{
+                      width: '100%', marginTop: '8px', padding: '12px', borderRadius: '10px', border: 'none',
+                      background: panelCommentSaved ? '#22c55e' : (!panelCommentText.trim() || panelCommentSending ? '#d1d5db' : 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)'),
+                      color: 'white', fontWeight: 800, fontSize: '14px',
+                      cursor: (!panelCommentText.trim() || panelCommentSending) ? 'not-allowed' : 'pointer',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    {panelCommentSaved ? '✅ 送信完了！' : panelCommentSending ? '送信中...' : '送信する'}
+                  </button>
+                  {panelCommentError && (
+                    <div style={{ marginTop: '8px', padding: '10px', background: '#fee2e2', borderRadius: '8px', fontSize: '12px', color: '#dc2626', fontWeight: 600 }}>
+                      ❌ {panelCommentError}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
           </div>
         </div>
       )}
