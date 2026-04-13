@@ -74,20 +74,6 @@ interface StaffMember {
   active?: boolean
 }
 
-const COMMENTS_KEY = 'nutritionist_comments_v1'
-
-function loadComments(): NutritionistComment[] {
-  if (typeof window === 'undefined') return []
-  try {
-    const raw = localStorage.getItem(COMMENTS_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch { return [] }
-}
-
-function saveComments(comments: NutritionistComment[]) {
-  if (typeof window === 'undefined') return
-  localStorage.setItem(COMMENTS_KEY, JSON.stringify(comments))
-}
 
 // ===== デモデータ =====
 const demoMembers: Member[] = [
@@ -238,42 +224,63 @@ function MemberDetailContent() {
     }
     loadMemberData()
 
-    // コメント
-    const allComments = loadComments()
-    setComments(allComments.filter(c => c.targetMember === memberId || c.targetMember === '__all__'))
+    // コメントをAPIから取得
+    fetch(`/api/admin/comments?memberId=${memberId}`)
+      .then(r => r.ok ? r.json() : [])
+      .then((data: any[]) => {
+        setComments(data.map(c => ({
+          id: c.id,
+          date: new Date(c.created_at).toLocaleString('sv-SE', { timeZone: 'Asia/Tokyo' }).slice(0, 16),
+          staffName: c.staff_name,
+          targetMember: c.target_member_id,
+          category: c.category,
+          comment: c.comment,
+        })))
+      })
+      .catch(() => {})
   }, [memberId])
 
-  const handleSendComment = () => {
+  const handleSendComment = async () => {
     if (!commentText.trim() || !member) return
-    const now = new Date()
-    const dateStr = now.toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' })
-    const timeStr = now.toLocaleTimeString('sv-SE', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' })
-
-    const newComment: NutritionistComment = {
-      id: Date.now().toString(),
-      date: `${dateStr} ${timeStr}`,
-      staffName: commentStaff || '管理栄養士',
-      targetMember: member.id,
-      targetMemberName: member.name,
-      category: commentCategory,
-      comment: commentText.trim(),
+    try {
+      const res = await fetch('/api/admin/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          memberId: member.id,
+          staffName: commentStaff || '管理栄養士',
+          category: commentCategory,
+          comment: commentText.trim(),
+        }),
+      })
+      if (res.ok) {
+        const saved = await res.json()
+        const newComment: NutritionistComment = {
+          id: saved.id,
+          date: new Date(saved.created_at).toLocaleString('sv-SE', { timeZone: 'Asia/Tokyo' }).slice(0, 16),
+          staffName: saved.staff_name,
+          targetMember: saved.target_member_id,
+          category: saved.category,
+          comment: saved.comment,
+        }
+        setComments(prev => [newComment, ...prev])
+        setCommentText('')
+        setCommentSaved(true)
+        setTimeout(() => { setCommentSaved(false); setShowCommentForm(false) }, 1500)
+      }
+    } catch (e) {
+      console.error('Failed to save comment:', e)
     }
-
-    const allComments = loadComments()
-    const updated = [newComment, ...allComments]
-    saveComments(updated)
-    setComments(updated.filter(c => c.targetMember === member.id || c.targetMember === '__all__'))
-    setCommentText('')
-    setCommentSaved(true)
-    setTimeout(() => { setCommentSaved(false); setShowCommentForm(false) }, 1500)
   }
 
-  const deleteComment = (id: string) => {
+  const deleteComment = async (id: string) => {
     if (!confirm('このコメントを削除しますか？')) return
-    const allComments = loadComments()
-    const updated = allComments.filter(c => c.id !== id)
-    saveComments(updated)
-    setComments(updated.filter(c => c.targetMember === memberId || c.targetMember === '__all__'))
+    try {
+      await fetch(`/api/admin/comments?id=${id}`, { method: 'DELETE' })
+      setComments(prev => prev.filter(c => c.id !== id))
+    } catch (e) {
+      console.error('Failed to delete comment:', e)
+    }
   }
 
   if (!memberId) {

@@ -120,19 +120,21 @@ export default function DashboardPage() {
       } catch { /* ignore */ }
     }
 
-    // 管理栄養士コメントの読み込み（このユーザー宛のみ）
-    try {
-      const commentsRaw = localStorage.getItem('nutritionist_comments_v1')
-      if (commentsRaw) {
-        const parsed: { id: string; date: string; staffName: string; category: string; comment: string; targetMember?: string }[] = JSON.parse(commentsRaw)
-        const filtered = Array.isArray(parsed)
-          ? parsed.filter(c => !c.targetMember || c.targetMember === '__all__' || c.targetMember === currentUserId)
-          : []
-        setNutritionistComments(filtered)
-      } else {
-        setNutritionistComments([])
-      }
-    } catch { /* ignore */ }
+    if (currentUserId) {
+      // 管理栄養士コメントをAPIから取得
+      fetch(`/api/admin/comments?memberId=${currentUserId}`)
+        .then(r => r.ok ? r.json() : [])
+        .then((data: any[]) => {
+          setNutritionistComments(data.map(c => ({
+            id: c.id,
+            date: new Date(c.created_at).toLocaleString('sv-SE', { timeZone: 'Asia/Tokyo' }).slice(0, 16),
+            staffName: c.staff_name,
+            category: c.category,
+            comment: c.comment,
+          })))
+        })
+        .catch(() => {})
+    }
 
     if (currentUserId) {
       // 目標データをAPIから取得
