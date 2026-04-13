@@ -50,6 +50,33 @@ export default function BodyPage() {
           bmi: r.bmi,
         }))
         setSavedRecords(records)
+
+        // localStorageからの一回限り移行
+        const migratedKey = `body_migrated_v1_${uid}`
+        if (data.length === 0 && !localStorage.getItem(migratedKey)) {
+          const localKey = `bodyRecords_v1_${uid}` in localStorage ? `bodyRecords_v1_${uid}` : 'bodyRecords_v1'
+          const localRaw = localStorage.getItem(localKey)
+          if (localRaw) {
+            try {
+              const localRecords: BodyRecord[] = JSON.parse(localRaw)
+              if (Array.isArray(localRecords) && localRecords.length > 0) {
+                for (const r of localRecords.slice(0, 30)) {
+                  try {
+                    await fetch('/api/body-records', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ userId: uid, date: r.date, weight: r.weight, bodyFat: r.bodyFat, muscle: r.muscle, bmi: r.bmi }),
+                    })
+                  } catch { /* ignore */ }
+                }
+                setSavedRecords(localRecords)
+                localStorage.setItem(migratedKey, '1')
+              }
+            } catch { /* ignore */ }
+          } else {
+            localStorage.setItem(migratedKey, '1')
+          }
+        }
       }
 
       // 目標データをAPIから取得

@@ -365,6 +365,50 @@ export default function MealPage() {
             advice: r.advice || undefined,
           }))
           setRecords(records)
+
+          // localStorageからの一回限り移行
+          const migratedKey = `meals_migrated_v1_${uid}`
+          if (data.length === 0 && !localStorage.getItem(migratedKey)) {
+            const localKey = `mealRecords_v1_${uid}` in localStorage ? `mealRecords_v1_${uid}` : 'mealRecords_v1'
+            const localRaw = localStorage.getItem(localKey)
+            if (localRaw) {
+              try {
+                const localRecords: MealRecord[] = JSON.parse(localRaw)
+                if (Array.isArray(localRecords) && localRecords.length > 0) {
+                  const migrated: MealRecord[] = []
+                  for (const r of localRecords.slice(0, 90)) {
+                    try {
+                      const saveRes = await fetch('/api/meals', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          userId: uid,
+                          mealDate: r.mealDate,
+                          mealType: r.mealType,
+                          foodName: r.foodName || '',
+                          caloriesKcal: r.caloriesKcal || 0,
+                          proteinG: r.proteinG || 0,
+                          fatG: r.fatG || 0,
+                          carbsG: r.carbsG || 0,
+                          items: r.items || [],
+                          photoUrl: r.photoUrl || null,
+                          advice: r.advice || null,
+                        }),
+                      })
+                      if (saveRes.ok) {
+                        const saved = await saveRes.json()
+                        migrated.push({ ...r, id: saved.id })
+                      }
+                    } catch { /* ignore individual failures */ }
+                  }
+                  if (migrated.length > 0) setRecords(migrated)
+                  localStorage.setItem(migratedKey, '1')
+                }
+              } catch { /* ignore */ }
+            } else {
+              localStorage.setItem(migratedKey, '1')
+            }
+          }
         }
       } catch { /* ignore */ }
 
