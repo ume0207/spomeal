@@ -12,38 +12,17 @@ const cors = {
 
 /**
  * GET /api/admin/body-feed?range=today|yesterday|3days|week
- * 会員のuser_metadataに保存された体組成記録(body_activity)からフィードを生成
+ * body_records テーブルから体組成フィードを生成
  */
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { env, request } = context
   const url = new URL(request.url)
-  const range = url.searchParams.get('range') || 'today'
+  const range = url.searchParams.get('range') || 'week'
+
+  const sbUrl = env.NEXT_PUBLIC_SUPABASE_URL
+  const sbKey = env.SUPABASE_SERVICE_ROLE_KEY
 
   try {
-    // 全ユーザーを取得
-    const res = await fetch(
-      `${env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users?page=1&per_page=100`,
-      {
-        headers: {
-          'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-          'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
-        },
-      }
-    )
-
-    if (!res.ok) {
-      const errText = await res.text()
-      return new Response(JSON.stringify({ feed: [], total: 0, error: `Supabase error: ${res.status}`, detail: errText }), { status: 200, headers: cors })
-    }
-
-    const data = await res.json() as {
-      users: Array<{
-        id: string
-        email: string
-        user_metadata: Record<string, unknown>
-      }>
-    }
-
     // 日付フィルターの計算（JST）
     const now = new Date()
     const jstOffset = 9 * 60 * 60 * 1000
@@ -61,56 +40,56 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       : range === '3days' ? getDateNDaysAgo(3)
       : getDateNDaysAgo(7)
 
-    interface BodyFeedItem {
-      id: string
-      memberId: string
-      memberName: string
-      memberEmail: string
-      date: string
-      weight: number
-      bodyFat: number
-      muscle: number
-      bmi: number
-      updatedAt: string
+    // body_records テーブルから対象期間の記録を取得
+    const bodyRes = await fetch(
+      `${sbUrl}/rest/v1/body_records?date=gte.${filterDate}&order=date.desc,created_at.desc&limit=200`,
+      { headers: { Authorization: `Bearer ${sbKey}`, apikey: sbKey } }
+    )
+    const bodyRecords: any[] = bodyRes.ok ? await bodyRes.json() : []
+
+    if (bodyRecords.length === 0) {
+      return new Response(JSON.stringify({ feed: [], total: 0 }), { status: 200, headers: cors })
     }
 
-    const feedItems: BodyFeedItem[] = []
+    // ユーザー一覧を取得（名前表示用）
+    const usersRes = await fetch(
+      `${sbUrl}/auth/v1/admin/users?page=1&per_page=100`,
+      { headers: { Authorization: `Bearer ${sbKey}`, apikey: sbKey } }
+    )
+    const usersData: { users?: any[] } = usersRes.ok ? await usersRes.json() : { users: [] }
+    const userMap = new Map<string, { name: string; email: string }>(
+      (usersData.users || []).map((u: any) => [
+        u.id,
+        {
+          name: u.user_metadata?.full_name || u.email?.split('@')[0] || '会員',
+          email: u.email || '',
+        },
+      ])
+    )
 
-    for (const user of (data.users || [])) {
-      const meta = user.user_metadata || {}
-      const activity = (meta.body_activity as Array<{
-        date: string
-        weight: number
-        bodyFat: number
-        muscle: number
-        bmi: number
-        updatedAt: string
-      }>) || []
+    // フィード生成（ユーザーID+日付でユニーク）
+    const seen = new Set<string>()
+    const feedItems = []
 
-      if (activity.length === 0) continue
+    for (const record of bodyRecords) {
+      const key = `${record.user_id}_${record.date}`
+      if (seen.has(key)) continue // 同日同ユーザーは最初の1件のみ
+      seen.add(key)
 
-      const memberName = (meta.full_name as string) || (meta.name as string) || user.email?.split('@')[0] || '会員'
-
-      for (const entry of activity) {
-        if (!entry.date || entry.date < filterDate) continue
-
-        feedItems.push({
-          id: `${user.id}_${entry.date}`,
-          memberId: user.id,
-          memberName,
-          memberEmail: user.email,
-          date: entry.date,
-          weight: entry.weight || 0,
-          bodyFat: entry.bodyFat || 0,
-          muscle: entry.muscle || 0,
-          bmi: entry.bmi || 0,
-          updatedAt: entry.updatedAt || '',
-        })
-      }
+      const user = userMap.get(record.user_id) || { name: '会員', email: '' }
+      feedItems.push({
+        id: key,
+        memberId: record.user_id,
+        memberName: user.name,
+        memberEmail: user.email,
+        date: record.date,
+        weight: record.weight || 0,
+        bodyFat: record.body_fat || 0,
+        muscle: record.muscle || 0,
+        bmi: record.bmi || 0,
+        updatedAt: record.created_at || '',
+      })
     }
-
-    // 最新更新順にソート
-    feedItems.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
 
     return new Response(JSON.stringify({ feed: feedItems, total: feedItems.length }), { status: 200, headers: cors })
   } catch (err) {
