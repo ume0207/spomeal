@@ -108,6 +108,8 @@ export default function ReservePage() {
 
   // スタッフ選択
   const [selectedStaffId, setSelectedStaffId] = useState<string>('any')
+  // ユーザー名
+  const [userName, setUserName] = useState<string>('')
 
   useEffect(() => {
     const now = new Date()
@@ -115,17 +117,20 @@ export default function ReservePage() {
     setCurYear(now.getFullYear())
     setCurMonth(now.getMonth())
 
-    // 予約をAPIから取得（ユーザーIDでフィルター済み）
+    // 予約をAPIから取得（ユーザーIDでフィルター済み）+ ユーザー名取得
     const loadReservations = async () => {
       try {
         const supabase = createClient()
         const { data: { session } } = await supabase.auth.getSession()
-        if (session?.user?.id) {
-          const res = await fetch(`/api/reservations?userId=${session.user.id}`)
-          if (res.ok) {
-            const apiData: Reservation[] = await res.json()
-            setReservations(apiData)
-            return
+        if (session?.user) {
+          setUserName(session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || '')
+          if (session.user.id) {
+            const res = await fetch(`/api/reservations?userId=${session.user.id}`)
+            if (res.ok) {
+              const apiData: Reservation[] = await res.json()
+              setReservations(apiData)
+              return
+            }
           }
         }
       } catch {}
@@ -134,28 +139,38 @@ export default function ReservePage() {
 
     loadReservations()
 
-    try {
-      const savedSlots = localStorage.getItem('timeSlots_v1')
-      const parsed: TimeSlot[] = savedSlots ? JSON.parse(savedSlots) : []
-      if (parsed.length >= 40) setTimeSlots(parsed)
-      else {
+    // タイムスロットをAPIから取得
+    fetch('/api/schedule')
+      .then(r => r.ok ? r.json() : [])
+      .then((data: TimeSlot[]) => {
+        if (data && data.length > 0) {
+          setTimeSlots(data)
+        } else {
+          // APIにデータが無い場合はデフォルトを生成
+          const defaults = generateDefaultTimeSlots()
+          setTimeSlots(defaults)
+        }
+      })
+      .catch(() => {
         const defaults = generateDefaultTimeSlots()
         setTimeSlots(defaults)
-        localStorage.setItem('timeSlots_v1', JSON.stringify(defaults))
-      }
-    } catch {
-      const defaults = generateDefaultTimeSlots()
-      setTimeSlots(defaults)
-    }
+      })
+
     // スタッフ一覧をAPIから取得
     fetch('/api/staff')
       .then(r => r.ok ? r.json() : [])
       .then(data => setAllStaff(data))
       .catch(() => {})
-    try {
-      const savedShifts = localStorage.getItem('shifts_v1')
-      if (savedShifts) setShifts(JSON.parse(savedShifts))
-    } catch {}
+
+    // シフトデータをAPIから取得
+    fetch('/api/shifts')
+      .then(r => r.ok ? r.json() : [])
+      .then((data: Shift[]) => {
+        if (data && data.length > 0) {
+          setShifts(data)
+        }
+      })
+      .catch(() => {})
   }, [])
 
   const saveReservations = (data: Reservation[]) => {
@@ -354,7 +369,7 @@ export default function ReservePage() {
             <p style={{ fontSize: '13px', fontWeight: 700, margin: 0 }}>📅 オンライン予約</p>
             <p style={{ fontSize: '11px', opacity: 0.8, margin: '2px 0 0' }}>スタッフのシフト空きからミーティングを予約</p>
           </div>
-          <p style={{ fontSize: '12px', opacity: 0.85 }}>選手 さん</p>
+          {userName && <p style={{ fontSize: '12px', opacity: 0.85 }}>{userName} さん</p>}
         </div>
       </div>
 

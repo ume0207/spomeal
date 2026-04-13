@@ -25,17 +25,46 @@ export default function SchedulePage() {
   const [form, setForm] = useState({ time: '09:00', label: '', maxClients: 1, dayOfWeek: [1,2,3,4,5] as number[] })
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('timeSlots_v1')
-      setSlots(saved ? JSON.parse(saved) : DEFAULT_SLOTS)
-    } catch {
-      setSlots(DEFAULT_SLOTS)
-    }
+    // スケジュールをAPIから取得（localStorage fallback付き）
+    fetch('/api/schedule')
+      .then(r => r.ok ? r.json() : [])
+      .then((data: TimeSlot[]) => {
+        if (data && data.length > 0) {
+          setSlots(data)
+        } else {
+          // APIに無い場合はlocalStorageから復元
+          try {
+            const saved = localStorage.getItem('timeSlots_v1')
+            const parsed = saved ? JSON.parse(saved) : DEFAULT_SLOTS
+            setSlots(parsed)
+            // APIにマイグレーション
+            fetch('/api/schedule', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(parsed),
+            }).catch(() => {})
+          } catch {
+            setSlots(DEFAULT_SLOTS)
+          }
+        }
+      })
+      .catch(() => {
+        try {
+          const saved = localStorage.getItem('timeSlots_v1')
+          setSlots(saved ? JSON.parse(saved) : DEFAULT_SLOTS)
+        } catch { setSlots(DEFAULT_SLOTS) }
+      })
   }, [])
 
   const save = (data: TimeSlot[]) => {
     setSlots(data)
     localStorage.setItem('timeSlots_v1', JSON.stringify(data))
+    // APIにも保存
+    fetch('/api/schedule', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).catch(() => {})
   }
 
   const toggleSlot = (id: string, val: boolean) => {

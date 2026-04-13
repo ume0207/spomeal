@@ -83,15 +83,46 @@ export default function ShiftPage() {
       .then(r => r.ok ? r.json() : [])
       .then(data => setStaff(data))
       .catch(() => {})
-    try {
-      const savedShifts = localStorage.getItem('shifts_v1')
-      if (savedShifts) setShifts(migrateLegacyShifts(JSON.parse(savedShifts)))
-    } catch {}
+    // シフトデータをAPIから取得（localStorage fallback付き）
+    fetch('/api/shifts')
+      .then(r => r.ok ? r.json() : [])
+      .then((data: Shift[]) => {
+        if (data && data.length > 0) {
+          setShifts(migrateLegacyShifts(data))
+        } else {
+          // APIに無い場合はlocalStorageから復元してAPIに保存
+          try {
+            const saved = localStorage.getItem('shifts_v1')
+            if (saved) {
+              const parsed = migrateLegacyShifts(JSON.parse(saved))
+              setShifts(parsed)
+              // localStorageのデータをAPIにマイグレーション
+              fetch('/api/shifts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(parsed),
+              }).catch(() => {})
+            }
+          } catch {}
+        }
+      })
+      .catch(() => {
+        try {
+          const saved = localStorage.getItem('shifts_v1')
+          if (saved) setShifts(migrateLegacyShifts(JSON.parse(saved)))
+        } catch {}
+      })
   }, [])
 
   const saveShifts = (data: Shift[]) => {
     setShifts(data)
     localStorage.setItem('shifts_v1', JSON.stringify(data))
+    // APIにも保存（管理者→会員の共有用）
+    fetch('/api/shifts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).catch(() => {})
   }
 
   const activeStaff = staff.filter(s => s.active !== false)
@@ -299,6 +330,12 @@ export default function ShiftPage() {
             localStorage.removeItem('shifts_v1')
             localStorage.removeItem('timeSlots_v1')
             setShifts([])
+            // APIのデータも削除
+            fetch('/api/shifts', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify([]),
+            }).catch(() => {})
             alert('シフトデータを削除しました')
           }}
           style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid #fca5a5', background: 'white', color: '#ef4444', fontSize: '11px', cursor: 'pointer', fontFamily: 'inherit', marginLeft: 'auto' }}>
