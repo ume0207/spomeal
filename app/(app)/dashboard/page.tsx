@@ -330,49 +330,6 @@ export default function DashboardPage() {
     >
       <div style={{ maxWidth: '640px', margin: '0 auto', padding: '16px 12px 40px', overflowX: 'hidden' }}>
 
-        {/* ===== 現在のプラン（コンパクト） ===== */}
-        {(() => {
-          const planInfo: Record<string, { name: string; color: string; bg: string; border: string; icon: string }> = {
-            light:    { name: 'ライト',       color: '#0891b2', bg: '#ecfeff', border: '#a5f3fc', icon: '🌱' },
-            standard: { name: 'スタンダード', color: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: '⭐' },
-            premium:  { name: 'プレミアム',   color: '#7c3aed', bg: '#f5f3ff', border: '#c4b5fd', icon: '👑' },
-          }
-          const statusLabel: Record<string, string> = { trialing: '無料トライアル中', active: '利用中', cancelling: '解約予定', cancelled: '解約済み' }
-          const plan = planInfo[subscriptionPlan] || planInfo['light']
-          const statusText = statusLabel[subscriptionStatus] || ''
-          const isPremium = subscriptionPlan === 'premium'
-          return (
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: plan.bg, border: `1px solid ${plan.border}`,
-              borderRadius: '12px', padding: '9px 14px', marginBottom: '12px',
-              gap: '8px',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '16px' }}>{plan.icon}</span>
-                <span style={{ fontSize: '13px', fontWeight: 800, color: plan.color }}>{plan.name}</span>
-                {statusText && (
-                  <span style={{
-                    fontSize: '10px', fontWeight: 600, color: '#6b7280',
-                    background: 'rgba(255,255,255,0.8)', padding: '2px 8px',
-                    borderRadius: '20px', border: '1px solid rgba(0,0,0,0.06)',
-                  }}>{statusText}</span>
-                )}
-              </div>
-              {!isPremium && (
-                <Link href="/upgrade" style={{
-                  fontSize: '11px', fontWeight: 800, color: '#7c3aed',
-                  textDecoration: 'none', whiteSpace: 'nowrap',
-                  background: 'rgba(124,58,237,0.08)', padding: '4px 10px',
-                  borderRadius: '8px', border: '1px solid rgba(124,58,237,0.2)',
-                }}>
-                  ↑ アップグレード
-                </Link>
-              )}
-            </div>
-          )
-        })()}
-
         {/* ===== 管理栄養士からのコメント ===== */}
         {nutritionistComments.length > 0 && (() => {
           const current = nutritionistComments[selectedCommentIndex] || nutritionistComments[0]
@@ -432,6 +389,49 @@ export default function DashboardPage() {
                   </span>
                 </div>
               </div>
+            </div>
+          )
+        })()}
+
+        {/* ===== 現在のプラン（コンパクト） ===== */}
+        {(() => {
+          const planInfo: Record<string, { name: string; color: string; bg: string; border: string; icon: string }> = {
+            light:    { name: 'ライト',       color: '#0891b2', bg: '#ecfeff', border: '#a5f3fc', icon: '🌱' },
+            standard: { name: 'スタンダード', color: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: '⭐' },
+            premium:  { name: 'プレミアム',   color: '#7c3aed', bg: '#f5f3ff', border: '#c4b5fd', icon: '👑' },
+          }
+          const statusLabel: Record<string, string> = { trialing: '無料トライアル中', active: '利用中', cancelling: '解約予定', cancelled: '解約済み' }
+          const plan = planInfo[subscriptionPlan] || planInfo['light']
+          const statusText = statusLabel[subscriptionStatus] || ''
+          const isPremium = subscriptionPlan === 'premium'
+          return (
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: plan.bg, border: `1px solid ${plan.border}`,
+              borderRadius: '12px', padding: '9px 14px', marginBottom: '12px',
+              gap: '8px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '16px' }}>{plan.icon}</span>
+                <span style={{ fontSize: '13px', fontWeight: 800, color: plan.color }}>{plan.name}</span>
+                {statusText && (
+                  <span style={{
+                    fontSize: '10px', fontWeight: 600, color: '#6b7280',
+                    background: 'rgba(255,255,255,0.8)', padding: '2px 8px',
+                    borderRadius: '20px', border: '1px solid rgba(0,0,0,0.06)',
+                  }}>{statusText}</span>
+                )}
+              </div>
+              {!isPremium && (
+                <Link href="/upgrade" style={{
+                  fontSize: '11px', fontWeight: 800, color: '#7c3aed',
+                  textDecoration: 'none', whiteSpace: 'nowrap',
+                  background: 'rgba(124,58,237,0.08)', padding: '4px 10px',
+                  borderRadius: '8px', border: '1px solid rgba(124,58,237,0.2)',
+                }}>
+                  ↑ アップグレード
+                </Link>
+              )}
             </div>
           )
         })()}
