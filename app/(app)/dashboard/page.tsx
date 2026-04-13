@@ -314,7 +314,7 @@ export default function DashboardPage() {
         color: '#1a1a1a',
       }}
     >
-      <div style={{ maxWidth: '640px', margin: '0 auto', padding: '16px 12px 40px' }}>
+      <div style={{ maxWidth: '640px', margin: '0 auto', padding: '16px 12px 40px', overflowX: 'hidden' }}>
 
         {/* ===== 現在のプラン（コンパクト） ===== */}
         {(() => {
@@ -1040,45 +1040,35 @@ export default function DashboardPage() {
           <Link href="/upgrade" style={{ display: 'block', textDecoration: 'none', marginBottom: '12px' }}>
             <div style={{
               background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)',
-              borderRadius: '18px',
-              padding: '20px',
-              position: 'relative',
-              overflow: 'hidden',
-              boxShadow: '0 4px 20px rgba(109,40,217,0.35)',
+              borderRadius: '14px',
+              padding: '14px 16px',
+              boxShadow: '0 4px 16px rgba(109,40,217,0.3)',
+              boxSizing: 'border-box',
+              width: '100%',
             }}>
-              {/* 背景装飾 */}
-              <div style={{
-                position: 'absolute', top: '-20px', right: '-20px',
-                width: '120px', height: '120px', borderRadius: '50%',
-                background: 'rgba(139,92,246,0.25)',
-                pointerEvents: 'none',
-              }} />
-              <div style={{
-                position: 'absolute', bottom: '-30px', left: '30%',
-                width: '80px', height: '80px', borderRadius: '50%',
-                background: 'rgba(167,139,250,0.15)',
-                pointerEvents: 'none',
-              }} />
-              <div style={{ position: 'relative' }}>
-                <div style={{ fontSize: '11px', color: 'rgba(167,139,250,0.9)', fontWeight: 700, marginBottom: '6px', letterSpacing: '0.5px' }}>
-                  👑 UPGRADE
-                </div>
-                <div style={{ fontSize: '17px', fontWeight: 900, color: 'white', marginBottom: '6px', lineHeight: 1.3 }}>
-                  プランをアップグレードして<br />もっと活用しよう
-                </div>
-                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginBottom: '14px', lineHeight: 1.6 }}>
-                  {subscriptionPlan === 'light'
-                    ? 'ミーティング・フィードバックコメントが使えるようになります'
-                    : 'ミーティング月2回・週1フィードバックで最大限サポート'}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '10px', color: 'rgba(167,139,250,0.9)', fontWeight: 700, marginBottom: '3px', letterSpacing: '0.5px' }}>
+                    👑 UPGRADE
+                  </div>
+                  <div style={{ fontSize: '13px', fontWeight: 800, color: 'white', marginBottom: '3px', lineHeight: 1.3 }}>
+                    プランをアップグレード
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>
+                    {subscriptionPlan === 'light'
+                      ? 'ミーティング・フィードバックが使えます'
+                      : 'ミーティング月2回・週1フィードバック'}
+                  </div>
                 </div>
                 <div style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  flexShrink: 0,
                   background: 'linear-gradient(90deg,#a78bfa,#7c3aed)',
-                  color: 'white', padding: '10px 20px', borderRadius: '12px',
-                  fontSize: '13px', fontWeight: 800,
-                  boxShadow: '0 2px 12px rgba(124,58,237,0.5)',
+                  color: 'white', padding: '8px 14px', borderRadius: '10px',
+                  fontSize: '12px', fontWeight: 800,
+                  boxShadow: '0 2px 8px rgba(124,58,237,0.5)',
+                  whiteSpace: 'nowrap',
                 }}>
-                  プランを見る →
+                  見る →
                 </div>
               </div>
             </div>
