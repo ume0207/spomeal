@@ -139,6 +139,8 @@ function MemberDetailContent() {
   const [commentCategory, setCommentCategory] = useState('食事')
   const [commentText, setCommentText] = useState('')
   const [commentSaved, setCommentSaved] = useState(false)
+  const [commentError, setCommentError] = useState('')
+  const [commentSending, setCommentSending] = useState(false)
 
   // スタッフ一覧読み込み（Supabase API）
   useEffect(() => {
@@ -242,6 +244,8 @@ function MemberDetailContent() {
 
   const handleSendComment = async () => {
     if (!commentText.trim() || !member) return
+    setCommentSending(true)
+    setCommentError('')
     try {
       const res = await fetch('/api/admin/comments', {
         method: 'POST',
@@ -267,9 +271,15 @@ function MemberDetailContent() {
         setCommentText('')
         setCommentSaved(true)
         setTimeout(() => { setCommentSaved(false); setShowCommentForm(false) }, 1500)
+      } else {
+        const errData = await res.json().catch(() => ({})) as any
+        setCommentError(`送信失敗（${res.status}）: ${errData?.error || '不明なエラー'}`)
       }
     } catch (e) {
       console.error('Failed to save comment:', e)
+      setCommentError(`通信エラー: ${(e as Error).message}`)
+    } finally {
+      setCommentSending(false)
     }
   }
 
@@ -680,17 +690,22 @@ function MemberDetailContent() {
 
               <button
                 onClick={handleSendComment}
-                disabled={!commentText.trim()}
+                disabled={!commentText.trim() || commentSending}
                 style={{
                   width: '100%',
-                  background: commentSaved ? '#22c55e' : (!commentText.trim() ? '#d1d5db' : 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)'),
+                  background: commentSaved ? '#22c55e' : ((!commentText.trim() || commentSending) ? '#d1d5db' : 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)'),
                   color: 'white', fontWeight: 800, padding: '13px', borderRadius: '12px',
-                  fontSize: '14px', border: 'none', cursor: commentText.trim() ? 'pointer' : 'not-allowed',
+                  fontSize: '14px', border: 'none', cursor: (commentText.trim() && !commentSending) ? 'pointer' : 'not-allowed',
                   fontFamily: 'inherit', transition: 'all 0.2s',
                 }}
               >
-                {commentSaved ? '✅ 送信しました！' : '送信する'}
+                {commentSaved ? '✅ 送信しました！' : commentSending ? '送信中...' : '送信する'}
               </button>
+              {commentError && (
+                <div style={{ marginTop: '8px', padding: '10px 12px', background: '#fee2e2', borderRadius: '8px', fontSize: '12px', color: '#dc2626', fontWeight: 600 }}>
+                  ❌ {commentError}
+                </div>
+              )}
             </div>
           )}
 
