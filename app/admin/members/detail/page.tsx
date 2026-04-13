@@ -397,10 +397,16 @@ function MemberDetailContent() {
       {/* ===== 食事記録タブ ===== */}
       {activeTab === 'meals' && (
         <div>
-          {meals.length === 0 ? (
+          {dataLoading ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af', background: 'white', borderRadius: '16px', border: '1px solid #e5e7eb' }}>
+              <div style={{ fontSize: '28px', marginBottom: '8px' }}>⏳</div>
+              読み込み中...
+            </div>
+          ) : meals.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af', background: 'white', borderRadius: '16px', border: '1px solid #e5e7eb' }}>
               <div style={{ fontSize: '32px', marginBottom: '8px', opacity: 0.3 }}>🍽</div>
-              食事記録はまだありません
+              <p style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>食事記録はまだありません</p>
+              <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#9ca3af' }}>会員がアプリで食事を記録すると自動的に表示されます</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -477,10 +483,16 @@ function MemberDetailContent() {
       {/* ===== 体組成タブ ===== */}
       {activeTab === 'body' && (
         <div>
-          {bodyRecords.length === 0 ? (
+          {dataLoading ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af', background: 'white', borderRadius: '16px', border: '1px solid #e5e7eb' }}>
+              <div style={{ fontSize: '28px', marginBottom: '8px' }}>⏳</div>
+              読み込み中...
+            </div>
+          ) : bodyRecords.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af', background: 'white', borderRadius: '16px', border: '1px solid #e5e7eb' }}>
               <div style={{ fontSize: '32px', marginBottom: '8px', opacity: 0.3 }}>📊</div>
-              体組成記録はまだありません
+              <p style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>体組成記録はまだありません</p>
+              <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#9ca3af' }}>会員がアプリで体組成を記録すると自動的に表示されます</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
