@@ -47,7 +47,7 @@ const plansData = [
     features: [
       { text: '食事記録・カロリー管理', ok: true },
       { text: '体組成記録', ok: true },
-      { text: 'AI食事データ分析（1日20回）', ok: true },
+      { text: 'AI食事データ分析（1日10回）', ok: true },
       { text: '20分ミーティング（月1回）', ok: true },
       { text: 'フィードバックコメント', ok: false },
     ],
@@ -160,7 +160,8 @@ export default function PlansPage() {
           }}
         >
           🎁 <strong>2週間無料トライアル</strong>でお試しいただけます。<br />
-          トライアル終了後は選択プランで自動課金が開始されます。いつでも解約可能です。
+          <strong style={{ color: '#fca5a5' }}>※トライアル終了後、選択プランで自動課金が開始されます</strong>。<br />
+          トライアル期間中の解約で料金は一切発生しません。いつでも解約可能です。
         </div>
 
         {/* 期間タブ */}

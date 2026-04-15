@@ -1,16 +1,35 @@
 // 写真解析用: GPT-4o（食品名+グラム数の特定のみ、軽量プロンプト）
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+import { verifyUser, corsHeaders as sharedCors, authErrorResponse } from '../../_shared/auth'
+import { canUseAiAnalysis, incrementAiAnalysisCount } from '../../_shared/usage'
+
 type PagesFunction<Env = Record<string, unknown>> = (context: { request: Request; env: Env; params: Record<string, string>; next: () => Promise<Response> }) => Promise<Response> | Response
 
 interface Env {
   OPENAI_API_KEY: string
+  NEXT_PUBLIC_SUPABASE_URL: string
+  SUPABASE_SERVICE_ROLE_KEY: string
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+  const corsHeaders = sharedCors(context.request)
+
+  // 認証: ログイン中ユーザーのみ
+  const auth = await verifyUser(context.request, context.env)
+  if (!auth.ok) return authErrorResponse(auth, context.request)
+
+  // プラン別AI解析回数チェック
+  const quota = await canUseAiAnalysis(auth.user.id, context.env)
+  if (!quota.ok) {
+    return new Response(
+      JSON.stringify({
+        error: quota.message,
+        planId: quota.planId,
+        current: quota.current,
+        limit: quota.limit,
+      }),
+      { status: 429, headers: corsHeaders }
+    )
   }
 
   try {
@@ -23,7 +42,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     if (!text && !image && (!images || images.length === 0)) {
       return new Response(JSON.stringify({ error: '食事の説明または写真が必要です' }), {
-        status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        status: 400, headers: corsHeaders,
       })
     }
 
@@ -181,6 +200,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         })
       }
     }
+
+    // 解析成功: AI使用回数をインクリメント
+    await incrementAiAnalysisCount(auth.user.id, context.env).catch(() => {})
 
     return new Response(JSON.stringify(result), {
       status: 200,

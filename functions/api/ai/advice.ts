@@ -1,17 +1,21 @@
 // 栄養アドバイス用: GPT-4o（テキストのみ、画像なし）
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+import { verifyUser, corsHeaders as sharedCors, authErrorResponse } from '../../_shared/auth'
+
 type PagesFunction<Env = Record<string, unknown>> = (context: { request: Request; env: Env; params: Record<string, string>; next: () => Promise<Response> }) => Promise<Response> | Response
 
 interface Env {
   OPENAI_API_KEY: string
+  NEXT_PUBLIC_SUPABASE_URL: string
+  SUPABASE_SERVICE_ROLE_KEY: string
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  }
+  const corsHeaders = sharedCors(context.request)
+
+  // 認証: ログイン中ユーザーのみ
+  const auth = await verifyUser(context.request, context.env)
+  if (!auth.ok) return authErrorResponse(auth, context.request)
 
   try {
     const { items, totals, goal } = await context.request.json() as {

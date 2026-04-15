@@ -86,6 +86,13 @@ export default function DashboardPage() {
   const [subscriptionPlan, setSubscriptionPlan] = useState<string>('free')
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>('none')
 
+  // プラン使用量
+  const [planUsage, setPlanUsage] = useState<{
+    planId: string
+    meetings: { used: number; limit: number; unlimited: boolean; period: string }
+    aiAnalysis: { used: number; limit: number; unlimited: boolean; period: string }
+  } | null>(null)
+
   // チュートリアル＆ガイド
   const [showTutorial, setShowTutorial] = useState(false)
   const [showGuide, setShowGuide] = useState(false)
@@ -230,6 +237,13 @@ export default function DashboardPage() {
             }
             setLotteryHistory((ptData.lottery_history || []).slice(0, 10))
           }
+        }).catch(() => {})
+
+      // プラン使用量を取得
+      apiFetch('/api/plan-usage')
+        .then(r => r.ok ? r.json() : null)
+        .then((usage) => {
+          if (usage) setPlanUsage(usage)
         }).catch(() => {})
     }
 
@@ -436,6 +450,75 @@ export default function DashboardPage() {
             </div>
           )
         })()}
+
+        {/* ===== 今月の使用状況 ===== */}
+        {planUsage && (
+          <div style={{
+            background: 'white',
+            border: '1px solid #e5e7eb',
+            borderRadius: '14px',
+            padding: '12px 14px',
+            marginBottom: '12px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+          }}>
+            <div style={{
+              fontSize: '11px', fontWeight: 700, color: '#6b7280',
+              marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px',
+            }}>
+              📊 利用状況
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              {/* ミーティング */}
+              <div style={{
+                background: planUsage.meetings.limit === 0 ? '#f9fafb' : '#eff6ff',
+                border: `1px solid ${planUsage.meetings.limit === 0 ? '#e5e7eb' : '#bfdbfe'}`,
+                borderRadius: '10px',
+                padding: '10px 12px',
+              }}>
+                <div style={{ fontSize: '10px', color: '#6b7280', fontWeight: 600, marginBottom: '4px' }}>
+                  📅 ミーティング
+                </div>
+                {planUsage.meetings.unlimited ? (
+                  <div style={{ fontSize: '15px', fontWeight: 900, color: '#2563eb' }}>無制限</div>
+                ) : planUsage.meetings.limit === 0 ? (
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#9ca3af' }}>プラン対象外</div>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                      <span style={{ fontSize: '18px', fontWeight: 900, color: '#2563eb' }}>{planUsage.meetings.used}</span>
+                      <span style={{ fontSize: '11px', color: '#6b7280' }}>/ {planUsage.meetings.limit}回</span>
+                    </div>
+                    <div style={{ fontSize: '9px', color: '#9ca3af', marginTop: '2px' }}>
+                      {planUsage.meetings.period === 'total' ? 'トライアル合計' : '今月'}
+                    </div>
+                  </>
+                )}
+              </div>
+              {/* AI食事解析 */}
+              <div style={{
+                background: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                borderRadius: '10px',
+                padding: '10px 12px',
+              }}>
+                <div style={{ fontSize: '10px', color: '#6b7280', fontWeight: 600, marginBottom: '4px' }}>
+                  🤖 AI食事解析
+                </div>
+                {planUsage.aiAnalysis.unlimited ? (
+                  <div style={{ fontSize: '15px', fontWeight: 900, color: '#16a34a' }}>無制限</div>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                      <span style={{ fontSize: '18px', fontWeight: 900, color: '#16a34a' }}>{planUsage.aiAnalysis.used}</span>
+                      <span style={{ fontSize: '11px', color: '#6b7280' }}>/ {planUsage.aiAnalysis.limit}回</span>
+                    </div>
+                    <div style={{ fontSize: '9px', color: '#9ca3af', marginTop: '2px' }}>今日</div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ===== 次回の栄養相談 ===== */}
         {nextReservation && (

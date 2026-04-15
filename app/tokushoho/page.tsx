@@ -48,17 +48,17 @@ export default function TokushohoPage() {
                       </tr>
                       <tr>
                         <td className="border border-gray-300 px-3 py-2">スタンダード</td>
-                        <td className="border border-gray-300 px-3 py-2 text-right">¥2,560/月</td>
-                        <td className="border border-gray-300 px-3 py-2 text-right">¥2,432/月</td>
-                        <td className="border border-gray-300 px-3 py-2 text-right">¥2,304/月</td>
-                        <td className="border border-gray-300 px-3 py-2 text-right">¥2,048/月</td>
+                        <td className="border border-gray-300 px-3 py-2 text-right">¥2,980/月</td>
+                        <td className="border border-gray-300 px-3 py-2 text-right">¥2,831/月</td>
+                        <td className="border border-gray-300 px-3 py-2 text-right">¥2,682/月</td>
+                        <td className="border border-gray-300 px-3 py-2 text-right">¥2,384/月</td>
                       </tr>
                       <tr>
                         <td className="border border-gray-300 px-3 py-2">プレミアム</td>
-                        <td className="border border-gray-300 px-3 py-2 text-right">¥4,540/月</td>
-                        <td className="border border-gray-300 px-3 py-2 text-right">¥4,313/月</td>
-                        <td className="border border-gray-300 px-3 py-2 text-right">¥4,086/月</td>
-                        <td className="border border-gray-300 px-3 py-2 text-right">¥3,632/月</td>
+                        <td className="border border-gray-300 px-3 py-2 text-right">¥9,980/月</td>
+                        <td className="border border-gray-300 px-3 py-2 text-right">¥9,481/月</td>
+                        <td className="border border-gray-300 px-3 py-2 text-right">¥8,982/月</td>
+                        <td className="border border-gray-300 px-3 py-2 text-right">¥7,984/月</td>
                       </tr>
                     </tbody>
                   </table>
@@ -67,8 +67,57 @@ export default function TokushohoPage() {
               }
             />
             <Row
-              label="代金の支払時期"
-              value="無料トライアル終了後、登録されたクレジットカードより自動決済されます。以降は契約期間に応じて自動更新されます。"
+              label="利用制限・機能範囲"
+              value={
+                <div className="space-y-2 text-xs">
+                  <p className="font-semibold text-gray-700">各プランのご利用上限は以下のとおりです。</p>
+                  <table className="border-collapse w-full">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="border border-gray-300 px-2 py-1 text-left">プラン</th>
+                        <th className="border border-gray-300 px-2 py-1 text-center">AI食事解析</th>
+                        <th className="border border-gray-300 px-2 py-1 text-center">ミーティング</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td className="border border-gray-300 px-2 py-1">トライアル</td>
+                        <td className="border border-gray-300 px-2 py-1 text-center">1日5回</td>
+                        <td className="border border-gray-300 px-2 py-1 text-center">期間中1回</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-gray-300 px-2 py-1">ライト</td>
+                        <td className="border border-gray-300 px-2 py-1 text-center">1日5回</td>
+                        <td className="border border-gray-300 px-2 py-1 text-center">なし</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-gray-300 px-2 py-1">スタンダード</td>
+                        <td className="border border-gray-300 px-2 py-1 text-center">1日10回</td>
+                        <td className="border border-gray-300 px-2 py-1 text-center">月1回</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-gray-300 px-2 py-1">プレミアム</td>
+                        <td className="border border-gray-300 px-2 py-1 text-center">無制限</td>
+                        <td className="border border-gray-300 px-2 py-1 text-center">月2回 + 週1回フィードバック</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              }
+            />
+            <Row
+              label="代金の支払時期・自動更新"
+              value={
+                <div className="space-y-2">
+                  <p className="font-semibold text-red-600">
+                    ご登録時に選択されたプランは、無料トライアル終了後に自動的に課金が開始されます。
+                  </p>
+                  <p>・14日間の無料トライアル終了後、登録されたクレジットカードより選択プランの料金が自動決済されます。</p>
+                  <p>・以降は契約期間（月額・3ヶ月・半年・年間）に応じて自動更新されます。</p>
+                  <p>・無料トライアル期間中に解約手続きを行った場合、料金は一切発生しません。</p>
+                  <p>・自動更新を停止したい場合は、更新日の前日までにマイページから解約手続きを行ってください。</p>
+                </div>
+              }
             />
             <Row
               label="支払方法"

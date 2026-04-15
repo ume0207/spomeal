@@ -28,7 +28,7 @@ export const PLANS = {
     name: 'ライト',
     nameEn: 'Light',
     description: '基本的な食事管理 + AI分析1日5回',
-    features: ['食事記録・カロリー管理', '体組成記録', 'AI食事データ分析（1日5回）', 'サプリメント管理'],
+    features: ['食事記録・カロリー管理', '体組成記録', 'AI食事データ分析（1日5回）'],
     prices: {
       monthly: { amount: 615, label: '月額', period: 'monthly' },
       quarterly: { amount: 1753, label: '3ヶ月', period: 'quarterly' },
@@ -39,12 +39,11 @@ export const PLANS = {
   standard: {
     name: 'スタンダード',
     nameEn: 'Standard',
-    description: 'AI分析1日20回 + ミーティング月1回',
+    description: 'AI分析1日10回 + ミーティング月1回',
     features: [
       '食事記録・カロリー管理',
       '体組成記録',
-      'AI食事データ分析（1日20回）',
-      'サプリメント管理',
+      'AI食事データ分析（1日10回）',
       '20分ミーティング（月1回）',
     ],
     prices: {
@@ -63,7 +62,6 @@ export const PLANS = {
       '食事記録・カロリー管理',
       '体組成記録',
       'AI食事データ分析（上限解放）',
-      'サプリメント管理',
       'ミーティング（月2回）',
       '週1回フィードバックコメント',
     ],

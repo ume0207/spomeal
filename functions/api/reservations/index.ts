@@ -1,4 +1,5 @@
 import { verifyUser, verifyAdmin, corsHeaders, handleOptions, authErrorResponse } from '../../_shared/auth'
+import { canBookMeeting } from '../../_shared/usage'
 
 type PagesFunction<Env = Record<string, unknown>> = (context: { request: Request; env: Env; params: Record<string, string> }) => Promise<Response> | Response
 
@@ -194,6 +195,20 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // 予約者IDは認証済みユーザーで強制上書き（クライアント偽装防止）
     body.userId = auth.user.id
     if (!body.userEmail) body.userEmail = auth.user.email
+
+    // プラン別ミーティング予約回数チェック
+    const quota = await canBookMeeting(auth.user.id, env)
+    if (!quota.ok) {
+      return new Response(
+        JSON.stringify({
+          error: quota.message,
+          planId: quota.planId,
+          current: quota.current,
+          limit: quota.limit,
+        }),
+        { status: 429, headers: cors }
+      )
+    }
 
     // Google Meet リンクをサーバー側で自動生成
     const { meetLink, calendarEventId } = await createMeetLink(env, body)
