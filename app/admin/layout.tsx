@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 
 const navItems = [
   { href: '/admin', label: 'ダッシュボード', tutorialId: 'admin-dashboard' },
@@ -38,52 +37,58 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       return
     }
 
-    // サーバー側で管理者認証を検証
+    // HMAC署名付きトークンをサーバー側で検証
     const verify = async () => {
-      try {
-        const supabase = createClient()
-        const { data: { session: supaSession } } = await supabase.auth.getSession()
-        if (!supaSession?.access_token) {
-          localStorage.removeItem('spomeal_admin_session')
-          router.replace('/admin/login')
-          setChecked(true)
-          return
-        }
+      const token = localStorage.getItem('spomeal_admin_token')
+      if (!token) {
+        localStorage.removeItem('spomeal_admin_session')
+        router.replace('/admin/login')
+        setChecked(true)
+        return
+      }
 
+      try {
         const verifyRes = await fetch('/api/admin/auth', {
           method: 'GET',
-          headers: { 'Authorization': `Bearer ${supaSession.access_token}` },
+          headers: { 'Authorization': `Bearer ${token}` },
         })
 
         if (!verifyRes.ok) {
-          // 管理者権限がない
+          // トークンが無効／期限切れ
+          localStorage.removeItem('spomeal_admin_token')
           localStorage.removeItem('spomeal_admin_session')
           router.replace('/admin/login')
           setChecked(true)
           return
         }
 
-        const data = await verifyRes.json() as { success?: boolean; admin?: { email?: string; name?: string } }
+        const data = await verifyRes.json() as { success?: boolean; admin?: { loginId?: string } }
         if (!data.success) {
+          localStorage.removeItem('spomeal_admin_token')
           localStorage.removeItem('spomeal_admin_session')
           router.replace('/admin/login')
           setChecked(true)
           return
         }
 
-        const sessionData: AdminSession = {
-          name: data.admin?.name || supaSession.user.email || '管理者',
-          email: data.admin?.email || supaSession.user.email || '',
-          loggedIn: true,
+        // 表示用セッション情報をlocalStorageから復元（または新規作成）
+        let sessionData: AdminSession
+        try {
+          const stored = localStorage.getItem('spomeal_admin_session')
+          sessionData = stored
+            ? JSON.parse(stored)
+            : { name: data.admin?.loginId || '管理者', email: data.admin?.loginId || '', loggedIn: true }
+        } catch {
+          sessionData = { name: data.admin?.loginId || '管理者', email: data.admin?.loginId || '', loggedIn: true }
         }
         setSession(sessionData)
-        localStorage.setItem('spomeal_admin_session', JSON.stringify(sessionData))
 
         const tutorialStatus = localStorage.getItem('spomeal_admin_tutorial')
         if (tutorialStatus === 'pending') setShowTutorial(true)
 
         setChecked(true)
       } catch {
+        localStorage.removeItem('spomeal_admin_token')
         localStorage.removeItem('spomeal_admin_session')
         router.replace('/admin/login')
         setChecked(true)
@@ -93,11 +98,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     verify()
   }, [isLoginPage, router])
 
-  const handleLogout = async () => {
-    try {
-      const supabase = createClient()
-      await supabase.auth.signOut()
-    } catch {}
+  const handleLogout = () => {
+    localStorage.removeItem('spomeal_admin_token')
     localStorage.removeItem('spomeal_admin_session')
     setSession(null)
     router.replace('/admin/login')

@@ -2,11 +2,10 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 
 export default function AdminLoginPage() {
   const router = useRouter()
-  const [email, setEmail] = useState('')
+  const [loginId, setLoginId] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -15,54 +14,35 @@ export default function AdminLoginPage() {
     e.preventDefault()
     setError('')
 
-    if (!email.trim() || !password.trim()) {
-      setError('メールアドレスとパスワードを入力してください')
+    if (!loginId.trim() || !password.trim()) {
+      setError('ログインIDとパスワードを入力してください')
       return
     }
 
     setLoading(true)
 
     try {
-      // 1. Supabase認証
-      const supabase = createClient()
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
+      const res = await fetch('/api/admin/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ loginId: loginId.trim(), password }),
       })
 
-      if (signInError || !signInData.session) {
-        setError(signInError?.message || 'メールアドレスまたはパスワードが正しくありません')
+      const data = await res.json() as { success?: boolean; error?: string; token?: string; admin?: { loginId?: string } }
+
+      if (!data.success || !data.token) {
+        setError(data.error || '認証に失敗しました')
         setLoading(false)
         return
       }
 
-      // 2. 管理者権限をサーバー側で検証
-      const verifyRes = await fetch('/api/admin/auth', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${signInData.session.access_token}`,
-        },
-      })
+      // HMAC署名付きトークンを保存（30日有効）
+      localStorage.setItem('spomeal_admin_token', data.token)
 
-      if (!verifyRes.ok) {
-        await supabase.auth.signOut()
-        setError('このアカウントには管理者権限がありません')
-        setLoading(false)
-        return
-      }
-
-      const data = await verifyRes.json() as { success?: boolean; admin?: { email?: string; name?: string } }
-      if (!data.success) {
-        await supabase.auth.signOut()
-        setError('管理者認証に失敗しました')
-        setLoading(false)
-        return
-      }
-
-      // 管理者セッション（表示用のみ、認証はSupabaseで行う）
+      // 表示用セッション情報
       const session = {
-        name: data.admin?.name || email.trim(),
-        email: data.admin?.email || email.trim(),
+        name: data.admin?.loginId || loginId.trim(),
+        email: data.admin?.loginId || loginId.trim(),
         loggedIn: true,
         loginAt: new Date().toISOString(),
       }
@@ -135,20 +115,20 @@ export default function AdminLoginPage() {
           fontSize: '13px', color: 'rgba(255,255,255,0.45)',
           textAlign: 'center', margin: '0 0 28px',
         }}>
-          管理者アカウントのメールアドレスを入力してください
+          ログインIDとパスワードを入力してください
         </p>
 
         <form onSubmit={handleLogin}>
-          {/* メールアドレス */}
+          {/* ログインID */}
           <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '6px' }}>
-              メールアドレス
+              ログインID
             </label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@example.com"
+              type="text"
+              value={loginId}
+              onChange={(e) => setLoginId(e.target.value)}
+              placeholder="ログインIDを入力"
               autoComplete="username"
               style={{
                 width: '100%',

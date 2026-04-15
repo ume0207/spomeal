@@ -18,11 +18,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           const { userId, cal, protein, fat, carbs, targetWeight, currentWeight, height, activityLevel, goalType, pfcP, pfcF, pfcC } = body
           if (!userId) return new Response(JSON.stringify({ error: 'userId required' }), { status: 400, headers: cors })
 
-          const auth = await verifyUser(request, env)
-          if (!auth.ok) return authErrorResponse(auth, request)
-          if (auth.user.id !== userId) {
-            const admin = await verifyAdmin(request, env)
-            if (!admin.ok) return authErrorResponse({ ok: false, status: 403, error: '他のユーザーのデータは更新できません' }, request)
+          // 認証：管理者トークン優先、次に本人のSupabase JWT
+          const admin = await verifyAdmin(request, env)
+          if (!admin.ok) {
+            const auth = await verifyUser(request, env)
+            if (!auth.ok) return authErrorResponse(auth, request)
+            if (auth.user.id !== userId) {
+              return authErrorResponse({ ok: false, status: 403, error: '他のユーザーのデータは更新できません' }, request)
+            }
           }
 
       const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL

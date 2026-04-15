@@ -133,16 +133,18 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     return new Response(JSON.stringify({ error: 'userId or admin=true required' }), { status: 400, headers: cors })
   }
 
-  // 認証: 管理者または自分のデータのみ
-  if (isAdmin) {
-    const adminAuth = await verifyAdmin(request, env)
-    if (!adminAuth.ok) return authErrorResponse(adminAuth, request)
+  // 認証: 管理者トークン優先、次に本人のSupabase JWT
+  const adminAuth = await verifyAdmin(request, env)
+  if (adminAuth.ok) {
+    // 管理者は全予約を閲覧可能
+  } else if (isAdmin) {
+    // admin=true なのに管理者トークンが無効
+    return authErrorResponse(adminAuth, request)
   } else if (userId) {
     const userAuth = await verifyUser(request, env)
     if (!userAuth.ok) return authErrorResponse(userAuth, request)
     if (userAuth.user.id !== userId) {
-      const adminAuth = await verifyAdmin(request, env)
-      if (!adminAuth.ok) return authErrorResponse({ ok: false, status: 403, error: '他のユーザーの予約は閲覧できません' }, request)
+      return authErrorResponse({ ok: false, status: 403, error: '他のユーザーの予約は閲覧できません' }, request)
     }
   }
 

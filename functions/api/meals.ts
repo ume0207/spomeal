@@ -9,14 +9,18 @@ interface Env {
 }
 
 /**
- * ユーザー認証を行い、リクエストされたuserIdがログイン中ユーザー本人か管理者かを確認
+ * 認証：管理者トークン優先、次に本人のSupabase JWT
  */
 async function authorize(request: Request, env: Env, targetUserId: string) {
+  // 1. 管理者HMACトークンを先に試す（管理者は全ユーザーのデータにアクセス可）
+  const admin = await verifyAdmin(request, env)
+  if (admin.ok) return admin
+
+  // 2. Supabase JWT（本人のデータのみアクセス可）
   const auth = await verifyUser(request, env)
   if (!auth.ok) return auth
   if (auth.user.id === targetUserId) return auth
-  const admin = await verifyAdmin(request, env)
-  if (admin.ok) return admin
+
   return { ok: false as const, status: 403, error: '他のユーザーのデータにはアクセスできません' }
 }
 

@@ -2,16 +2,32 @@ import { createClient } from '@/lib/supabase/client'
 
 /**
  * 認証トークンを含めてAPIを呼ぶヘルパー
- * Supabaseのセッションからアクセストークンを取得し、Authorizationヘッダーに付与する
+ *
+ * 優先順位:
+ * 1. 管理者HMACトークン (`spomeal_admin_token` が localStorage にある場合)
+ *    → `/admin` 配下の管理者ページから呼ばれた時に使う
+ * 2. Supabase JWT (会員セッション)
+ *    → 会員ページから呼ばれた時に使う
  */
 export async function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
   let token: string | null = null
+
+  // 1. 管理者トークンを優先
   try {
-    const supabase = createClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    token = session?.access_token ?? null
+    token = typeof window !== 'undefined' ? window.localStorage.getItem('spomeal_admin_token') : null
   } catch {
     token = null
+  }
+
+  // 2. 管理者トークンがなければSupabase JWTにフォールバック
+  if (!token) {
+    try {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      token = session?.access_token ?? null
+    } catch {
+      token = null
+    }
   }
 
   const headers = new Headers(init.headers || {})

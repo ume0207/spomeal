@@ -9,11 +9,11 @@ interface Env {
 }
 
 async function authorize(request: Request, env: Env, targetUserId: string) {
+  const admin = await verifyAdmin(request, env)
+  if (admin.ok) return admin
   const auth = await verifyUser(request, env)
   if (!auth.ok) return auth
   if (auth.user.id === targetUserId) return auth
-  const admin = await verifyAdmin(request, env)
-  if (admin.ok) return admin
   return { ok: false as const, status: 403, error: '他のユーザーのデータにはアクセスできません' }
 }
 

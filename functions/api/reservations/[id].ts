@@ -18,9 +18,16 @@ export const onRequestPatch: PagesFunction<Env> = async (context) => {
     return new Response(JSON.stringify({ error: 'id is required' }), { status: 400, headers: cors })
   }
 
-  // 認証: ログイン中ユーザー必須
-  const auth = await verifyUser(request, env)
-  if (!auth.ok) return authErrorResponse(auth, request)
+  // 認証: 管理者トークン優先、次に本人のSupabase JWT
+  const adminCheck = await verifyAdmin(request, env)
+  const isAdmin = adminCheck.ok
+
+  let requesterUserId: string | null = null
+  if (!isAdmin) {
+    const auth = await verifyUser(request, env)
+    if (!auth.ok) return authErrorResponse(auth, request)
+    requesterUserId = auth.user.id
+  }
 
   try {
     // まず予約の所有者を確認
@@ -39,10 +46,11 @@ export const onRequestPatch: PagesFunction<Env> = async (context) => {
     }
 
     // 所有者でも管理者でもない場合は拒否
-    const isOwner = existingRows[0].user_id === auth.user.id
-    if (!isOwner) {
-      const admin = await verifyAdmin(request, env)
-      if (!admin.ok) return authErrorResponse({ ok: false, status: 403, error: 'この予約を変更する権限がありません' }, request)
+    if (!isAdmin) {
+      const isOwner = existingRows[0].user_id === requesterUserId
+      if (!isOwner) {
+        return authErrorResponse({ ok: false, status: 403, error: 'この予約を変更する権限がありません' }, request)
+      }
     }
 
     const body = await request.json() as Record<string, unknown>
@@ -53,8 +61,7 @@ export const onRequestPatch: PagesFunction<Env> = async (context) => {
     if (body.notes !== undefined) patch.notes = body.notes
 
     // meet_link/calendar_event_id は管理者のみ更新可能
-    const adminCheck = await verifyAdmin(request, env)
-    if (adminCheck.ok) {
+    if (isAdmin) {
       if (body.meetLink !== undefined) patch.meet_link = body.meetLink
       if (body.meet_link !== undefined) patch.meet_link = body.meet_link
       if (body.calendarEventId !== undefined) patch.calendar_event_id = body.calendarEventId

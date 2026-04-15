@@ -21,9 +21,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { env, request } = context
   const cors = corsHeaders(request)
 
-  // ログイン必須（会員の予約ページで利用するため非管理者も可）
-  const auth = await verifyUser(request, env)
-  if (!auth.ok) return authErrorResponse(auth, request)
+  // 管理者または会員（どちらかの認証が通ればOK）
+  const admin = await verifyAdmin(request, env)
+  if (!admin.ok) {
+    const auth = await verifyUser(request, env)
+    if (!auth.ok) return authErrorResponse(auth, request)
+  }
 
   try {
     const res = await fetch(

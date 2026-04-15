@@ -20,15 +20,14 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
     return new Response(JSON.stringify({ error: 'memberId required' }), { status: 400, headers: cors })
   }
 
-  // まずユーザー認証
-  const userAuth = await verifyUser(request, env)
-  if (!userAuth.ok) return authErrorResponse(userAuth, request)
-
-  // 自分のコメント or 管理者のみ許可
-  const isSelf = userAuth.user.id === memberId
-  if (!isSelf) {
-    const adminAuth = await verifyAdmin(request, env)
-    if (!adminAuth.ok) return authErrorResponse(adminAuth, request)
+  // 管理者トークン優先、次に会員のSupabase JWT
+  const adminAuth = await verifyAdmin(request, env)
+  if (!adminAuth.ok) {
+    const userAuth = await verifyUser(request, env)
+    if (!userAuth.ok) return authErrorResponse(userAuth, request)
+    if (userAuth.user.id !== memberId) {
+      return authErrorResponse({ ok: false, status: 403, error: '他のユーザーのコメントは閲覧できません' }, request)
+    }
   }
 
   const { NEXT_PUBLIC_SUPABASE_URL: sbUrl, SUPABASE_SERVICE_ROLE_KEY: sbKey } = env

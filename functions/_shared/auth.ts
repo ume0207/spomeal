@@ -1,6 +1,7 @@
 /**
  * 共通認証ヘルパー
- * Supabase JWTトークンを検証し、ユーザー情報を返す
+ * - Supabase JWTトークン検証（会員向け）
+ * - HMAC署名付きトークン検証（管理者共通ログイン向け）
  */
 
 interface SupabaseUser {
@@ -62,6 +63,93 @@ export function handleOptions(request: Request): Response {
   return new Response(null, { headers: corsHeaders(request) })
 }
 
+// =============================================================================
+// HMAC 管理者トークン
+// =============================================================================
+
+const ADMIN_TOKEN_VERSION = 'v1'
+const ADMIN_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000 // 30日
+
+/**
+ * HMAC-SHA256 署名を16進文字列で返す
+ */
+async function hmacSign(secret: string, message: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(message))
+  return Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+/**
+ * 定数時間で2つの文字列を比較（タイミング攻撃対策）
+ */
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false
+  let diff = 0
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  }
+  return diff === 0
+}
+
+/**
+ * 管理者用HMAC署名付きトークンを生成
+ * トークン形式: admin.v1.{timestamp}.{signature}
+ * 署名 = HMAC-SHA256(ADMIN_PASSWORD, "admin.v1.{timestamp}")
+ */
+export async function createAdminToken(
+  env: { ADMIN_PASSWORD?: string }
+): Promise<string | null> {
+  const secret = env.ADMIN_PASSWORD
+  if (!secret) return null
+
+  const timestamp = Date.now().toString()
+  const payload = `admin.${ADMIN_TOKEN_VERSION}.${timestamp}`
+  const signature = await hmacSign(secret, payload)
+  return `${payload}.${signature}`
+}
+
+/**
+ * 管理者トークンを検証（HMAC署名+有効期限）
+ */
+export async function verifyAdminToken(
+  token: string,
+  env: { ADMIN_PASSWORD?: string }
+): Promise<boolean> {
+  const secret = env.ADMIN_PASSWORD
+  if (!secret) return false
+
+  if (!token.startsWith(`admin.${ADMIN_TOKEN_VERSION}.`)) return false
+
+  const parts = token.split('.')
+  if (parts.length !== 4) return false
+  const [, version, timestampStr, signature] = parts
+
+  if (version !== ADMIN_TOKEN_VERSION) return false
+
+  // 有効期限チェック
+  const timestamp = parseInt(timestampStr, 10)
+  if (isNaN(timestamp)) return false
+  const age = Date.now() - timestamp
+  if (age < 0 || age > ADMIN_TOKEN_TTL_MS) return false
+
+  // 署名検証
+  const expected = await hmacSign(secret, `admin.${ADMIN_TOKEN_VERSION}.${timestampStr}`)
+  return timingSafeEqual(signature, expected)
+}
+
+// =============================================================================
+// Supabase JWT 検証（会員向け）
+// =============================================================================
+
 /**
  * リクエストからBearerトークンを取得してSupabaseで検証
  */
@@ -76,8 +164,12 @@ export async function verifyUser(
     return { ok: false, status: 401, error: '認証トークンがありません' }
   }
 
+  // 管理者HMACトークンはSupabaseでは検証できないので即座にスキップ
+  if (token.startsWith('admin.')) {
+    return { ok: false, status: 401, error: 'このエンドポイントは会員認証が必要です' }
+  }
+
   try {
-    // Supabase Auth API でトークン検証
     const res = await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/user`, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -100,31 +192,52 @@ export async function verifyUser(
   }
 }
 
-/**
- * 管理者権限を検証（app_metadata.role === 'admin' または環境変数のメールアドレス一致）
- */
+// =============================================================================
+// 管理者検証（HMAC優先、フォールバックでSupabase admin role）
+// =============================================================================
+
 export async function verifyAdmin(
   request: Request,
   env: {
     NEXT_PUBLIC_SUPABASE_URL: string
     SUPABASE_SERVICE_ROLE_KEY: string
+    ADMIN_PASSWORD?: string
+    ADMIN_LOGIN_ID?: string
     ADMIN_EMAILS?: string
   }
 ): Promise<AuthResult | AuthError> {
-  const result = await verifyUser(request, env)
-  if (!result.ok) return result
+  const authHeader = request.headers.get('Authorization') || ''
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim()
 
-  const { user } = result
+  // 1. 管理者HMACトークンを検証
+  if (token.startsWith('admin.')) {
+    const valid = await verifyAdminToken(token, env)
+    if (valid) {
+      return {
+        ok: true,
+        user: {
+          id: 'admin',
+          email: env.ADMIN_LOGIN_ID || 'spomeal',
+          app_metadata: { role: 'admin' },
+        },
+      }
+    }
+    return { ok: false, status: 401, error: '管理者トークンが無効または期限切れです' }
+  }
 
-  // 1. app_metadata.role === 'admin' をチェック
-  if (user.app_metadata?.role === 'admin') return result
+  // 2. Supabase JWT経由のadminロール（backward compat用）
+  const userResult = await verifyUser(request, env)
+  if (!userResult.ok) {
+    return { ok: false, status: 401, error: '管理者認証が必要です' }
+  }
 
-  // 2. user_metadata.role === 'admin' をチェック（フォールバック）
-  if (user.user_metadata?.role === 'admin') return result
+  const { user } = userResult
 
-  // 3. 環境変数の ADMIN_EMAILS にメールアドレスが含まれているかチェック
-  const adminEmails = (env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean)
-  if (user.email && adminEmails.includes(user.email.toLowerCase())) return result
+  if (user.app_metadata?.role === 'admin') return userResult
+  if (user.user_metadata?.role === 'admin') return userResult
+
+  const adminEmails = (env.ADMIN_EMAILS || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)
+  if (user.email && adminEmails.includes(user.email.toLowerCase())) return userResult
 
   return { ok: false, status: 403, error: '管理者権限がありません' }
 }

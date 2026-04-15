@@ -33,12 +33,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       return new Response(JSON.stringify({ error: 'userId is required' }), { status: 400, headers: cors })
     }
 
-    // 認証 + オーナーシップチェック
-    const auth = await verifyUser(request, env)
-    if (!auth.ok) return authErrorResponse(auth, request)
-    if (auth.user.id !== body.userId) {
-      const admin = await verifyAdmin(request, env)
-      if (!admin.ok) return authErrorResponse({ ok: false, status: 403, error: '他のユーザーのデータは更新できません' }, request)
+    // 認証：管理者トークン優先、次に本人のSupabase JWT
+    const admin = await verifyAdmin(request, env)
+    if (!admin.ok) {
+      const auth = await verifyUser(request, env)
+      if (!auth.ok) return authErrorResponse(auth, request)
+      if (auth.user.id !== body.userId) {
+        return authErrorResponse({ ok: false, status: 403, error: '他のユーザーのデータは更新できません' }, request)
+      }
     }
 
     // 現在のユーザーメタデータを取得

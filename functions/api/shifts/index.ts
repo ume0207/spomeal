@@ -13,14 +13,18 @@ const SHIFTS_FILE = 'shifts.json'
 
 /**
  * GET /api/shifts
- * シフトデータを取得（ログインユーザーのみ。会員も予約ページで参照するため管理者限定ではない）
+ * シフトデータを取得（ログインユーザーまたは管理者）
  */
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { env, request } = context
   const cors = corsHeaders(request)
 
-  const auth = await verifyUser(request, env)
-  if (!auth.ok) return authErrorResponse(auth, request)
+  // 管理者または会員（どちらかの認証が通ればOK）
+  const admin = await verifyAdmin(request, env)
+  if (!admin.ok) {
+    const auth = await verifyUser(request, env)
+    if (!auth.ok) return authErrorResponse(auth, request)
+  }
 
   const sbUrl = env.NEXT_PUBLIC_SUPABASE_URL
   const sbKey = env.SUPABASE_SERVICE_ROLE_KEY
