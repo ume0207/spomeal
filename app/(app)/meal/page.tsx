@@ -1718,9 +1718,8 @@ export default function MealPage() {
                           body.text = desc
                         }
 
-                        const res = await fetch(AI_ANALYZE_URL, {
+                        const res = await apiFetch(AI_ANALYZE_URL, {
                           method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify(body),
                         })
 
