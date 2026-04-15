@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { apiFetch } from '@/lib/api'
 
 interface TimeSlot {
   id: string
@@ -26,7 +27,7 @@ export default function SchedulePage() {
 
   useEffect(() => {
     // スケジュールをAPIから取得（localStorage fallback付き）
-    fetch('/api/schedule')
+    apiFetch('/api/schedule')
       .then(r => r.ok ? r.json() : [])
       .then((data: TimeSlot[]) => {
         if (data && data.length > 0) {
@@ -38,7 +39,7 @@ export default function SchedulePage() {
             const parsed = saved ? JSON.parse(saved) : DEFAULT_SLOTS
             setSlots(parsed)
             // APIにマイグレーション
-            fetch('/api/schedule', {
+            apiFetch('/api/schedule', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(parsed),
@@ -60,7 +61,7 @@ export default function SchedulePage() {
     setSlots(data)
     localStorage.setItem('timeSlots_v1', JSON.stringify(data))
     // APIにも保存
-    fetch('/api/schedule', {
+    apiFetch('/api/schedule', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),

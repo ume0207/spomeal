@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
+import { apiFetch } from '@/lib/api'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
@@ -144,7 +145,7 @@ function MemberDetailContent() {
 
   // スタッフ一覧読み込み（Supabase API）
   useEffect(() => {
-    fetch('/api/staff')
+    apiFetch('/api/staff')
       .then(r => r.ok ? r.json() : [])
       .then((parsed: StaffMember[]) => {
         const activeStaff = parsed.filter(s => s.active !== false)
@@ -160,7 +161,7 @@ function MemberDetailContent() {
     // 会員情報読み込み（API）
     const loadMember = async () => {
       try {
-        const res = await fetch('/api/admin/members')
+        const res = await apiFetch('/api/admin/members')
         const data = await res.json()
         if (data.members) {
           const found = data.members.find((m: Member) => m.id === memberId)
@@ -174,7 +175,7 @@ function MemberDetailContent() {
     const loadMemberData = async () => {
       setDataLoading(true)
       try {
-        const res = await fetch(`/api/admin/member-data?id=${memberId}`)
+        const res = await apiFetch(`/api/admin/member-data?id=${memberId}`)
         if (res.ok) {
           const data = await res.json()
           // 食事記録を変換
@@ -227,7 +228,7 @@ function MemberDetailContent() {
     loadMemberData()
 
     // コメントをAPIから取得
-    fetch(`/api/admin/comments?memberId=${memberId}`)
+    apiFetch(`/api/admin/comments?memberId=${memberId}`)
       .then(r => r.ok ? r.json() : [])
       .then((data: any[]) => {
         setComments(data.map(c => ({
@@ -253,7 +254,7 @@ function MemberDetailContent() {
     setCommentSending(true)
     setCommentError('')
     try {
-      const res = await fetch('/api/admin/comments', {
+      const res = await apiFetch('/api/admin/comments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -292,7 +293,7 @@ function MemberDetailContent() {
   const deleteComment = async (id: string) => {
     if (!confirm('このコメントを削除しますか？')) return
     try {
-      await fetch(`/api/admin/comments?id=${id}`, { method: 'DELETE' })
+      await apiFetch(`/api/admin/comments?id=${id}`, { method: 'DELETE' })
       setComments(prev => prev.filter(c => c.id !== id))
     } catch (e) {
       console.error('Failed to delete comment:', e)

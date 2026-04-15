@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { apiFetch } from '@/lib/api'
 import { getRarityColor, getRarityLabel } from '@/lib/points'
 import { toJSTDateStr } from '@/lib/date-utils'
 import type { LotteryResult } from '@/lib/points'
@@ -122,7 +123,7 @@ export default function DashboardPage() {
 
     if (currentUserId) {
       // 管理栄養士コメントをAPIから取得
-      fetch(`/api/admin/comments?memberId=${currentUserId}`)
+      apiFetch(`/api/admin/comments?memberId=${currentUserId}`)
         .then(r => r.ok ? r.json() : [])
         .then((data: any[]) => {
           setNutritionistComments(data.map(c => ({
@@ -138,7 +139,7 @@ export default function DashboardPage() {
 
     if (currentUserId) {
       // 目標データをAPIから取得
-      fetch(`/api/user-goals?userId=${currentUserId}`)
+      apiFetch(`/api/user-goals?userId=${currentUserId}`)
         .then(r => r.ok ? r.json() : null)
         .then(gData => {
           if (gData) {
@@ -153,7 +154,7 @@ export default function DashboardPage() {
 
       // 食事記録データをAPIから取得（今日分）
       const today = toJSTDateStr()
-      fetch(`/api/meals?userId=${currentUserId}&from=${today}&to=${today}`)
+      apiFetch(`/api/meals?userId=${currentUserId}&from=${today}&to=${today}`)
         .then(r => r.ok ? r.json() : [])
         .then((data: any[]) => {
           const todayRecs: MealRecord[] = (data || []).map((r: any) => ({
@@ -182,7 +183,7 @@ export default function DashboardPage() {
         })
 
       // 体組成データをAPIから取得
-      fetch(`/api/body-records?userId=${currentUserId}`)
+      apiFetch(`/api/body-records?userId=${currentUserId}`)
         .then(r => r.ok ? r.json() : [])
         .then((data: any[]) => {
           const sorted = (data || []).sort((a: any, b: any) => b.date.localeCompare(a.date))
@@ -206,7 +207,7 @@ export default function DashboardPage() {
         }).catch(() => setLatestBody(null))
 
       // ポイントデータをAPIから取得
-      fetch(`/api/user-points?userId=${currentUserId}`)
+      apiFetch(`/api/user-points?userId=${currentUserId}`)
         .then(r => r.ok ? r.json() : null)
         .then(ptData => {
           if (ptData) {
@@ -257,7 +258,7 @@ export default function DashboardPage() {
 
         // APIから取得を試みる
         try {
-          const res = await fetch(`/api/reservations?userId=${uid}`)
+          const res = await apiFetch(`/api/reservations?userId=${uid}`)
           if (res.ok) {
             const apiData: Reservation[] = await res.json()
             const upcoming = apiData
@@ -954,9 +955,8 @@ export default function DashboardPage() {
                       setIsSpinning(true)
                       setTimeout(async () => {
                         try {
-                          const res = await fetch('/api/user-points', {
+                          const res = await apiFetch('/api/user-points', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ userId, action: 'lottery' }),
                           })
                           if (res.ok) {

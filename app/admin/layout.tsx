@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 const navItems = [
   { href: '/admin', label: 'ダッシュボード', tutorialId: 'admin-dashboard' },
@@ -37,28 +38,66 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       return
     }
 
-    const stored = localStorage.getItem('spomeal_admin_session')
-    if (stored) {
+    // サーバー側で管理者認証を検証
+    const verify = async () => {
       try {
-        const parsed = JSON.parse(stored) as AdminSession
-        if (parsed.loggedIn) {
-          setSession(parsed)
-          // チュートリアルチェック
-          const tutorialStatus = localStorage.getItem('spomeal_admin_tutorial')
-          if (tutorialStatus === 'pending') {
-            setShowTutorial(true)
-          }
+        const supabase = createClient()
+        const { data: { session: supaSession } } = await supabase.auth.getSession()
+        if (!supaSession?.access_token) {
+          localStorage.removeItem('spomeal_admin_session')
+          router.replace('/admin/login')
           setChecked(true)
           return
         }
-      } catch { /* invalid JSON */ }
+
+        const verifyRes = await fetch('/api/admin/auth', {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${supaSession.access_token}` },
+        })
+
+        if (!verifyRes.ok) {
+          // 管理者権限がない
+          localStorage.removeItem('spomeal_admin_session')
+          router.replace('/admin/login')
+          setChecked(true)
+          return
+        }
+
+        const data = await verifyRes.json() as { success?: boolean; admin?: { email?: string; name?: string } }
+        if (!data.success) {
+          localStorage.removeItem('spomeal_admin_session')
+          router.replace('/admin/login')
+          setChecked(true)
+          return
+        }
+
+        const sessionData: AdminSession = {
+          name: data.admin?.name || supaSession.user.email || '管理者',
+          email: data.admin?.email || supaSession.user.email || '',
+          loggedIn: true,
+        }
+        setSession(sessionData)
+        localStorage.setItem('spomeal_admin_session', JSON.stringify(sessionData))
+
+        const tutorialStatus = localStorage.getItem('spomeal_admin_tutorial')
+        if (tutorialStatus === 'pending') setShowTutorial(true)
+
+        setChecked(true)
+      } catch {
+        localStorage.removeItem('spomeal_admin_session')
+        router.replace('/admin/login')
+        setChecked(true)
+      }
     }
-    // 未ログイン → ログインページへ
-    router.replace('/admin/login')
-    setChecked(true)
+
+    verify()
   }, [isLoginPage, router])
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      const supabase = createClient()
+      await supabase.auth.signOut()
+    } catch {}
     localStorage.removeItem('spomeal_admin_session')
     setSession(null)
     router.replace('/admin/login')

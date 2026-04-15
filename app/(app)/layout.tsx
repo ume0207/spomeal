@@ -1,6 +1,7 @@
 'use client'
 
 import { usePathname, useRouter } from 'next/navigation'
+import { apiFetch } from '@/lib/api'
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -55,7 +56,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       try {
         const email = user.email
         const userId = user.id
-        const res = await fetch(`/api/check-subscription?email=${encodeURIComponent(email || '')}&userId=${userId}`)
+        const res = await apiFetch(`/api/check-subscription?email=${encodeURIComponent(email || '')}&userId=${userId}`)
         if (res.ok) {
           const subData = await res.json() as { active: boolean; reason?: string }
           if (!subData.active) {
@@ -135,7 +136,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       const supabase = createClient()
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) throw new Error('ログインが必要です')
-      const res = await fetch('/api/user/request-deletion', {
+      const res = await apiFetch('/api/user/request-deletion', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

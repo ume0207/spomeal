@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { apiFetch } from '@/lib/api'
 import { addMealPoint } from '@/lib/points'
 import { FOOD_DB, searchFoodDB } from '@/lib/food-db'
 import { toJSTDateStr, toJSTDateTimeStr } from '@/lib/date-utils'
@@ -346,7 +347,7 @@ export default function MealPage() {
 
       // 食事記録をAPIから取得
       try {
-        const res = await fetch(`/api/meals?userId=${uid}`)
+        const res = await apiFetch(`/api/meals?userId=${uid}`)
         if (res.ok) {
           const data = await res.json()
           const records: MealRecord[] = (data || []).map((r: any) => ({
@@ -378,7 +379,7 @@ export default function MealPage() {
                   const migrated: MealRecord[] = []
                   for (const r of localRecords.slice(0, 90)) {
                     try {
-                      const saveRes = await fetch('/api/meals', {
+                      const saveRes = await apiFetch('/api/meals', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -414,7 +415,7 @@ export default function MealPage() {
 
       // 目標データをAPIから取得
       try {
-        const gRes = await fetch(`/api/user-goals?userId=${uid}`)
+        const gRes = await apiFetch(`/api/user-goals?userId=${uid}`)
         if (gRes.ok) {
           const gData = await gRes.json()
           if (gData) {
@@ -508,7 +509,7 @@ export default function MealPage() {
   const deleteRecord = (id: string) => {
     if (confirm('この記録を削除しますか？')) {
       if (userId) {
-        fetch(`/api/meals?id=${id}&userId=${userId}`, { method: 'DELETE' }).catch(() => {})
+        apiFetch(`/api/meals?id=${id}&userId=${userId}`, { method: 'DELETE' }).catch(() => {})
       }
       saveRecords(records.filter(r => r.id !== id))
     }
@@ -535,7 +536,7 @@ export default function MealPage() {
     // APIでも更新
     const rec = records.find(r => r.id === recordId)
     if (userId && rec) {
-      fetch('/api/meals', {
+      apiFetch('/api/meals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -672,7 +673,7 @@ export default function MealPage() {
     // Supabase APIに保存
     if (userId) {
       try {
-        const saved = await fetch('/api/meals', {
+        const saved = await apiFetch('/api/meals', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -700,7 +701,7 @@ export default function MealPage() {
       } catch { /* ignore */ }
 
       // 管理者フィード用にも同期
-      fetch('/api/meal-activity', {
+      apiFetch('/api/meal-activity', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -723,7 +724,7 @@ export default function MealPage() {
     // ポイント付与（新規記録のみ・API経由）
     if (!editingRecordId && userId) {
       const mealTypeEn = activeMealType || 'lunch'
-      fetch('/api/user-points', {
+      apiFetch('/api/user-points', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, action: 'addMeal', dateStr: mealDateStr, mealType: mealTypeEn }),
@@ -787,13 +788,13 @@ export default function MealPage() {
 
     // Supabase APIに目標データを保存
     if (userId) {
-      fetch('/api/user-goals', {
+      apiFetch('/api/user-goals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, ...newGoal }),
       }).catch(() => {})
       // 管理者フィード用にも同期
-      fetch('/api/goal-activity', {
+      apiFetch('/api/goal-activity', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, ...newGoal }),
@@ -1821,7 +1822,7 @@ export default function MealPage() {
                       setAiText(foodNames)
 
                       // GPT-4oでアドバイスを非同期取得（メイン結果は先に表示）
-                      fetch('/api/ai/advice', {
+                      apiFetch('/api/ai/advice', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({

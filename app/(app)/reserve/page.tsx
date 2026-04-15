@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { apiFetch } from '@/lib/api'
 import { createClient } from '@/lib/supabase/client'
 
 interface Reservation {
@@ -125,7 +126,7 @@ export default function ReservePage() {
         if (session?.user) {
           setUserName(session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || '')
           if (session.user.id) {
-            const res = await fetch(`/api/reservations?userId=${session.user.id}`)
+            const res = await apiFetch(`/api/reservations?userId=${session.user.id}`)
             if (res.ok) {
               const apiData: Reservation[] = await res.json()
               setReservations(apiData)
@@ -140,7 +141,7 @@ export default function ReservePage() {
     loadReservations()
 
     // タイムスロットをAPIから取得
-    fetch('/api/schedule')
+    apiFetch('/api/schedule')
       .then(r => r.ok ? r.json() : [])
       .then((data: TimeSlot[]) => {
         if (data && data.length > 0) {
@@ -157,13 +158,13 @@ export default function ReservePage() {
       })
 
     // スタッフ一覧をAPIから取得
-    fetch('/api/staff')
+    apiFetch('/api/staff')
       .then(r => r.ok ? r.json() : [])
       .then(data => setAllStaff(data))
       .catch(() => {})
 
     // シフトデータをAPIから取得
-    fetch('/api/shifts')
+    apiFetch('/api/shifts')
       .then(r => r.ok ? r.json() : [])
       .then((data: Shift[]) => {
         if (data && data.length > 0) {
@@ -282,7 +283,7 @@ export default function ReservePage() {
       // Supabaseに保存 + サーバー側でGoogle Meet自動作成
       let savedRes: Reservation | null = null
       try {
-        const apiRes = await fetch('/api/reservations', {
+        const apiRes = await apiFetch('/api/reservations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -336,7 +337,7 @@ export default function ReservePage() {
 
     // Supabaseのステータスを更新（バックグラウンド・エラーは無視）
     try {
-      await fetch(`/api/reservations/${id}`, {
+      await apiFetch(`/api/reservations/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'cancelled' }),

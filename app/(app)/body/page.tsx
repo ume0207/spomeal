@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { apiFetch } from '@/lib/api'
 import { toJSTDateStr } from '@/lib/date-utils'
 import { addBodyPoint } from '@/lib/points'
 import { createClient } from '@/lib/supabase/client'
@@ -39,7 +40,7 @@ export default function BodyPage() {
       if (!uid) return
 
       // 体組成データをAPIから取得
-      const res = await fetch(`/api/body-records?userId=${uid}`)
+      const res = await apiFetch(`/api/body-records?userId=${uid}`)
       if (res.ok) {
         const data = await res.json()
         const records: BodyRecord[] = (data || []).map((r: any) => ({
@@ -62,7 +63,7 @@ export default function BodyPage() {
               if (Array.isArray(localRecords) && localRecords.length > 0) {
                 for (const r of localRecords.slice(0, 30)) {
                   try {
-                    await fetch('/api/body-records', {
+                    await apiFetch('/api/body-records', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ userId: uid, date: r.date, weight: r.weight, bodyFat: r.bodyFat, muscle: r.muscle, bmi: r.bmi }),
@@ -81,7 +82,7 @@ export default function BodyPage() {
 
       // 目標データをAPIから取得
       try {
-        const gRes = await fetch(`/api/user-goals?userId=${uid}`)
+        const gRes = await apiFetch(`/api/user-goals?userId=${uid}`)
         if (gRes.ok) {
           const gData = await gRes.json()
           if (gData?.target_weight != null) setTargetWeight(gData.target_weight)
@@ -103,13 +104,13 @@ export default function BodyPage() {
 
     // Supabaseに保存
     try {
-      await fetch('/api/body-records', {
+      await apiFetch('/api/body-records', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, date: dateStr, weight: w, bodyFat: bf, muscle: m, bmi }),
       })
       // 管理者フィード用にも同期
-      fetch('/api/body-activity', {
+      apiFetch('/api/body-activity', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, date: dateStr, weight: w, bodyFat: bf, muscle: m, bmi }),
@@ -124,7 +125,7 @@ export default function BodyPage() {
     // ポイント付与（API経由）
     try {
       if (userId) {
-        const ptRes = await fetch('/api/user-points', {
+        const ptRes = await apiFetch('/api/user-points', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId, action: 'addBody', dateStr }),
@@ -508,7 +509,7 @@ export default function BodyPage() {
                             if (!confirm('この記録を削除しますか？')) return
                             const rec = savedRecords[i]
                             if (userId && rec) {
-                              fetch(`/api/body-records?userId=${userId}&date=${rec.date}`, { method: 'DELETE' }).catch(() => {})
+                              apiFetch(`/api/body-records?userId=${userId}&date=${rec.date}`, { method: 'DELETE' }).catch(() => {})
                             }
                             const updated = savedRecords.filter((_, idx) => idx !== i)
                             setSavedRecords(updated)

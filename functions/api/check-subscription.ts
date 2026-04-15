@@ -1,3 +1,5 @@
+import { verifyUser, corsHeaders, handleOptions, authErrorResponse } from '../_shared/auth'
+
 type PagesFunction<Env = Record<string, unknown>> = (context: { request: Request; env: Env }) => Promise<Response> | Response
 
 interface Env {
@@ -5,20 +7,20 @@ interface Env {
   SUPABASE_SERVICE_ROLE_KEY: string
   STRIPE_SECRET_KEY: string
   TEST_ACCOUNT_EMAILS?: string
-}
-
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Content-Type': 'application/json',
+  ADMIN_EMAILS?: string
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { request, env } = context
-  const url = new URL(request.url)
-  const email = url.searchParams.get('email')
-  const userId = url.searchParams.get('userId')
+  const cors = corsHeaders(request)
+
+  // 認証必須: ログイン中ユーザーのみ自分のサブスク状態を照会可能
+  const auth = await verifyUser(request, env)
+  if (!auth.ok) return authErrorResponse(auth, request)
+
+  // クエリパラメータではなく認証済みユーザー情報から取得
+  const userId = auth.user.id
+  const email = auth.user.email || null
 
   if (!email && !userId) {
     return new Response(JSON.stringify({ error: 'email or userId required' }), { status: 400, headers: cors })
@@ -157,5 +159,4 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 }
 
-export const onRequestOptions: PagesFunction = async () =>
-  new Response(null, { headers: cors })
+export const onRequestOptions: PagesFunction = async ({ request }) => handleOptions(request)

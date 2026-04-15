@@ -1,13 +1,11 @@
+import { verifyAdmin, corsHeaders, handleOptions, authErrorResponse } from '../../_shared/auth'
+
 type PagesFunction<Env = Record<string, unknown>> = (context: { request: Request; env: Env }) => Promise<Response> | Response
 
 interface Env {
   NEXT_PUBLIC_SUPABASE_URL: string
   SUPABASE_SERVICE_ROLE_KEY: string
-}
-
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Content-Type': 'application/json',
+  ADMIN_EMAILS?: string
 }
 
 /**
@@ -16,6 +14,12 @@ const cors = {
  */
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { env, request } = context
+
+  // 管理者認証
+  const auth = await verifyAdmin(request, env)
+  if (!auth.ok) return authErrorResponse(auth, request)
+
+  const cors = corsHeaders(request)
   const url = new URL(request.url)
   const range = url.searchParams.get('range') || 'week'
 
@@ -97,5 +101,4 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 }
 
-export const onRequestOptions: PagesFunction = async () =>
-  new Response(null, { headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, OPTIONS' } })
+export const onRequestOptions: PagesFunction = async ({ request }) => handleOptions(request)

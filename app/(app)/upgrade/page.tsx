@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { apiFetch } from '@/lib/api'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -119,7 +120,7 @@ export default function UpgradePage() {
   const handleUpgrade = async (planId: string) => {
     setLoading(planId)
     try {
-      const res = await fetch('/api/stripe/checkout', {
+      const res = await apiFetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

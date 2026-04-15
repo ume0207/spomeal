@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { apiFetch } from '@/lib/api'
 
 interface Staff {
   id: string
@@ -42,7 +43,7 @@ export default function StaffPage() {
 
   const loadStaff = async () => {
     try {
-      const res = await fetch('/api/staff')
+      const res = await apiFetch('/api/staff')
       if (res.ok) {
         const data = await res.json()
         setStaff(data)
@@ -77,7 +78,7 @@ export default function StaffPage() {
     setSaving(true)
     try {
       if (editId) {
-        const res = await fetch(`/api/staff/${editId}`, {
+        const res = await apiFetch(`/api/staff/${editId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(form),
@@ -95,7 +96,7 @@ export default function StaffPage() {
           active: true,
           created_at: new Date().toISOString(),
         }
-        const res = await fetch('/api/staff', {
+        const res = await apiFetch('/api/staff', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newStaff),
@@ -116,7 +117,7 @@ export default function StaffPage() {
   const deleteStaff = async (id: string) => {
     if (!confirm('このスタッフを削除しますか？')) return
     try {
-      const res = await fetch(`/api/staff/${id}`, { method: 'DELETE' })
+      const res = await apiFetch(`/api/staff/${id}`, { method: 'DELETE' })
       if (res.ok) {
         await loadStaff()
         setShowProfile(null)

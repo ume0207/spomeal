@@ -1,45 +1,56 @@
+import { verifyAdmin, corsHeaders, handleOptions, authErrorResponse } from '../../_shared/auth'
+
 type PagesFunction<Env = Record<string, unknown>> = (context: { request: Request; env: Env }) => Promise<Response> | Response
 
 interface Env {
-  ADMIN_LOGIN_ID?: string
-  ADMIN_PASSWORD?: string
+  NEXT_PUBLIC_SUPABASE_URL: string
+  SUPABASE_SERVICE_ROLE_KEY: string
+  ADMIN_EMAILS?: string
 }
 
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Content-Type': 'application/json',
-}
-
+/**
+ * POST /api/admin/auth
+ * ログイン中のSupabaseユーザーが管理者かどうかを検証するのみ
+ * （旧: ID/パスワード認証は廃止済み）
+ */
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { request, env } = context
+  const cors = corsHeaders(request)
 
-  try {
-    const body = await request.json() as { loginId?: string; password?: string }
-    const { loginId, password } = body
+  const auth = await verifyAdmin(request, env)
+  if (!auth.ok) return authErrorResponse(auth, request)
 
-    if (!loginId || !password) {
-      return new Response(JSON.stringify({ success: false, error: 'ログインIDとパスワードを入力してください' }), { status: 400, headers: cors })
-    }
-
-    // 固定の共通認証情報（環境変数があればそちらを優先）
-    const expectedId = env.ADMIN_LOGIN_ID || 'spomeal'
-    const expectedPassword = env.ADMIN_PASSWORD || 'spomeal0323'
-
-    if (loginId !== expectedId || password !== expectedPassword) {
-      return new Response(JSON.stringify({ success: false, error: 'ログインIDまたはパスワードが正しくありません' }), { status: 401, headers: cors })
-    }
-
-    return new Response(JSON.stringify({
+  return new Response(
+    JSON.stringify({
       success: true,
-      admin: { loginId },
-    }), { status: 200, headers: cors })
-
-  } catch {
-    return new Response(JSON.stringify({ success: false, error: '認証エラーが発生しました' }), { status: 500, headers: cors })
-  }
+      admin: {
+        id: auth.user.id,
+        email: auth.user.email,
+        name: auth.user.user_metadata?.full_name || auth.user.email,
+      },
+    }),
+    { status: 200, headers: cors }
+  )
 }
 
-export const onRequestOptions: PagesFunction = async () =>
-  new Response(null, { headers: cors })
+export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const { request, env } = context
+  const cors = corsHeaders(request)
+
+  const auth = await verifyAdmin(request, env)
+  if (!auth.ok) return authErrorResponse(auth, request)
+
+  return new Response(
+    JSON.stringify({
+      success: true,
+      admin: {
+        id: auth.user.id,
+        email: auth.user.email,
+        name: auth.user.user_metadata?.full_name || auth.user.email,
+      },
+    }),
+    { status: 200, headers: cors }
+  )
+}
+
+export const onRequestOptions: PagesFunction = async ({ request }) => handleOptions(request)

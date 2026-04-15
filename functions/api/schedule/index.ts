@@ -1,13 +1,11 @@
+import { verifyUser, verifyAdmin, corsHeaders, handleOptions, authErrorResponse } from '../../_shared/auth'
+
 type PagesFunction<Env = Record<string, unknown>> = (context: { request: Request; env: Env }) => Promise<Response> | Response
 
 interface Env {
   NEXT_PUBLIC_SUPABASE_URL: string
   SUPABASE_SERVICE_ROLE_KEY: string
-}
-
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Content-Type': 'application/json',
+  ADMIN_EMAILS?: string
 }
 
 const BUCKET = 'app-config'
@@ -15,10 +13,15 @@ const SCHEDULE_FILE = 'schedule.json'
 
 /**
  * GET /api/schedule
- * タイムスロット設定を取得（管理者・会員共通）
+ * タイムスロット設定を取得（ログインユーザーのみ。会員も予約ページで参照）
  */
 export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const { env } = context
+  const { env, request } = context
+  const cors = corsHeaders(request)
+
+  const auth = await verifyUser(request, env)
+  if (!auth.ok) return authErrorResponse(auth, request)
+
   const sbUrl = env.NEXT_PUBLIC_SUPABASE_URL
   const sbKey = env.SUPABASE_SERVICE_ROLE_KEY
 
@@ -39,10 +42,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
 /**
  * POST /api/schedule
- * タイムスロット設定を保存（管理者用）
+ * タイムスロット設定を保存（管理者のみ）
  */
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { env, request } = context
+  const cors = corsHeaders(request)
+
+  const auth = await verifyAdmin(request, env)
+  if (!auth.ok) return authErrorResponse(auth, request)
+
   const sbUrl = env.NEXT_PUBLIC_SUPABASE_URL
   const sbKey = env.SUPABASE_SERVICE_ROLE_KEY
 
@@ -73,11 +81,4 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 }
 
-export const onRequestOptions: PagesFunction = async () =>
-  new Response(null, {
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    },
-  })
+export const onRequestOptions: PagesFunction = async ({ request }) => handleOptions(request)

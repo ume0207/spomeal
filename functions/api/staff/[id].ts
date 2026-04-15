@@ -1,15 +1,11 @@
+import { verifyAdmin, corsHeaders, handleOptions, authErrorResponse } from '../../_shared/auth'
+
 type PagesFunction<Env = Record<string, unknown>> = (context: { request: Request; env: Env; params: Record<string, string> }) => Promise<Response> | Response
 
 interface Env {
   NEXT_PUBLIC_SUPABASE_URL: string
   SUPABASE_SERVICE_ROLE_KEY: string
-}
-
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'PATCH, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Content-Type': 'application/json',
+  ADMIN_EMAILS?: string
 }
 
 const supaHeaders = (env: Env) => ({
@@ -18,17 +14,21 @@ const supaHeaders = (env: Env) => ({
   'Content-Type': 'application/json',
 })
 
-export const onRequestOptions: PagesFunction = async () =>
-  new Response(null, { headers: cors })
+export const onRequestOptions: PagesFunction = async ({ request }) => handleOptions(request)
 
-// PATCH: スタッフ更新
+// PATCH: スタッフ更新（管理者のみ）
 export const onRequestPatch: PagesFunction<Env> = async (context) => {
   const { request, env, params } = context
+  const cors = corsHeaders(request)
   const id = params.id
+
+  const auth = await verifyAdmin(request, env)
+  if (!auth.ok) return authErrorResponse(auth, request)
+
   try {
     const body = await request.json() as Record<string, unknown>
     const res = await fetch(
-      `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/staff?id=eq.${id}`,
+      `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/staff?id=eq.${encodeURIComponent(id)}`,
       {
         method: 'PATCH',
         headers: { ...supaHeaders(env), 'Prefer': 'return=representation' },
@@ -46,13 +46,18 @@ export const onRequestPatch: PagesFunction<Env> = async (context) => {
   }
 }
 
-// DELETE: スタッフ削除
+// DELETE: スタッフ削除（管理者のみ）
 export const onRequestDelete: PagesFunction<Env> = async (context) => {
-  const { env, params } = context
+  const { request, env, params } = context
+  const cors = corsHeaders(request)
   const id = params.id
+
+  const auth = await verifyAdmin(request, env)
+  if (!auth.ok) return authErrorResponse(auth, request)
+
   try {
     const res = await fetch(
-      `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/staff?id=eq.${id}`,
+      `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/staff?id=eq.${encodeURIComponent(id)}`,
       {
         method: 'DELETE',
         headers: supaHeaders(env),

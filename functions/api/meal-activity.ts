@@ -1,24 +1,22 @@
+import { verifyUser, verifyAdmin, corsHeaders, handleOptions, authErrorResponse } from '../_shared/auth'
+
 type PagesFunction<Env = Record<string, unknown>> = (context: { request: Request; env: Env }) => Promise<Response> | Response
 
 interface Env {
   NEXT_PUBLIC_SUPABASE_URL: string
   SUPABASE_SERVICE_ROLE_KEY: string
-}
-
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Content-Type': 'application/json',
+  ADMIN_EMAILS?: string
 }
 
 /**
  * POST /api/meal-activity
  * ユーザーが食事を保存した時に呼ばれ、user_metadataに最新の食事情報を記録する
- * これにより管理者が「誰がいつ食事を追加したか」をリアルタイムで見れるようになる
  *
  * Body: { userId, mealType, items, totalKcal, totalProtein, totalFat, totalCarbs }
  */
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { env, request } = context
+  const cors = corsHeaders(request)
 
   try {
     const body = await request.json() as {
@@ -33,6 +31,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     if (!body.userId) {
       return new Response(JSON.stringify({ error: 'userId is required' }), { status: 400, headers: cors })
+    }
+
+    // 認証 + オーナーシップチェック
+    const auth = await verifyUser(request, env)
+    if (!auth.ok) return authErrorResponse(auth, request)
+    if (auth.user.id !== body.userId) {
+      const admin = await verifyAdmin(request, env)
+      if (!admin.ok) return authErrorResponse({ ok: false, status: 403, error: '他のユーザーのデータは更新できません' }, request)
     }
 
     // 現在のユーザーメタデータを取得
@@ -107,11 +113,4 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 }
 
-export const onRequestOptions: PagesFunction = async () =>
-  new Response(null, {
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    },
-  })
+export const onRequestOptions: PagesFunction = async ({ request }) => handleOptions(request)

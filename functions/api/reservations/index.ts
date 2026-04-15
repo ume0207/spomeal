@@ -1,3 +1,5 @@
+import { verifyUser, verifyAdmin, corsHeaders, handleOptions, authErrorResponse } from '../../_shared/auth'
+
 type PagesFunction<Env = Record<string, unknown>> = (context: { request: Request; env: Env; params: Record<string, string> }) => Promise<Response> | Response
 
 interface Env {
@@ -7,13 +9,7 @@ interface Env {
   GOOGLE_CLIENT_SECRET: string
   GOOGLE_REFRESH_TOKEN: string
   GOOGLE_CALENDAR_ID: string
-}
-
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Content-Type': 'application/json',
+  ADMIN_EMAILS?: string
 }
 
 // Supabaseのスネークケース → フロントのキャメルケースに変換
@@ -128,12 +124,26 @@ async function createMeetLink(env: Env, body: Record<string, unknown>): Promise<
 // GET: ?userId=xxx → その会員の予約 / ?admin=true → 全予約
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { request, env } = context
+  const cors = corsHeaders(request)
   const url = new URL(request.url)
   const userId = url.searchParams.get('userId')
   const isAdmin = url.searchParams.get('admin') === 'true'
 
   if (!userId && !isAdmin) {
     return new Response(JSON.stringify({ error: 'userId or admin=true required' }), { status: 400, headers: cors })
+  }
+
+  // 認証: 管理者または自分のデータのみ
+  if (isAdmin) {
+    const adminAuth = await verifyAdmin(request, env)
+    if (!adminAuth.ok) return authErrorResponse(adminAuth, request)
+  } else if (userId) {
+    const userAuth = await verifyUser(request, env)
+    if (!userAuth.ok) return authErrorResponse(userAuth, request)
+    if (userAuth.user.id !== userId) {
+      const adminAuth = await verifyAdmin(request, env)
+      if (!adminAuth.ok) return authErrorResponse({ ok: false, status: 403, error: '他のユーザーの予約は閲覧できません' }, request)
+    }
   }
 
   try {
@@ -144,7 +154,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     const query = isAdmin
       ? 'order=date.asc,time.asc'
-      : `user_id=eq.${userId}&order=date.asc,time.asc`
+      : `user_id=eq.${encodeURIComponent(userId || '')}&order=date.asc,time.asc`
 
     const res = await fetch(
       `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/reservations?${query}`,
@@ -166,6 +176,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 // POST: 新規予約作成（Google Meet リンクも自動生成）
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { request, env } = context
+  const cors = corsHeaders(request)
+
+  // 認証: ログイン中ユーザーのみ
+  const auth = await verifyUser(request, env)
+  if (!auth.ok) return authErrorResponse(auth, request)
 
   try {
     const body = await request.json() as Record<string, unknown>
@@ -173,6 +188,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     if (!body.id || !body.date || !body.time) {
       return new Response(JSON.stringify({ error: 'id, date, time are required' }), { status: 400, headers: cors })
     }
+
+    // 予約者IDは認証済みユーザーで強制上書き（クライアント偽装防止）
+    body.userId = auth.user.id
+    if (!body.userEmail) body.userEmail = auth.user.email
 
     // Google Meet リンクをサーバー側で自動生成
     const { meetLink, calendarEventId } = await createMeetLink(env, body)
@@ -213,5 +232,4 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 }
 
-export const onRequestOptions: PagesFunction = async () =>
-  new Response(null, { headers: cors })
+export const onRequestOptions: PagesFunction = async ({ request }) => handleOptions(request)

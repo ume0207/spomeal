@@ -1,16 +1,12 @@
+import { verifyAdmin, corsHeaders, handleOptions, authErrorResponse } from '../../_shared/auth'
+
 type PagesFunction<Env = Record<string, unknown>> = (context: { request: Request; env: Env }) => Promise<Response> | Response
 
 interface Env {
   NEXT_PUBLIC_SUPABASE_URL: string
   SUPABASE_SERVICE_ROLE_KEY: string
   STRIPE_SECRET_KEY: string
-}
-
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Content-Type': 'application/json',
+  ADMIN_EMAILS?: string
 }
 
 // Stripe API呼び出しヘルパー
@@ -38,6 +34,12 @@ async function stripeRequest(
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { request, env } = context
+
+  // 管理者認証
+  const auth = await verifyAdmin(request, env)
+  if (!auth.ok) return authErrorResponse(auth, request)
+
+  const cors = corsHeaders(request)
 
   try {
     const body = await request.json() as { userId?: string }
@@ -177,5 +179,4 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 }
 
-export const onRequestOptions: PagesFunction = async () =>
-  new Response(null, { headers: cors })
+export const onRequestOptions: PagesFunction = async ({ request }) => handleOptions(request)

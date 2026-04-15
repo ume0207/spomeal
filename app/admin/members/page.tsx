@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { apiFetch } from '@/lib/api'
 import Link from 'next/link'
 
 interface Member {
@@ -53,7 +54,7 @@ export default function MembersPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
 
   useEffect(() => {
-    fetch('/api/admin/members')
+    apiFetch('/api/admin/members')
       .then((r) => r.json())
       .then((data: { members?: Member[] }) => {
         if (data.members && data.members.length > 0) {
@@ -79,7 +80,7 @@ export default function MembersPage() {
     setPanelCommentSending(true)
     setPanelCommentError('')
     try {
-      const res = await fetch('/api/admin/comments', {
+      const res = await apiFetch('/api/admin/comments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ memberId, staffName: '管理栄養士', category: panelCommentCategory, comment: panelCommentText.trim() }),
@@ -168,7 +169,7 @@ export default function MembersPage() {
     if (!confirm('最終確認: 退会処理を実行します。よろしいですか？')) return
 
     try {
-      const res = await fetch('/api/admin/delete-member', {
+      const res = await apiFetch('/api/admin/delete-member', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: id }),

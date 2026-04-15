@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { apiFetch } from '@/lib/api'
 
 interface Staff {
   id: string
@@ -79,12 +80,12 @@ export default function ShiftPage() {
 
   useEffect(() => {
     // スタッフ一覧をAPIから取得
-    fetch('/api/staff')
+    apiFetch('/api/staff')
       .then(r => r.ok ? r.json() : [])
       .then(data => setStaff(data))
       .catch(() => {})
     // シフトデータをAPIから取得（localStorage fallback付き）
-    fetch('/api/shifts')
+    apiFetch('/api/shifts')
       .then(r => r.ok ? r.json() : [])
       .then((data: Shift[]) => {
         if (data && data.length > 0) {
@@ -97,7 +98,7 @@ export default function ShiftPage() {
               const parsed = migrateLegacyShifts(JSON.parse(saved))
               setShifts(parsed)
               // localStorageのデータをAPIにマイグレーション
-              fetch('/api/shifts', {
+              apiFetch('/api/shifts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(parsed),
@@ -118,7 +119,7 @@ export default function ShiftPage() {
     setShifts(data)
     localStorage.setItem('shifts_v1', JSON.stringify(data))
     // APIにも保存（管理者→会員の共有用）
-    fetch('/api/shifts', {
+    apiFetch('/api/shifts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -331,7 +332,7 @@ export default function ShiftPage() {
             localStorage.removeItem('timeSlots_v1')
             setShifts([])
             // APIのデータも削除
-            fetch('/api/shifts', {
+            apiFetch('/api/shifts', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify([]),

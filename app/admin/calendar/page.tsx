@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { apiFetch } from '@/lib/api'
 import Script from 'next/script'
 import {
   gcal_isConnected,
@@ -59,7 +60,7 @@ export default function AdminCalendarPage() {
       } catch {}
 
       try {
-        const res = await fetch('/api/reservations?admin=true')
+        const res = await apiFetch('/api/reservations?admin=true')
         if (res.ok) {
           const apiData: Reservation[] = await res.json()
           // IDが被った場合はAPIデータを優先してマージ
@@ -91,7 +92,7 @@ export default function AdminCalendarPage() {
   const updateStatus = async (id: string, status: Reservation['status']) => {
     // Supabaseのステータスを更新（バックグラウンド）
     try {
-      await fetch(`/api/reservations/${id}`, {
+      await apiFetch(`/api/reservations/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
@@ -138,7 +139,7 @@ export default function AdminCalendarPage() {
 
     // Supabaseのmeet_linkを更新（バックグラウンド）
     try {
-      await fetch(`/api/reservations/${id}`, {
+      await apiFetch(`/api/reservations/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ meetLink: trimmed }),
@@ -168,7 +169,7 @@ export default function AdminCalendarPage() {
       async (meetLink, calEventId) => {
         // Supabaseのmeet_linkとcalendar_event_idを更新（バックグラウンド）
         try {
-          await fetch(`/api/reservations/${r.id}`, {
+          await apiFetch(`/api/reservations/${r.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ meetLink, calendarEventId: calEventId }),

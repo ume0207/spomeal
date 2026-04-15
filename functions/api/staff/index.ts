@@ -1,15 +1,11 @@
+import { verifyUser, verifyAdmin, corsHeaders, handleOptions, authErrorResponse } from '../../_shared/auth'
+
 type PagesFunction<Env = Record<string, unknown>> = (context: { request: Request; env: Env; params: Record<string, string> }) => Promise<Response> | Response
 
 interface Env {
   NEXT_PUBLIC_SUPABASE_URL: string
   SUPABASE_SERVICE_ROLE_KEY: string
-}
-
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Content-Type': 'application/json',
+  ADMIN_EMAILS?: string
 }
 
 const supaHeaders = (env: Env) => ({
@@ -18,12 +14,17 @@ const supaHeaders = (env: Env) => ({
   'Content-Type': 'application/json',
 })
 
-export const onRequestOptions: PagesFunction = async () =>
-  new Response(null, { headers: cors })
+export const onRequestOptions: PagesFunction = async ({ request }) => handleOptions(request)
 
-// GET: スタッフ一覧取得
+// GET: スタッフ一覧取得（ログイン済みユーザー・会員の予約ページで利用）
 export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const { env } = context
+  const { env, request } = context
+  const cors = corsHeaders(request)
+
+  // ログイン必須（会員の予約ページで利用するため非管理者も可）
+  const auth = await verifyUser(request, env)
+  if (!auth.ok) return authErrorResponse(auth, request)
+
   try {
     const res = await fetch(
       `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/staff?order=created_at.asc`,
@@ -40,9 +41,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 }
 
-// POST: スタッフ新規作成
+// POST: スタッフ新規作成（管理者のみ）
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { request, env } = context
+  const cors = corsHeaders(request)
+
+  const auth = await verifyAdmin(request, env)
+  if (!auth.ok) return authErrorResponse(auth, request)
+
   try {
     const body = await request.json() as Record<string, unknown>
     const res = await fetch(

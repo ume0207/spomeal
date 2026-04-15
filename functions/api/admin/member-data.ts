@@ -1,27 +1,24 @@
+import { verifyAdmin, corsHeaders, handleOptions, authErrorResponse } from '../../_shared/auth'
+
 type PagesFunction<Env = Record<string, unknown>> = (context: { request: Request; env: Env }) => Promise<Response> | Response
 
 interface Env {
   NEXT_PUBLIC_SUPABASE_URL: string
   SUPABASE_SERVICE_ROLE_KEY: string
+  ADMIN_EMAILS?: string
 }
 
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Content-Type': 'application/json',
-}
-
-export const onRequestOptions: PagesFunction = async () => {
-  return new Response(null, {
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    },
-  })
-}
+export const onRequestOptions: PagesFunction = async ({ request }) => handleOptions(request)
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { env, request } = context
+
+  // 管理者認証
+  const auth = await verifyAdmin(request, env)
+  if (!auth.ok) return authErrorResponse(auth, request)
+
+  const cors = corsHeaders(request)
+
   try {
     const url = new URL(request.url)
     const userId = url.searchParams.get('id')
@@ -90,8 +87,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { env, request } = context
+
+  // 管理者認証
+  const auth = await verifyAdmin(request, env)
+  if (!auth.ok) return authErrorResponse(auth, request)
+
+  const cors = corsHeaders(request)
+
   try {
-    const body = await request.json()
+    const body = await request.json() as { userId?: string; type?: string; data?: unknown }
     const { userId, type, data } = body
     if (!userId || !type) return new Response(JSON.stringify({ error: 'userId and type required' }), { status: 400, headers: cors })
 

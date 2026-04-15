@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { apiFetch } from '@/lib/api'
 import { useState, useEffect } from 'react'
 
 interface Stats {
@@ -155,7 +156,7 @@ export default function AdminDashboardPage() {
   const [meetingListMemberName, setMeetingListMemberName] = useState('')
 
   useEffect(() => {
-    fetch('/api/admin/stats')
+    apiFetch('/api/admin/stats')
       .then((r) => r.json())
       .then((data: Stats) => { setStats(data); setLoading(false) })
       .catch(() => setLoading(false))
@@ -164,7 +165,7 @@ export default function AdminDashboardPage() {
     setMeetingNotes(loadMeetingNotes())
 
     // スタッフ一覧を読み込み（Supabase API）
-    fetch('/api/staff')
+    apiFetch('/api/staff')
       .then(r => r.ok ? r.json() : [])
       .then((parsed: StaffMember[]) => {
         const activeStaff = parsed.filter(s => s.active !== false)
@@ -180,7 +181,7 @@ export default function AdminDashboardPage() {
   // 食事フィード取得
   useEffect(() => {
     setFeedLoading(true)
-    fetch(`/api/admin/meal-feed?range=${feedRange}`)
+    apiFetch(`/api/admin/meal-feed?range=${feedRange}`)
       .then((r) => r.json())
       .then((data: { feed: FeedItem[] }) => {
         setFeed(data.feed || [])
@@ -195,7 +196,7 @@ export default function AdminDashboardPage() {
   // 体組成フィード取得
   useEffect(() => {
     setBodyFeedLoading(true)
-    fetch(`/api/admin/body-feed?range=${bodyFeedRange}`)
+    apiFetch(`/api/admin/body-feed?range=${bodyFeedRange}`)
       .then((r) => r.json())
       .then((data: { feed: BodyFeedItem[] }) => {
         setBodyFeed(data.feed || [])

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { apiFetch } from '@/lib/api'
 
 const GCAL_TOKEN_KEY = 'gcal_refresh_token'
 const CLIENT_ID_KEY = 'gcal_client_id'
@@ -36,7 +37,7 @@ export default function GcalSetupPage() {
       const storedClientId = localStorage.getItem(CLIENT_ID_KEY) || ''
       const redirectUri = `${window.location.origin}/admin/gcal-setup/`
 
-      fetch('/api/gcal/exchange-token', {
+      apiFetch('/api/gcal/exchange-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code, redirectUri }),
