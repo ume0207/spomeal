@@ -408,118 +408,6 @@ export default function DashboardPage() {
           )
         })()}
 
-        {/* ===== 現在のプラン（コンパクト） ===== */}
-        {(() => {
-          const planInfo: Record<string, { name: string; color: string; bg: string; border: string; icon: string }> = {
-            light:    { name: 'ライト',       color: '#0891b2', bg: '#ecfeff', border: '#a5f3fc', icon: '🌱' },
-            standard: { name: 'スタンダード', color: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: '⭐' },
-            premium:  { name: 'プレミアム',   color: '#7c3aed', bg: '#f5f3ff', border: '#c4b5fd', icon: '👑' },
-          }
-          const statusLabel: Record<string, string> = { trialing: '無料トライアル中', active: '利用中', cancelling: '解約予定', cancelled: '解約済み' }
-          const plan = planInfo[subscriptionPlan] || planInfo['light']
-          const statusText = statusLabel[subscriptionStatus] || ''
-          const isPremium = subscriptionPlan === 'premium'
-          return (
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: plan.bg, border: `1px solid ${plan.border}`,
-              borderRadius: '12px', padding: '9px 14px', marginBottom: '12px',
-              gap: '8px',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '16px' }}>{plan.icon}</span>
-                <span style={{ fontSize: '13px', fontWeight: 800, color: plan.color }}>{plan.name}</span>
-                {statusText && (
-                  <span style={{
-                    fontSize: '10px', fontWeight: 600, color: '#6b7280',
-                    background: 'rgba(255,255,255,0.8)', padding: '2px 8px',
-                    borderRadius: '20px', border: '1px solid rgba(0,0,0,0.06)',
-                  }}>{statusText}</span>
-                )}
-              </div>
-              {!isPremium && (
-                <Link href="/upgrade" style={{
-                  fontSize: '11px', fontWeight: 800, color: '#7c3aed',
-                  textDecoration: 'none', whiteSpace: 'nowrap',
-                  background: 'rgba(124,58,237,0.08)', padding: '4px 10px',
-                  borderRadius: '8px', border: '1px solid rgba(124,58,237,0.2)',
-                }}>
-                  ↑ アップグレード
-                </Link>
-              )}
-            </div>
-          )
-        })()}
-
-        {/* ===== 今月の使用状況 ===== */}
-        {planUsage && (
-          <div style={{
-            background: 'white',
-            border: '1px solid #e5e7eb',
-            borderRadius: '14px',
-            padding: '12px 14px',
-            marginBottom: '12px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-          }}>
-            <div style={{
-              fontSize: '11px', fontWeight: 700, color: '#6b7280',
-              marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px',
-            }}>
-              📊 利用状況
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              {/* ミーティング */}
-              <div style={{
-                background: planUsage.meetings.limit === 0 ? '#f9fafb' : '#eff6ff',
-                border: `1px solid ${planUsage.meetings.limit === 0 ? '#e5e7eb' : '#bfdbfe'}`,
-                borderRadius: '10px',
-                padding: '10px 12px',
-              }}>
-                <div style={{ fontSize: '10px', color: '#6b7280', fontWeight: 600, marginBottom: '4px' }}>
-                  📅 ミーティング
-                </div>
-                {planUsage.meetings.unlimited ? (
-                  <div style={{ fontSize: '15px', fontWeight: 900, color: '#2563eb' }}>無制限</div>
-                ) : planUsage.meetings.limit === 0 ? (
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#9ca3af' }}>プラン対象外</div>
-                ) : (
-                  <>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                      <span style={{ fontSize: '18px', fontWeight: 900, color: '#2563eb' }}>{planUsage.meetings.used}</span>
-                      <span style={{ fontSize: '11px', color: '#6b7280' }}>/ {planUsage.meetings.limit}回</span>
-                    </div>
-                    <div style={{ fontSize: '9px', color: '#9ca3af', marginTop: '2px' }}>
-                      {planUsage.meetings.period === 'total' ? 'トライアル合計' : '今月'}
-                    </div>
-                  </>
-                )}
-              </div>
-              {/* AI食事解析 */}
-              <div style={{
-                background: '#f0fdf4',
-                border: '1px solid #bbf7d0',
-                borderRadius: '10px',
-                padding: '10px 12px',
-              }}>
-                <div style={{ fontSize: '10px', color: '#6b7280', fontWeight: 600, marginBottom: '4px' }}>
-                  🤖 AI食事解析
-                </div>
-                {planUsage.aiAnalysis.unlimited ? (
-                  <div style={{ fontSize: '15px', fontWeight: 900, color: '#16a34a' }}>無制限</div>
-                ) : (
-                  <>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                      <span style={{ fontSize: '18px', fontWeight: 900, color: '#16a34a' }}>{planUsage.aiAnalysis.used}</span>
-                      <span style={{ fontSize: '11px', color: '#6b7280' }}>/ {planUsage.aiAnalysis.limit}回</span>
-                    </div>
-                    <div style={{ fontSize: '9px', color: '#9ca3af', marginTop: '2px' }}>今日</div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* ===== 次回の栄養相談 ===== */}
         {nextReservation && (
           <div
@@ -897,6 +785,118 @@ export default function DashboardPage() {
         <p style={{ textAlign: 'center', fontSize: '11px', color: '#9ca3af', margin: '0 0 12px' }}>
           ミーティングの日程が合わない場合などにご利用ください
         </p>
+
+        {/* ===== 現在のプラン（コンパクト） ===== */}
+        {(() => {
+          const planInfo: Record<string, { name: string; color: string; bg: string; border: string; icon: string }> = {
+            light:    { name: 'ライト',       color: '#0891b2', bg: '#ecfeff', border: '#a5f3fc', icon: '🌱' },
+            standard: { name: 'スタンダード', color: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: '⭐' },
+            premium:  { name: 'プレミアム',   color: '#7c3aed', bg: '#f5f3ff', border: '#c4b5fd', icon: '👑' },
+          }
+          const statusLabel: Record<string, string> = { trialing: '無料トライアル中', active: '利用中', cancelling: '解約予定', cancelled: '解約済み' }
+          const plan = planInfo[subscriptionPlan] || planInfo['light']
+          const statusText = statusLabel[subscriptionStatus] || ''
+          const isPremium = subscriptionPlan === 'premium'
+          return (
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: plan.bg, border: `1px solid ${plan.border}`,
+              borderRadius: '12px', padding: '9px 14px', marginBottom: '12px',
+              gap: '8px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '16px' }}>{plan.icon}</span>
+                <span style={{ fontSize: '13px', fontWeight: 800, color: plan.color }}>{plan.name}</span>
+                {statusText && (
+                  <span style={{
+                    fontSize: '10px', fontWeight: 600, color: '#6b7280',
+                    background: 'rgba(255,255,255,0.8)', padding: '2px 8px',
+                    borderRadius: '20px', border: '1px solid rgba(0,0,0,0.06)',
+                  }}>{statusText}</span>
+                )}
+              </div>
+              {!isPremium && (
+                <Link href="/upgrade" style={{
+                  fontSize: '11px', fontWeight: 800, color: '#7c3aed',
+                  textDecoration: 'none', whiteSpace: 'nowrap',
+                  background: 'rgba(124,58,237,0.08)', padding: '4px 10px',
+                  borderRadius: '8px', border: '1px solid rgba(124,58,237,0.2)',
+                }}>
+                  ↑ アップグレード
+                </Link>
+              )}
+            </div>
+          )
+        })()}
+
+        {/* ===== 今月の使用状況 ===== */}
+        {planUsage && (
+          <div style={{
+            background: 'white',
+            border: '1px solid #e5e7eb',
+            borderRadius: '14px',
+            padding: '12px 14px',
+            marginBottom: '12px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+          }}>
+            <div style={{
+              fontSize: '11px', fontWeight: 700, color: '#6b7280',
+              marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px',
+            }}>
+              📊 利用状況
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              {/* ミーティング */}
+              <div style={{
+                background: planUsage.meetings.limit === 0 ? '#f9fafb' : '#eff6ff',
+                border: `1px solid ${planUsage.meetings.limit === 0 ? '#e5e7eb' : '#bfdbfe'}`,
+                borderRadius: '10px',
+                padding: '10px 12px',
+              }}>
+                <div style={{ fontSize: '10px', color: '#6b7280', fontWeight: 600, marginBottom: '4px' }}>
+                  📅 ミーティング
+                </div>
+                {planUsage.meetings.unlimited ? (
+                  <div style={{ fontSize: '15px', fontWeight: 900, color: '#2563eb' }}>無制限</div>
+                ) : planUsage.meetings.limit === 0 ? (
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#9ca3af' }}>プラン対象外</div>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                      <span style={{ fontSize: '18px', fontWeight: 900, color: '#2563eb' }}>{planUsage.meetings.used}</span>
+                      <span style={{ fontSize: '11px', color: '#6b7280' }}>/ {planUsage.meetings.limit}回</span>
+                    </div>
+                    <div style={{ fontSize: '9px', color: '#9ca3af', marginTop: '2px' }}>
+                      {planUsage.meetings.period === 'total' ? 'トライアル合計' : '今月'}
+                    </div>
+                  </>
+                )}
+              </div>
+              {/* AI食事解析 */}
+              <div style={{
+                background: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                borderRadius: '10px',
+                padding: '10px 12px',
+              }}>
+                <div style={{ fontSize: '10px', color: '#6b7280', fontWeight: 600, marginBottom: '4px' }}>
+                  🤖 AI食事解析
+                </div>
+                {planUsage.aiAnalysis.unlimited ? (
+                  <div style={{ fontSize: '15px', fontWeight: 900, color: '#16a34a' }}>無制限</div>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                      <span style={{ fontSize: '18px', fontWeight: 900, color: '#16a34a' }}>{planUsage.aiAnalysis.used}</span>
+                      <span style={{ fontSize: '11px', color: '#6b7280' }}>/ {planUsage.aiAnalysis.limit}回</span>
+                    </div>
+                    <div style={{ fontSize: '9px', color: '#9ca3af', marginTop: '2px' }}>今日</div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ===== ポイント & 抽選 ===== */}
         <div
