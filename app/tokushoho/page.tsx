@@ -150,8 +150,22 @@ export default function TokushohoPage() {
         </table>
 
         <p className="mt-10 text-xs text-gray-400">
-          最終更新日：2026年3月27日
+          最終更新日：2026年4月15日
         </p>
+
+        <div className="mt-8 pt-6 border-t border-gray-200 flex gap-4 justify-center flex-wrap text-sm">
+          <a href="/terms" className="text-green-600 underline hover:text-green-700">
+            利用規約
+          </a>
+          <span className="text-gray-300">|</span>
+          <a href="/privacy" className="text-green-600 underline hover:text-green-700">
+            プライバシーポリシー
+          </a>
+          <span className="text-gray-300">|</span>
+          <a href="/" className="text-green-600 underline hover:text-green-700">
+            トップに戻る
+          </a>
+        </div>
       </div>
     </div>
   )

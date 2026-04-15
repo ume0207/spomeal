@@ -317,9 +317,17 @@ export default function PlansPage() {
             ログインへ
           </Link>
         </p>
-        <p style={{ textAlign: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '12px' }}>
+        <p style={{ textAlign: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '12px', display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
           <Link href="/tokushoho" style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'underline' }}>
             特定商取引法に基づく表記
+          </Link>
+          <span style={{ color: 'rgba(255,255,255,0.2)' }}>|</span>
+          <Link href="/terms" style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'underline' }}>
+            利用規約
+          </Link>
+          <span style={{ color: 'rgba(255,255,255,0.2)' }}>|</span>
+          <Link href="/privacy" style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'underline' }}>
+            プライバシーポリシー
           </Link>
         </p>
       </div>

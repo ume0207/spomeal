@@ -450,6 +450,15 @@ function RegisterForm() {
             >
               {loading ? '登録中...' : '会員登録する →'}
             </button>
+
+            {/* 法的情報 */}
+            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)', textAlign: 'center', marginTop: '16px', lineHeight: 1.7 }}>
+              「会員登録する」ボタンを押すと
+              <Link href="/terms" style={{ color: '#4ade80', textDecoration: 'underline' }}>利用規約</Link>
+              および
+              <Link href="/privacy" style={{ color: '#4ade80', textDecoration: 'underline' }}>プライバシーポリシー</Link>
+              に同意したものとみなされます
+            </div>
           </form>
         </div>
       ) : (

@@ -567,9 +567,9 @@ function LoginForm() {
         {/* 法的情報 */}
         <div style={{ fontSize: '10px', color: '#9ca3af', textAlign: 'center', padding: '4px 24px 16px', lineHeight: 1.7, marginTop: '16px' }}>
           ログインすることで
-          <Link href="#" style={{ color: '#22c55e', textDecoration: 'underline', textUnderlineOffset: '2px' }}>利用規約</Link>
+          <Link href="/terms" style={{ color: '#22c55e', textDecoration: 'underline', textUnderlineOffset: '2px' }}>利用規約</Link>
           および
-          <Link href="#" style={{ color: '#22c55e', textDecoration: 'underline', textUnderlineOffset: '2px' }}>プライバシーポリシー</Link>
+          <Link href="/privacy" style={{ color: '#22c55e', textDecoration: 'underline', textUnderlineOffset: '2px' }}>プライバシーポリシー</Link>
           に同意します
         </div>
       </div>
