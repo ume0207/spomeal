@@ -792,37 +792,74 @@ export default function DashboardPage() {
             light:    { name: 'ライト',       color: '#0891b2', bg: '#ecfeff', border: '#a5f3fc', icon: '🌱' },
             standard: { name: 'スタンダード', color: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: '⭐' },
             premium:  { name: 'プレミアム',   color: '#7c3aed', bg: '#f5f3ff', border: '#c4b5fd', icon: '👑' },
+            none:     { name: 'プラン未選択', color: '#6b7280', bg: '#f9fafb', border: '#e5e7eb', icon: '❓' },
           }
-          const statusLabel: Record<string, string> = { trialing: '無料トライアル中', active: '利用中', cancelling: '解約予定', cancelled: '解約済み' }
-          const plan = planInfo[subscriptionPlan] || planInfo['light']
-          const statusText = statusLabel[subscriptionStatus] || ''
-          const isPremium = subscriptionPlan === 'premium'
+          // プランIDを正規化: null/undefined/''/'free' は 'none' 扱い
+          const normalizedPlan = (subscriptionPlan && ['light','standard','premium'].includes(subscriptionPlan))
+            ? subscriptionPlan
+            : 'none'
+          const plan = planInfo[normalizedPlan]
+
+          // ステータスラベル（トライアル中と利用中を区別して強調表示）
+          const isTrialing = subscriptionStatus === 'trialing' || subscriptionStatus === 'trial'
+          const isActive = subscriptionStatus === 'active'
+          const isCancelling = subscriptionStatus === 'cancelling'
+          const isCancelled = subscriptionStatus === 'cancelled'
+
+          let statusText = ''
+          let statusBg = ''
+          let statusColor = ''
+          if (isTrialing) {
+            statusText = '🎁 無料トライアル中'
+            statusBg = '#dcfce7'
+            statusColor = '#16a34a'
+          } else if (isActive) {
+            statusText = '✓ 利用中'
+            statusBg = 'rgba(255,255,255,0.8)'
+            statusColor = '#6b7280'
+          } else if (isCancelling) {
+            statusText = '⚠️ 解約予定'
+            statusBg = '#fef3c7'
+            statusColor = '#92400e'
+          } else if (isCancelled) {
+            statusText = '❌ 解約済み'
+            statusBg = '#fee2e2'
+            statusColor = '#dc2626'
+          }
+
+          const showUpgrade = normalizedPlan !== 'premium'
+          // プラン未選択時は「プランを選ぶ」ボタンに変更
+          const upgradeLabel = normalizedPlan === 'none' ? '📝 プランを選ぶ' : '↑ アップグレード'
+
           return (
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               background: plan.bg, border: `1px solid ${plan.border}`,
-              borderRadius: '12px', padding: '9px 14px', marginBottom: '12px',
-              gap: '8px',
+              borderRadius: '12px', padding: '10px 14px', marginBottom: '12px',
+              gap: '8px', flexWrap: 'wrap',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: '16px' }}>{plan.icon}</span>
-                <span style={{ fontSize: '13px', fontWeight: 800, color: plan.color }}>{plan.name}</span>
+                <span style={{ fontSize: '14px', fontWeight: 900, color: plan.color }}>{plan.name}</span>
                 {statusText && (
                   <span style={{
-                    fontSize: '10px', fontWeight: 600, color: '#6b7280',
-                    background: 'rgba(255,255,255,0.8)', padding: '2px 8px',
-                    borderRadius: '20px', border: '1px solid rgba(0,0,0,0.06)',
+                    fontSize: '10px', fontWeight: 800,
+                    color: statusColor,
+                    background: statusBg,
+                    padding: '3px 10px',
+                    borderRadius: '20px',
+                    border: `1px solid ${statusColor}33`,
                   }}>{statusText}</span>
                 )}
               </div>
-              {!isPremium && (
+              {showUpgrade && (
                 <Link href="/upgrade" style={{
                   fontSize: '11px', fontWeight: 800, color: '#7c3aed',
                   textDecoration: 'none', whiteSpace: 'nowrap',
-                  background: 'rgba(124,58,237,0.08)', padding: '4px 10px',
+                  background: 'rgba(124,58,237,0.08)', padding: '5px 12px',
                   borderRadius: '8px', border: '1px solid rgba(124,58,237,0.2)',
                 }}>
-                  ↑ アップグレード
+                  {upgradeLabel}
                 </Link>
               )}
             </div>

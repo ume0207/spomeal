@@ -104,9 +104,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       }), { status: 200, headers: cors })
     }
 
-    // 3. profilesがない or active/trialing以外の場合、Stripeから直接確認（フォールバック）
+    // 3. Stripeから直接確認（フォールバック）
+    //    - profiles にサブスクがない場合
+    //    - または subscription_plan が null/empty で Stripeから取得したい場合
     const activeStatuses = ['active', 'trialing']
-    if (!activeStatuses.includes(subscriptionStatus) && email && env.STRIPE_SECRET_KEY) {
+    const needsStripeCheck = !activeStatuses.includes(subscriptionStatus) || !subscriptionPlan
+    if (needsStripeCheck && email && env.STRIPE_SECRET_KEY) {
       // Stripe顧客をメールで検索
       const custRes = await fetch(
         `https://api.stripe.com/v1/customers?email=${encodeURIComponent(email)}&limit=1`,
@@ -116,24 +119,65 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         const custData = await custRes.json() as { data?: Array<{ id: string }> }
         const customerId = custData.data?.[0]?.id
         if (customerId) {
-          // そのカスタマーのアクティブなサブスクをチェック
+          // そのカスタマーのアクティブなサブスクをチェック（expand でprice情報も取得）
           const subRes = await fetch(
-            `https://api.stripe.com/v1/subscriptions?customer=${customerId}&status=active&limit=1`,
+            `https://api.stripe.com/v1/subscriptions?customer=${customerId}&status=active&limit=1&expand[]=data.items.data.price`,
             { headers: { 'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}` } }
           )
           const trialRes = await fetch(
-            `https://api.stripe.com/v1/subscriptions?customer=${customerId}&status=trialing&limit=1`,
+            `https://api.stripe.com/v1/subscriptions?customer=${customerId}&status=trialing&limit=1&expand[]=data.items.data.price`,
             { headers: { 'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}` } }
           )
           if (subRes.ok && trialRes.ok) {
-            const subData = await subRes.json() as { data?: Array<{ status: string }> }
-            const trialData = await trialRes.json() as { data?: Array<{ status: string }> }
+            interface StripeSub {
+              status: string
+              metadata?: { planId?: string }
+              items?: {
+                data: Array<{
+                  price?: {
+                    nickname?: string
+                    lookup_key?: string
+                    metadata?: { planId?: string }
+                  }
+                }>
+              }
+            }
+            const subData = await subRes.json() as { data?: StripeSub[] }
+            const trialData = await trialRes.json() as { data?: StripeSub[] }
+
+            let stripeSub: StripeSub | undefined
             if ((subData.data?.length || 0) > 0) {
               subscriptionStatus = 'active'
+              stripeSub = subData.data?.[0]
             } else if ((trialData.data?.length || 0) > 0) {
               subscriptionStatus = 'trialing'
+              stripeSub = trialData.data?.[0]
             } else {
               subscriptionStatus = 'inactive'
+            }
+
+            // Stripeのサブスクからプラン情報を取得
+            if (stripeSub && !subscriptionPlan) {
+              // 優先順位: subscription.metadata.planId > price.metadata.planId > price.nickname/lookup_key
+              const metaPlanId = stripeSub.metadata?.planId
+              const priceMetaPlanId = stripeSub.items?.data?.[0]?.price?.metadata?.planId
+              const priceNickname = (stripeSub.items?.data?.[0]?.price?.nickname || '').toLowerCase()
+              const priceLookupKey = (stripeSub.items?.data?.[0]?.price?.lookup_key || '').toLowerCase()
+
+              const derivePlanFromString = (s: string): string => {
+                if (s.includes('premium') || s.includes('プレミアム')) return 'premium'
+                if (s.includes('standard') || s.includes('スタンダード')) return 'standard'
+                if (s.includes('light') || s.includes('ライト')) return 'light'
+                return ''
+              }
+
+              const derived =
+                (metaPlanId && ['light','standard','premium'].includes(metaPlanId.toLowerCase()) ? metaPlanId.toLowerCase() : '') ||
+                (priceMetaPlanId && ['light','standard','premium'].includes(priceMetaPlanId.toLowerCase()) ? priceMetaPlanId.toLowerCase() : '') ||
+                derivePlanFromString(priceNickname) ||
+                derivePlanFromString(priceLookupKey)
+
+              if (derived) subscriptionPlan = derived
             }
           }
         } else {
