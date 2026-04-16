@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { apiFetch } from '@/lib/api'
 import { addMealPoint } from '@/lib/points'
 import { FOOD_DB, searchFoodDB } from '@/lib/food-db'
@@ -305,6 +305,8 @@ export default function MealPage() {
   const [inlineEditRecordId, setInlineEditRecordId] = useState<string | null>(null)
   const [inlineEditItems, setInlineEditItems] = useState<MealItem[]>([])
   const [advisingRecordId, setAdvisingRecordId] = useState<string | null>(null)
+  // アドバイス取得中に保存された場合、後から更新するためのref
+  const pendingAdviceRecordIdRef = useRef<string | null>(null)
 
   // AI分析はCloudflare Pages Function経由（OpenAI GPT-4o）
   const AI_ANALYZE_URL = '/api/ai/analyze-meal'
@@ -771,6 +773,11 @@ export default function MealPage() {
       updatedRecords = [...records, newRecord]
     }
     saveRecords(updatedRecords)
+
+    // アドバイス取得中に保存した場合、返ってきたらこのIDの記録を後追い更新する
+    if (!adviceText && aiResult?.comment === 'アドバイスを取得中...') {
+      pendingAdviceRecordIdRef.current = newRecord.id
+    }
 
     // ポイント付与（新規記録のみ・API経由）
     if (!editingRecordId && userId) {
@@ -1916,7 +1923,21 @@ export default function MealPage() {
                         .then(r => r.json())
                         .then((adviceData: any) => {
                           if (adviceData.advice) {
+                            // 入力画面のコメントを更新
                             setAiResult(prev => prev ? { ...prev, comment: adviceData.advice } : prev)
+                            // 既に保存済みの記録があればアドバイスを後追いで更新
+                            const savedId = pendingAdviceRecordIdRef.current
+                            if (savedId) {
+                              setRecords((prev: MealRecord[]) => prev.map(r => r.id === savedId ? { ...r, advice: adviceData.advice } : r))
+                              if (userId) {
+                                apiFetch('/api/meals', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ userId, id: savedId, advice: adviceData.advice }),
+                                }).catch(() => {})
+                              }
+                              pendingAdviceRecordIdRef.current = null
+                            }
                           }
                         })
                         .catch(err => console.warn('アドバイス取得失敗:', err))
