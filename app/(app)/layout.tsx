@@ -27,6 +27,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [periodEnd, setPeriodEnd] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // プロフィール編集モーダル
+  const [showProfileModal, setShowProfileModal] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editPassword, setEditPassword] = useState('')
+  const [editPasswordConfirm, setEditPasswordConfirm] = useState('')
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [profileMessage, setProfileMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
   useEffect(() => {
     const supabase = createClient()
     // getUser()はsupabase.coへの通信が必要でiOS 26.4 betaで失敗する
@@ -108,6 +116,60 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const supabase = createClient()
     await supabase.auth.signOut()
     router.push('/login')
+  }
+
+  // プロフィール保存
+  const handleSaveProfile = async () => {
+    setProfileSaving(true)
+    setProfileMessage(null)
+    try {
+      const supabase = createClient()
+      const updates: Parameters<typeof supabase.auth.updateUser>[0] = {}
+
+      if (editName.trim()) {
+        updates.data = { full_name: editName.trim() }
+      }
+
+      if (editPassword) {
+        if (editPassword.length < 6) {
+          setProfileMessage({ type: 'error', text: 'パスワードは6文字以上で入力してください' })
+          return
+        }
+        if (editPassword !== editPasswordConfirm) {
+          setProfileMessage({ type: 'error', text: 'パスワードが一致しません' })
+          return
+        }
+        updates.password = editPassword
+      }
+
+      if (!updates.data && !updates.password) {
+        setProfileMessage({ type: 'error', text: '変更する項目を入力してください' })
+        return
+      }
+
+      const { error } = await supabase.auth.updateUser(updates)
+      if (error) {
+        setProfileMessage({ type: 'error', text: error.message || '保存に失敗しました' })
+        return
+      }
+
+      if (editName.trim()) {
+        setUserName(editName.trim())
+      }
+      setEditPassword('')
+      setEditPasswordConfirm('')
+      setProfileMessage({ type: 'success', text: '保存しました！' })
+    } finally {
+      setProfileSaving(false)
+    }
+  }
+
+  const openProfileModal = () => {
+    setEditName(userName === '選手' ? '' : userName)
+    setEditPassword('')
+    setEditPasswordConfirm('')
+    setProfileMessage(null)
+    setShowProfileModal(true)
   }
 
   // 退会状態を取得
@@ -260,8 +322,32 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.75)', fontWeight: 500, marginBottom: '1px' }}>
               Welcome
             </div>
-            <div style={{ fontSize: '17px', fontWeight: 800, color: 'white', lineHeight: 1.2 }}>
-              {userName} 様
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ fontSize: '17px', fontWeight: 800, color: 'white', lineHeight: 1.2 }}>
+                {userName} 様
+              </div>
+              <button
+                onClick={openProfileModal}
+                title="プロフィール編集"
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  border: '1px solid rgba(255,255,255,0.4)',
+                  borderRadius: '50%',
+                  width: '22px',
+                  height: '22px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  padding: 0,
+                  flexShrink: 0,
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </button>
             </div>
           </div>
         </div>
@@ -522,6 +608,124 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           )}
         </>
+      )}
+
+      {/* プロフィール編集モーダル */}
+      {showProfileModal && (
+        <div
+          onClick={() => !profileSaving && setShowProfileModal(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 2000, padding: '20px',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#fff', borderRadius: '20px', padding: '28px 24px',
+              maxWidth: '400px', width: '100%',
+              boxShadow: '0 8px 40px rgba(0,0,0,0.15)',
+            }}
+          >
+            <h3 style={{ margin: '0 0 20px', fontSize: '18px', fontWeight: 800, color: '#111827' }}>
+              プロフィール設定
+            </h3>
+
+            {/* 表示名 */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#6b7280', marginBottom: '6px' }}>
+                表示名
+              </label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="例: 山田 太郎"
+                style={{
+                  width: '100%', padding: '10px 12px', border: '1.5px solid #e5e7eb',
+                  borderRadius: '10px', fontSize: '14px', fontFamily: 'inherit',
+                  outline: 'none', boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            <hr style={{ border: 'none', borderTop: '1px solid #f3f4f6', margin: '20px 0' }} />
+
+            {/* パスワード変更 */}
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#6b7280', marginBottom: '6px' }}>
+                新しいパスワード（変更する場合のみ）
+              </label>
+              <input
+                type="password"
+                value={editPassword}
+                onChange={(e) => setEditPassword(e.target.value)}
+                placeholder="6文字以上"
+                style={{
+                  width: '100%', padding: '10px 12px', border: '1.5px solid #e5e7eb',
+                  borderRadius: '10px', fontSize: '14px', fontFamily: 'inherit',
+                  outline: 'none', boxSizing: 'border-box',
+                }}
+              />
+            </div>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#6b7280', marginBottom: '6px' }}>
+                新しいパスワード（確認）
+              </label>
+              <input
+                type="password"
+                value={editPasswordConfirm}
+                onChange={(e) => setEditPasswordConfirm(e.target.value)}
+                placeholder="同じパスワードをもう一度"
+                style={{
+                  width: '100%', padding: '10px 12px', border: '1.5px solid #e5e7eb',
+                  borderRadius: '10px', fontSize: '14px', fontFamily: 'inherit',
+                  outline: 'none', boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            {/* メッセージ */}
+            {profileMessage && (
+              <div style={{
+                fontSize: '13px', padding: '10px 12px', borderRadius: '8px', marginBottom: '16px',
+                background: profileMessage.type === 'success' ? '#dcfce7' : '#fee2e2',
+                color: profileMessage.type === 'success' ? '#166534' : '#991b1b',
+              }}>
+                {profileMessage.type === 'success' ? '✅ ' : '⚠ '}{profileMessage.text}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => { setShowProfileModal(false); setProfileMessage(null) }}
+                disabled={profileSaving}
+                style={{
+                  padding: '10px 18px', background: '#f3f4f6', color: '#374151',
+                  border: 'none', borderRadius: '10px', fontSize: '14px',
+                  fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleSaveProfile}
+                disabled={profileSaving}
+                style={{
+                  padding: '10px 22px',
+                  background: profileSaving ? '#86efac' : 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                  color: '#fff', border: 'none', borderRadius: '10px', fontSize: '14px',
+                  fontWeight: 700, cursor: profileSaving ? 'wait' : 'pointer',
+                  fontFamily: 'inherit',
+                  boxShadow: '0 4px 12px rgba(34,197,94,0.3)',
+                }}
+              >
+                {profileSaving ? '保存中...' : '保存する'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 退会確認モーダル */}
