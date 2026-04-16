@@ -307,6 +307,9 @@ export default function MealPage() {
   const [advisingRecordId, setAdvisingRecordId] = useState<string | null>(null)
   // アドバイス取得中に保存された場合、後から更新するためのref
   const pendingAdviceRecordIdRef = useRef<string | null>(null)
+  // カテゴリ別アドバイス（朝食/昼食/夕食/間食ごと）
+  const [categoryAdvice, setCategoryAdvice] = useState<Record<string, string>>({})
+  const [advisingCategory, setAdvisingCategory] = useState<string | null>(null)
 
   // AI分析はCloudflare Pages Function経由（OpenAI GPT-4o）
   const AI_ANALYZE_URL = '/api/ai/analyze-meal'
@@ -610,6 +613,55 @@ export default function MealPage() {
     }
   }
 
+
+  // カテゴリ内の全記録をまとめてAIアドバイス取得
+  const fetchAdviceForCategory = async (cat: string, catMeals: MealRecord[]) => {
+    if (advisingCategory === cat || catMeals.length === 0) return
+    setAdvisingCategory(cat)
+    try {
+      const allItems: { name: string; grams: number; kcal: number; protein: number; fat: number; carbs: number }[] = []
+      for (const record of catMeals) {
+        if (record.items && record.items.length > 0) {
+          for (const item of record.items) {
+            allItems.push({
+              name: item.foodName, grams: item.grams || 100,
+              kcal: item.caloriesKcal || 0, protein: item.proteinG || 0,
+              fat: item.fatG || 0, carbs: item.carbsG || 0,
+            })
+          }
+        } else {
+          allItems.push({
+            name: record.foodName, grams: 100,
+            kcal: record.caloriesKcal || 0, protein: record.proteinG || 0,
+            fat: record.fatG || 0, carbs: record.carbsG || 0,
+          })
+        }
+      }
+      const totals = {
+        kcal: catMeals.reduce((s, r) => s + r.caloriesKcal, 0),
+        protein: catMeals.reduce((s, r) => s + (r.proteinG || 0), 0),
+        fat: catMeals.reduce((s, r) => s + (r.fatG || 0), 0),
+        carbs: catMeals.reduce((s, r) => s + (r.carbsG || 0), 0),
+      }
+      const res = await apiFetch('/api/ai/advice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: allItems,
+          totals,
+          goal: goal ? { kcal: goal.cal, protein: goal.protein, fat: goal.fat, carbs: goal.carbs } : undefined,
+        }),
+      })
+      const data = await res.json() as { advice?: string }
+      if (data.advice) {
+        setCategoryAdvice(prev => ({ ...prev, [cat]: data.advice! }))
+      }
+    } catch (e) {
+      console.warn('カテゴリアドバイス取得失敗:', e)
+    } finally {
+      setAdvisingCategory(null)
+    }
+  }
 
   const openAddModal = (cat?: string, recordId?: string) => {
     if (recordId) {
@@ -1135,7 +1187,7 @@ export default function MealPage() {
                     const isExpanded = expandedRecordId === record.id
                     const isEditing = inlineEditRecordId === record.id
                     return (
-                    <div key={record.id} style={{ borderBottom: '1px solid #f8f8f8' }}>
+                    <div key={record.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                       {/* メイン行 */}
                       <div
                         style={{
@@ -1235,51 +1287,6 @@ export default function MealPage() {
                             >＋ 食材を追加</button>
                           )}
 
-                          {/* AIアドバイス表示 */}
-                          {!isEditing && record.advice && (
-                            <div style={{
-                              marginTop: '8px', padding: '10px 12px',
-                              background: 'linear-gradient(135deg, #f0fdf4, #ecfdf5)',
-                              borderRadius: '10px', border: '1px solid #bbf7d0',
-                            }}>
-                              <div style={{ fontSize: '11px', fontWeight: 700, color: '#16a34a', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                💡 AIアドバイス
-                              </div>
-                              <p style={{ fontSize: '12px', color: '#374151', margin: 0, lineHeight: 1.6 }}>
-                                {record.advice}
-                              </p>
-                            </div>
-                          )}
-
-                          {/* AIアドバイスボタン（保存済み記録用） */}
-                          {!isEditing && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); fetchAdviceForRecord(record) }}
-                              disabled={advisingRecordId === record.id}
-                              style={{
-                                marginTop: '8px', width: '100%',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                                padding: '9px 12px', borderRadius: '10px', border: 'none',
-                                background: advisingRecordId === record.id
-                                  ? '#d1fae5'
-                                  : record.advice
-                                    ? 'linear-gradient(to right, #d1fae5, #a7f3d0)'
-                                    : 'linear-gradient(to right, #22C55E, #10B981)',
-                                color: advisingRecordId === record.id ? '#6b7280' : record.advice ? '#065f46' : 'white',
-                                fontSize: '12px', fontWeight: 700, cursor: advisingRecordId === record.id ? 'not-allowed' : 'pointer',
-                                fontFamily: 'inherit', transition: 'all 0.2s',
-                              }}
-                            >
-                              {advisingRecordId === record.id ? (
-                                <><div style={{ width: '12px', height: '12px', border: '2px solid #10b981', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />取得中...</>
-                              ) : record.advice ? (
-                                <>🔄 アドバイスを再取得</>
-                              ) : (
-                                <>✨ AIアドバイスを取得</>
-                              )}
-                            </button>
-                          )}
-
                           {/* 操作ボタン */}
                           <div style={{ display: 'flex', gap: '8px', marginTop: '8px', justifyContent: 'flex-end' }}>
                             {isEditing ? (
@@ -1311,6 +1318,56 @@ export default function MealPage() {
                     </div>
                     )
                   })}
+                </div>
+              )}
+
+              {/* ===== カテゴリ全体のAIアドバイスボタン ===== */}
+              {catMeals.length > 0 && (
+                <div style={{ padding: '12px 16px 16px' }}>
+                  {/* アドバイス表示 */}
+                  {categoryAdvice[cat] && (
+                    <div style={{
+                      marginBottom: '10px', padding: '12px 14px',
+                      background: 'linear-gradient(135deg, #f0fdf4, #ecfdf5)',
+                      borderRadius: '12px', border: '1px solid #bbf7d0',
+                    }}>
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#16a34a', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        💡 {cat}のAIアドバイス
+                      </div>
+                      <p style={{ fontSize: '12px', color: '#374151', margin: 0, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+                        {categoryAdvice[cat]}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* ボタン */}
+                  <button
+                    onClick={() => fetchAdviceForCategory(cat, catMeals)}
+                    disabled={advisingCategory === cat}
+                    style={{
+                      width: '100%',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px',
+                      padding: '11px 16px', borderRadius: '12px', border: 'none',
+                      background: advisingCategory === cat
+                        ? '#d1fae5'
+                        : categoryAdvice[cat]
+                          ? 'linear-gradient(to right, #d1fae5, #a7f3d0)'
+                          : 'linear-gradient(135deg, #22C55E, #10B981)',
+                      color: advisingCategory === cat ? '#6b7280' : categoryAdvice[cat] ? '#065f46' : 'white',
+                      fontSize: '13px', fontWeight: 700,
+                      cursor: advisingCategory === cat ? 'not-allowed' : 'pointer',
+                      fontFamily: 'inherit', transition: 'all 0.2s',
+                      boxShadow: advisingCategory === cat || categoryAdvice[cat] ? 'none' : '0 4px 12px rgba(34,197,94,0.25)',
+                    }}
+                  >
+                    {advisingCategory === cat ? (
+                      <><div style={{ width: '13px', height: '13px', border: '2px solid #10b981', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />アドバイス取得中...</>
+                    ) : categoryAdvice[cat] ? (
+                      <>🔄 {cat}のアドバイスを再取得</>
+                    ) : (
+                      <>✨ {cat}全体のAIアドバイスを取得</>
+                    )}
+                  </button>
                 </div>
               )}
             </div>
