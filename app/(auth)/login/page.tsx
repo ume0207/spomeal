@@ -108,6 +108,15 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
 
+  // 保存済みのメールアドレスを読み込む
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('spomeal_saved_email')
+    if (savedEmail) {
+      setEmail(savedEmail)
+      setRememberMe(true)
+    }
+  }, [])
+
   // 決済完了後にリダイレクトされてきた場合、すでにセッションがあればそのままダッシュボードへ
   useEffect(() => {
     if (!isPaid) return
@@ -176,6 +185,13 @@ function LoginForm() {
           setLoading(false)
           return
         }
+      }
+
+      // ログイン情報を記憶する処理
+      if (rememberMe) {
+        localStorage.setItem('spomeal_saved_email', email)
+      } else {
+        localStorage.removeItem('spomeal_saved_email')
       }
 
       window.location.href = redirect
