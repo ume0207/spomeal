@@ -304,6 +304,7 @@ export default function MealPage() {
   const [expandedRecordId, setExpandedRecordId] = useState<string | null>(null)
   const [inlineEditRecordId, setInlineEditRecordId] = useState<string | null>(null)
   const [inlineEditItems, setInlineEditItems] = useState<MealItem[]>([])
+  const [advisingRecordId, setAdvisingRecordId] = useState<string | null>(null)
 
   // AI分析はCloudflare Pages Function経由（OpenAI GPT-4o）
   const AI_ANALYZE_URL = '/api/ai/analyze-meal'
@@ -555,6 +556,56 @@ export default function MealPage() {
   const cancelInlineEdit = () => {
     setInlineEditRecordId(null)
     setInlineEditItems([])
+  }
+
+  // 保存済み記録に対してAIアドバイスを取得・保存
+  const fetchAdviceForRecord = async (record: MealRecord) => {
+    if (advisingRecordId) return
+    setAdvisingRecordId(record.id)
+    try {
+      const items = record.items && record.items.length > 0
+        ? record.items
+        : [{ foodName: record.foodName, grams: 100, caloriesKcal: record.caloriesKcal, proteinG: record.proteinG, fatG: record.fatG, carbsG: record.carbsG }]
+
+      const totals = {
+        kcal: record.caloriesKcal,
+        protein: record.proteinG,
+        fat: record.fatG,
+        carbs: record.carbsG,
+      }
+
+      const res = await apiFetch('/api/ai/advice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: items.map((it: MealItem) => ({
+            name: it.foodName, grams: it.grams || 100,
+            kcal: it.caloriesKcal || 0, protein: it.proteinG || 0,
+            fat: it.fatG || 0, carbs: it.carbsG || 0,
+          })),
+          totals,
+        }),
+      })
+      const data = await res.json() as { advice?: string }
+      if (!data.advice) return
+
+      // ローカルstateを更新
+      const updated = records.map(r => r.id === record.id ? { ...r, advice: data.advice } : r)
+      saveRecords(updated)
+
+      // Supabaseにも保存
+      if (userId) {
+        apiFetch('/api/meals', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, id: record.id, advice: data.advice }),
+        }).catch(() => {})
+      }
+    } catch (e) {
+      console.warn('アドバイス取得失敗:', e)
+    } finally {
+      setAdvisingRecordId(null)
+    }
   }
 
 
@@ -1191,6 +1242,35 @@ export default function MealPage() {
                                 {record.advice}
                               </p>
                             </div>
+                          )}
+
+                          {/* AIアドバイスボタン（保存済み記録用） */}
+                          {!isEditing && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); fetchAdviceForRecord(record) }}
+                              disabled={advisingRecordId === record.id}
+                              style={{
+                                marginTop: '8px', width: '100%',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                                padding: '9px 12px', borderRadius: '10px', border: 'none',
+                                background: advisingRecordId === record.id
+                                  ? '#d1fae5'
+                                  : record.advice
+                                    ? 'linear-gradient(to right, #d1fae5, #a7f3d0)'
+                                    : 'linear-gradient(to right, #22C55E, #10B981)',
+                                color: advisingRecordId === record.id ? '#6b7280' : record.advice ? '#065f46' : 'white',
+                                fontSize: '12px', fontWeight: 700, cursor: advisingRecordId === record.id ? 'not-allowed' : 'pointer',
+                                fontFamily: 'inherit', transition: 'all 0.2s',
+                              }}
+                            >
+                              {advisingRecordId === record.id ? (
+                                <><div style={{ width: '12px', height: '12px', border: '2px solid #10b981', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />取得中...</>
+                              ) : record.advice ? (
+                                <>🔄 アドバイスを再取得</>
+                              ) : (
+                                <>✨ AIアドバイスを取得</>
+                              )}
+                            </button>
                           )}
 
                           {/* 操作ボタン */}
