@@ -63,7 +63,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
     headers: { Authorization: `Bearer ${sbKey}`, apikey: sbKey },
   })
   const existing = await getRes.json() as any[]
-  const current = existing[0] || { total_points: 0, lottery_count: 0, records: [], lottery_history: [] }
+  const hasExisting = Array.isArray(existing) && existing.length > 0
+  const current = hasExisting ? existing[0] : { total_points: 0, lottery_count: 0, records: [], lottery_history: [] }
 
   let totalPoints: number = current.total_points ?? 0
   let lotteryCount: number = current.lottery_count ?? 0
@@ -141,24 +142,50 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
     lotteryHistory = body.lotteryHistory ?? lotteryHistory
   }
 
-  // upsert
-  const saveRes = await fetch(`${sbUrl}/rest/v1/user_points`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${sbKey}`, apikey: sbKey,
-      'Content-Type': 'application/json',
-      'Prefer': 'resolution=merge-duplicates,return=representation',
-    },
-    body: JSON.stringify({
-      user_id: userId,
-      total_points: totalPoints,
-      lottery_count: lotteryCount,
-      records,
-      lottery_history: lotteryHistory,
-      updated_at: new Date().toISOString(),
-    }),
-  })
+  // 既存レコード有無で PATCH / POST を分岐（Supabaseのupsert衝突を回避）
+  const payload = {
+    total_points: totalPoints,
+    lottery_count: lotteryCount,
+    records,
+    lottery_history: lotteryHistory,
+    updated_at: new Date().toISOString(),
+  }
+
+  let saveRes: Response
+  if (hasExisting) {
+    saveRes = await fetch(`${sbUrl}/rest/v1/user_points?user_id=eq.${encodeURIComponent(userId)}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${sbKey}`, apikey: sbKey,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation',
+      },
+      body: JSON.stringify(payload),
+    })
+  } else {
+    saveRes = await fetch(`${sbUrl}/rest/v1/user_points`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${sbKey}`, apikey: sbKey,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation',
+      },
+      body: JSON.stringify({ user_id: userId, ...payload }),
+    })
+  }
+
+  if (!saveRes.ok) {
+    const errText = await saveRes.text().catch(() => '')
+    return new Response(JSON.stringify({
+      error: 'Supabase保存失敗',
+      status: saveRes.status,
+      supabaseError: errText.slice(0, 500),
+      mode: hasExisting ? 'PATCH' : 'POST',
+    }), { status: 500, headers: cors })
+  }
+
   const saved = await saveRes.json() as any[]
-  const result = saved[0] || { total_points: totalPoints, lottery_count: lotteryCount, records, lottery_history: lotteryHistory }
-  return new Response(JSON.stringify({ ...result, lotteryResult }), { status: saveRes.ok ? 200 : 500, headers: cors })
+  const result = (Array.isArray(saved) && saved[0])
+    || { total_points: totalPoints, lottery_count: lotteryCount, records, lottery_history: lotteryHistory }
+  return new Response(JSON.stringify({ ...result, lotteryResult }), { status: 200, headers: cors })
 }
