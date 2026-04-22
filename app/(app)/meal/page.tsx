@@ -1106,12 +1106,12 @@ export default function MealPage() {
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
               {[
-                { label: '食物繊維', value: '8.2', unit: 'g', goal: '目標 21g', color: '#22C55E', pct: 39 },
-                { label: '塩分', value: '3.1', unit: 'g', goal: '目標 7.5g', color: '#F59E0B', pct: 41 },
-                { label: 'VitC', value: '45', unit: 'mg', goal: '目標 100mg', color: '#6366F1', pct: 45 },
-                { label: 'カルシウム', value: '280', unit: 'mg', goal: '目標 650mg', color: '#EC4899', pct: 43 },
-                { label: '鉄', value: '3.2', unit: 'mg', goal: '目標 7mg', color: '#EF4444', pct: 46 },
-                { label: 'VitD', value: '4.5', unit: 'μg', goal: '目標 15μg', color: '#8B5CF6', pct: 30 },
+                { label: '食物繊維', value: '0', unit: 'g', goal: '目標 21g', color: '#22C55E', pct: 0 },
+                { label: '塩分', value: '0', unit: 'g', goal: '目標 7.5g', color: '#F59E0B', pct: 0 },
+                { label: 'VitC', value: '0', unit: 'mg', goal: '目標 100mg', color: '#6366F1', pct: 0 },
+                { label: 'カルシウム', value: '0', unit: 'mg', goal: '目標 650mg', color: '#EC4899', pct: 0 },
+                { label: '鉄', value: '0', unit: 'mg', goal: '目標 7mg', color: '#EF4444', pct: 0 },
+                { label: 'VitD', value: '0', unit: 'μg', goal: '目標 15μg', color: '#8B5CF6', pct: 0 },
               ].map((vit) => (
                 <div
                   key={vit.label}

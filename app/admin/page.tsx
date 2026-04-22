@@ -161,6 +161,8 @@ export default function AdminDashboardPage() {
   const [isSpinning, setIsSpinning] = useState(false)
   const [gachaResult, setGachaResult] = useState<{ prize: string; rarity: string; icon: string } | null>(null)
   const [gachaError, setGachaError] = useState('')
+  const [adminPoints, setAdminPoints] = useState<number | null>(null)
+  const [addingPoints, setAddingPoints] = useState(false)
 
   useEffect(() => {
     apiFetch('/api/admin/stats')
@@ -184,12 +186,47 @@ export default function AdminDashboardPage() {
       })
       .catch(() => {})
 
-    // ログイン中の管理者（梅さん）の userId を取得
+    // ログイン中の管理者（梅さん）の userId を取得し、ポイントも取得
     const supabase = createClient()
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user?.id) setAdminUserId(session.user.id)
+      if (session?.user?.id) {
+        const uid = session.user.id
+        setAdminUserId(uid)
+        apiFetch(`/api/user-points?userId=${uid}`)
+          .then(r => r.ok ? r.json() : null)
+          .then(d => { if (d) setAdminPoints(d.total_points ?? 0) })
+          .catch(() => {})
+      }
     }).catch(() => {})
   }, [])
+
+  // 自分に100ポイント追加（テスト用）
+  const add100Points = async () => {
+    if (!adminUserId || addingPoints) return
+    setAddingPoints(true)
+    try {
+      // 現在のポイント取得
+      const getRes = await apiFetch(`/api/user-points?userId=${adminUserId}`)
+      const cur = getRes.ok ? await getRes.json() : { total_points: 0, lottery_count: 0, records: [], lottery_history: [] }
+      const res = await apiFetch('/api/user-points', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: adminUserId,
+          action: 'save',
+          totalPoints: (cur.total_points ?? 0) + 100,
+          lotteryCount: cur.lottery_count ?? 0,
+          records: cur.records ?? [],
+          lotteryHistory: cur.lottery_history ?? [],
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setAdminPoints(data.total_points ?? 0)
+      }
+    } catch { /* ignore */ }
+    finally { setAddingPoints(false) }
+  }
 
   // ガチャを回す（テスト用・ポイント消費なし）
   const spinTestGacha = async () => {
@@ -494,7 +531,43 @@ export default function AdminDashboardPage() {
           display: 'flex', alignItems: 'center', gap: '8px',
         }}>
           <span style={{ fontSize: '18px' }}>🎰</span>
-          <span style={{ fontWeight: 800, color: 'white', fontSize: '14px' }}>ガチャテスト（ポイント消費なし）</span>
+          <span style={{ fontWeight: 800, color: 'white', fontSize: '14px' }}>ガチャテスト</span>
+          {adminPoints !== null && (
+            <span style={{
+              marginLeft: 'auto',
+              background: 'rgba(255,255,255,0.25)', color: 'white',
+              fontSize: '12px', fontWeight: 800, padding: '3px 10px', borderRadius: '10px',
+            }}>
+              💰 {adminPoints}pt
+            </span>
+          )}
+        </div>
+
+        {/* ポイント追加ボタン */}
+        <div style={{ padding: '12px 16px 0', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            onClick={add100Points}
+            disabled={!adminUserId || addingPoints}
+            style={{
+              background: addingPoints ? '#d1d5db' : '#fef3c7',
+              color: '#d97706', fontWeight: 700, padding: '8px 14px', borderRadius: '8px',
+              fontSize: '12px', border: '1px solid #f59e0b44',
+              cursor: (!adminUserId || addingPoints) ? 'not-allowed' : 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            {addingPoints ? '追加中...' : '➕ 100ポイント追加'}
+          </button>
+          <Link
+            href="/dashboard"
+            style={{
+              background: '#fff7ed', color: '#ea580c', fontWeight: 700,
+              padding: '8px 14px', borderRadius: '8px', fontSize: '12px',
+              border: '1px solid #ea580c44', textDecoration: 'none',
+            }}
+          >
+            🏠 ダッシュボードで本番抽選 →
+          </Link>
         </div>
         <div style={{ padding: '20px 16px', textAlign: 'center' }}>
           {gachaResult ? (
