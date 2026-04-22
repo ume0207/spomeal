@@ -2204,16 +2204,29 @@ export default function MealPage() {
                                 }}
                                 disabled={!info}
                                 style={{
-                                  flex: 1, textAlign: 'left', padding: '14px 8px 14px 12px',
+                                  flex: 1, textAlign: 'left', padding: '12px 8px 12px 12px',
                                   background: 'none', border: 'none',
                                   cursor: info ? 'pointer' : 'not-allowed',
                                   fontSize: '15px', color: info ? '#374151' : '#9ca3af', fontFamily: 'inherit',
                                   fontWeight: 600,
                                 }}
                               >
-                                {name}
-                                {info && <span style={{ fontSize: '13px', color: '#9ca3af', fontWeight: 400, marginLeft: '8px' }}>{info.kcal}kcal</span>}
-                                {!info && <span style={{ fontSize: '11px', color: '#ef4444', fontWeight: 400, marginLeft: '8px' }}>（食品DBに無し）</span>}
+                                {info ? (
+                                  <>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                                      <span>{name}</span>
+                                      <span style={{ fontSize: '13px', color: '#22c55e', fontWeight: 700 }}>{info.kcal}kcal</span>
+                                    </div>
+                                    <div style={{ fontSize: '11px', color: '#9ca3af', fontWeight: 400, marginTop: '3px' }}>
+                                      P{info.p}g / F{info.f}g / C{info.c}g
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div>
+                                    {name}
+                                    <span style={{ fontSize: '11px', color: '#ef4444', fontWeight: 400, marginLeft: '8px' }}>（食品DBに無し）</span>
+                                  </div>
+                                )}
                               </button>
                               <button
                                 onClick={() => toggleFavorite(name)}
