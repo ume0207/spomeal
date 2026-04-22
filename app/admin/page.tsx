@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { apiFetch } from '@/lib/api'
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
 
 interface Stats {
   totalMembers: number
@@ -157,11 +156,12 @@ export default function AdminDashboardPage() {
   const [meetingListMemberName, setMeetingListMemberName] = useState('')
 
   // ガチャテスト
-  const [adminUserId, setAdminUserId] = useState<string | null>(null)
+  const [members, setMembers] = useState<Array<{ id: string; name: string; email: string }>>([])
+  const [selectedMemberId, setSelectedMemberId] = useState<string>('')
   const [isSpinning, setIsSpinning] = useState(false)
   const [gachaResult, setGachaResult] = useState<{ prize: string; rarity: string; icon: string } | null>(null)
   const [gachaError, setGachaError] = useState('')
-  const [adminPoints, setAdminPoints] = useState<number | null>(null)
+  const [selectedPoints, setSelectedPoints] = useState<number | null>(null)
   const [addingPoints, setAddingPoints] = useState(false)
 
   useEffect(() => {
@@ -186,33 +186,41 @@ export default function AdminDashboardPage() {
       })
       .catch(() => {})
 
-    // ログイン中の管理者（梅さん）の userId を取得し、ポイントも取得
-    const supabase = createClient()
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user?.id) {
-        const uid = session.user.id
-        setAdminUserId(uid)
-        apiFetch(`/api/user-points?userId=${uid}`)
-          .then(r => r.ok ? r.json() : null)
-          .then(d => { if (d) setAdminPoints(d.total_points ?? 0) })
-          .catch(() => {})
-      }
-    }).catch(() => {})
+    // 会員リストを取得（ガチャテスト・ポイント付与の対象選択用）
+    apiFetch('/api/admin/members')
+      .then(r => r.ok ? r.json() : { members: [] })
+      .then((d: { members: Array<{ id: string; name: string; email: string }> }) => {
+        const list = d.members || []
+        setMembers(list)
+        // 梅さん(masayuki.umehara0207@gmail.com)を優先選択、なければ先頭
+        const ume = list.find(m => m.email?.toLowerCase() === 'masayuki.umehara0207@gmail.com')
+        if (ume) setSelectedMemberId(ume.id)
+        else if (list.length > 0) setSelectedMemberId(list[0].id)
+      })
+      .catch(() => {})
   }, [])
 
-  // 自分に100ポイント追加（テスト用）
+  // 選択中メンバーのポイント取得
+  useEffect(() => {
+    if (!selectedMemberId) { setSelectedPoints(null); return }
+    apiFetch(`/api/user-points?userId=${selectedMemberId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setSelectedPoints(d.total_points ?? 0) })
+      .catch(() => {})
+  }, [selectedMemberId])
+
+  // 選択中メンバーに100ポイント追加（テスト用）
   const add100Points = async () => {
-    if (!adminUserId || addingPoints) return
+    if (!selectedMemberId || addingPoints) return
     setAddingPoints(true)
     try {
-      // 現在のポイント取得
-      const getRes = await apiFetch(`/api/user-points?userId=${adminUserId}`)
+      const getRes = await apiFetch(`/api/user-points?userId=${selectedMemberId}`)
       const cur = getRes.ok ? await getRes.json() : { total_points: 0, lottery_count: 0, records: [], lottery_history: [] }
       const res = await apiFetch('/api/user-points', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: adminUserId,
+          userId: selectedMemberId,
           action: 'save',
           totalPoints: (cur.total_points ?? 0) + 100,
           lotteryCount: cur.lottery_count ?? 0,
@@ -222,7 +230,7 @@ export default function AdminDashboardPage() {
       })
       if (res.ok) {
         const data = await res.json()
-        setAdminPoints(data.total_points ?? 0)
+        setSelectedPoints(data.total_points ?? 0)
       }
     } catch { /* ignore */ }
     finally { setAddingPoints(false) }
@@ -230,7 +238,7 @@ export default function AdminDashboardPage() {
 
   // ガチャを回す（テスト用・ポイント消費なし）
   const spinTestGacha = async () => {
-    if (!adminUserId || isSpinning) return
+    if (!selectedMemberId || isSpinning) return
     setIsSpinning(true)
     setGachaError('')
     setGachaResult(null)
@@ -239,10 +247,11 @@ export default function AdminDashboardPage() {
       const res = await apiFetch('/api/user-points', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: adminUserId, action: 'testLottery' }),
+        body: JSON.stringify({ userId: selectedMemberId, action: 'testLottery' }),
       })
       if (!res.ok) {
-        setGachaError('抽選に失敗しました')
+        const errText = await res.text().catch(() => '')
+        setGachaError(`抽選に失敗しました: ${res.status} ${errText.slice(0, 100)}`)
       } else {
         const data = await res.json()
         if (data.lotteryResult) {
@@ -251,10 +260,12 @@ export default function AdminDashboardPage() {
             rarity: data.lotteryResult.rarity,
             icon: data.lotteryResult.icon,
           })
+        } else {
+          setGachaError('抽選結果が返ってきませんでした')
         }
       }
-    } catch {
-      setGachaError('エラーが発生しました')
+    } catch (e) {
+      setGachaError(`エラーが発生しました: ${String(e).slice(0, 100)}`)
     } finally {
       setIsSpinning(false)
     }
@@ -532,42 +543,53 @@ export default function AdminDashboardPage() {
         }}>
           <span style={{ fontSize: '18px' }}>🎰</span>
           <span style={{ fontWeight: 800, color: 'white', fontSize: '14px' }}>ガチャテスト</span>
-          {adminPoints !== null && (
+          {selectedPoints !== null && (
             <span style={{
               marginLeft: 'auto',
               background: 'rgba(255,255,255,0.25)', color: 'white',
               fontSize: '12px', fontWeight: 800, padding: '3px 10px', borderRadius: '10px',
             }}>
-              💰 {adminPoints}pt
+              💰 {selectedPoints}pt
             </span>
           )}
+        </div>
+
+        {/* 対象メンバー選択 */}
+        <div style={{ padding: '12px 16px 0' }}>
+          <label style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '4px', display: 'block' }}>
+            対象メンバー
+          </label>
+          <select
+            value={selectedMemberId}
+            onChange={(e) => setSelectedMemberId(e.target.value)}
+            style={{
+              width: '100%', background: '#f9fafb', border: '1.5px solid #e5e7eb', borderRadius: '10px',
+              padding: '8px 12px', fontSize: '13px', outline: 'none', fontFamily: 'inherit',
+              boxSizing: 'border-box',
+            }}
+          >
+            {members.length === 0 && <option value="">読み込み中...</option>}
+            {members.map(m => (
+              <option key={m.id} value={m.id}>{m.name}（{m.email}）</option>
+            ))}
+          </select>
         </div>
 
         {/* ポイント追加ボタン */}
         <div style={{ padding: '12px 16px 0', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button
             onClick={add100Points}
-            disabled={!adminUserId || addingPoints}
+            disabled={!selectedMemberId || addingPoints}
             style={{
               background: addingPoints ? '#d1d5db' : '#fef3c7',
               color: '#d97706', fontWeight: 700, padding: '8px 14px', borderRadius: '8px',
               fontSize: '12px', border: '1px solid #f59e0b44',
-              cursor: (!adminUserId || addingPoints) ? 'not-allowed' : 'pointer',
+              cursor: (!selectedMemberId || addingPoints) ? 'not-allowed' : 'pointer',
               fontFamily: 'inherit',
             }}
           >
             {addingPoints ? '追加中...' : '➕ 100ポイント追加'}
           </button>
-          <Link
-            href="/dashboard"
-            style={{
-              background: '#fff7ed', color: '#ea580c', fontWeight: 700,
-              padding: '8px 14px', borderRadius: '8px', fontSize: '12px',
-              border: '1px solid #ea580c44', textDecoration: 'none',
-            }}
-          >
-            🏠 ダッシュボードで本番抽選 →
-          </Link>
         </div>
         <div style={{ padding: '20px 16px', textAlign: 'center' }}>
           {gachaResult ? (
@@ -612,19 +634,19 @@ export default function AdminDashboardPage() {
           )}
           <button
             onClick={spinTestGacha}
-            disabled={!adminUserId || isSpinning}
+            disabled={!selectedMemberId || isSpinning}
             style={{
               background: isSpinning ? '#d1d5db' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
               color: 'white', fontWeight: 800, padding: '14px 28px', borderRadius: '12px',
               fontSize: '15px', border: 'none',
-              cursor: (!adminUserId || isSpinning) ? 'not-allowed' : 'pointer',
+              cursor: (!selectedMemberId || isSpinning) ? 'not-allowed' : 'pointer',
               fontFamily: 'inherit',
             }}
           >
             {isSpinning ? '🎰 抽選中...' : gachaResult ? '🔄 もう一度回す' : '🎰 ガチャを回す'}
           </button>
           <p style={{ fontSize: '10px', color: '#9ca3af', marginTop: '8px' }}>
-            ※ テスト用ボタン。ポイントは消費されませんが、抽選履歴には記録されます。
+            ※ テスト用ボタン。ポイントは消費されませんが、選択中メンバーの抽選履歴には記録されます。
           </p>
         </div>
       </div>
