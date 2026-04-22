@@ -163,6 +163,8 @@ export default function AdminDashboardPage() {
   const [gachaError, setGachaError] = useState('')
   const [selectedPoints, setSelectedPoints] = useState<number | null>(null)
   const [addingPoints, setAddingPoints] = useState(false)
+  const [pointsMessage, setPointsMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [showGachaModal, setShowGachaModal] = useState(false)
 
   useEffect(() => {
     apiFetch('/api/admin/stats')
@@ -213,27 +215,43 @@ export default function AdminDashboardPage() {
   const add100Points = async () => {
     if (!selectedMemberId || addingPoints) return
     setAddingPoints(true)
+    setPointsMessage(null)
     try {
       const getRes = await apiFetch(`/api/user-points?userId=${selectedMemberId}`)
-      const cur = getRes.ok ? await getRes.json() : { total_points: 0, lottery_count: 0, records: [], lottery_history: [] }
+      if (!getRes.ok) {
+        const errText = await getRes.text().catch(() => '')
+        setPointsMessage({ type: 'error', text: `取得失敗: ${getRes.status} ${errText.slice(0, 80)}` })
+        return
+      }
+      const cur = await getRes.json()
+      const newTotal = (cur.total_points ?? 0) + 100
       const res = await apiFetch('/api/user-points', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: selectedMemberId,
           action: 'save',
-          totalPoints: (cur.total_points ?? 0) + 100,
+          totalPoints: newTotal,
           lotteryCount: cur.lottery_count ?? 0,
           records: cur.records ?? [],
           lotteryHistory: cur.lottery_history ?? [],
         }),
       })
-      if (res.ok) {
-        const data = await res.json()
-        setSelectedPoints(data.total_points ?? 0)
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '')
+        setPointsMessage({ type: 'error', text: `保存失敗: ${res.status} ${errText.slice(0, 80)}` })
+        return
       }
-    } catch { /* ignore */ }
-    finally { setAddingPoints(false) }
+      const data = await res.json()
+      const finalPoints = data.total_points ?? newTotal
+      setSelectedPoints(finalPoints)
+      setPointsMessage({ type: 'success', text: `✅ 100pt追加しました（合計 ${finalPoints}pt）` })
+      setTimeout(() => setPointsMessage(null), 4000)
+    } catch (e) {
+      setPointsMessage({ type: 'error', text: `エラー: ${String(e).slice(0, 80)}` })
+    } finally {
+      setAddingPoints(false)
+    }
   }
 
   // ガチャを回す（テスト用・ポイント消費なし）
@@ -242,13 +260,16 @@ export default function AdminDashboardPage() {
     setIsSpinning(true)
     setGachaError('')
     setGachaResult(null)
+    setShowGachaModal(true) // 先にモーダルを開いて演出開始
     try {
-      await new Promise(r => setTimeout(r, 1200)) // 演出
-      const res = await apiFetch('/api/user-points', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: selectedMemberId, action: 'testLottery' }),
-      })
+      const [res] = await Promise.all([
+        apiFetch('/api/user-points', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: selectedMemberId, action: 'testLottery' }),
+        }),
+        new Promise(r => setTimeout(r, 2000)), // 抽選演出（2秒）
+      ])
       if (!res.ok) {
         const errText = await res.text().catch(() => '')
         setGachaError(`抽選に失敗しました: ${res.status} ${errText.slice(0, 100)}`)
@@ -269,6 +290,14 @@ export default function AdminDashboardPage() {
     } finally {
       setIsSpinning(false)
     }
+  }
+
+  const closeGachaModal = () => {
+    setShowGachaModal(false)
+    setTimeout(() => {
+      setGachaResult(null)
+      setGachaError('')
+    }, 300)
   }
 
   // 食事フィード取得
@@ -576,7 +605,7 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* ポイント追加ボタン */}
-        <div style={{ padding: '12px 16px 0', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div style={{ padding: '12px 16px 0', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
           <button
             onClick={add100Points}
             disabled={!selectedMemberId || addingPoints}
@@ -590,48 +619,20 @@ export default function AdminDashboardPage() {
           >
             {addingPoints ? '追加中...' : '➕ 100ポイント追加'}
           </button>
+          {pointsMessage && (
+            <span style={{
+              fontSize: '12px', fontWeight: 700,
+              color: pointsMessage.type === 'success' ? '#16a34a' : '#ef4444',
+              background: pointsMessage.type === 'success' ? '#f0fdf4' : '#fef2f2',
+              padding: '6px 10px', borderRadius: '8px',
+              border: `1px solid ${pointsMessage.type === 'success' ? '#bbf7d0' : '#fecaca'}`,
+            }}>
+              {pointsMessage.text}
+            </span>
+          )}
         </div>
         <div style={{ padding: '20px 16px', textAlign: 'center' }}>
-          {gachaResult ? (
-            <div style={{
-              background: gachaResult.rarity === 'miss' ? '#f3f4f6'
-                : gachaResult.rarity === 'common' ? '#fef3c7'
-                : gachaResult.rarity === 'rare' ? '#dbeafe'
-                : gachaResult.rarity === 'super_rare' ? '#fce7f3'
-                : '#fef3c7',
-              border: `2px solid ${
-                gachaResult.rarity === 'miss' ? '#9ca3af'
-                : gachaResult.rarity === 'common' ? '#f59e0b'
-                : gachaResult.rarity === 'rare' ? '#3b82f6'
-                : gachaResult.rarity === 'super_rare' ? '#ec4899'
-                : '#eab308'
-              }`,
-              borderRadius: '16px', padding: '20px', marginBottom: '12px',
-            }}>
-              <div style={{ fontSize: '56px', marginBottom: '8px' }}>{gachaResult.icon}</div>
-              {gachaResult.rarity !== 'miss' && (
-                <div style={{
-                  fontSize: '11px', fontWeight: 700, color: '#6b7280',
-                  textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px',
-                }}>
-                  {gachaResult.rarity === 'common' ? 'COMMON'
-                    : gachaResult.rarity === 'rare' ? 'RARE'
-                    : gachaResult.rarity === 'super_rare' ? 'SUPER RARE'
-                    : 'ULTRA RARE'}
-                </div>
-              )}
-              <div style={{ fontSize: '20px', fontWeight: 900, color: '#1f2937' }}>
-                {gachaResult.prize}
-              </div>
-            </div>
-          ) : (
-            <div style={{ fontSize: '64px', marginBottom: '12px', opacity: isSpinning ? 1 : 0.3 }}>
-              {isSpinning ? '🎰' : '🎁'}
-            </div>
-          )}
-          {gachaError && (
-            <div style={{ color: '#ef4444', fontSize: '12px', marginBottom: '8px' }}>{gachaError}</div>
-          )}
+          <div style={{ fontSize: '64px', marginBottom: '12px', opacity: 0.3 }}>🎁</div>
           <button
             onClick={spinTestGacha}
             disabled={!selectedMemberId || isSpinning}
@@ -643,13 +644,224 @@ export default function AdminDashboardPage() {
               fontFamily: 'inherit',
             }}
           >
-            {isSpinning ? '🎰 抽選中...' : gachaResult ? '🔄 もう一度回す' : '🎰 ガチャを回す'}
+            {isSpinning ? '🎰 抽選中...' : '🎰 ガチャを回す'}
           </button>
           <p style={{ fontSize: '10px', color: '#9ca3af', marginTop: '8px' }}>
             ※ テスト用ボタン。ポイントは消費されませんが、選択中メンバーの抽選履歴には記録されます。
           </p>
         </div>
       </div>
+
+      {/* ========== ガチャ結果モーダル（全画面） ========== */}
+      {showGachaModal && (() => {
+        const isWin = gachaResult && gachaResult.rarity !== 'miss'
+        const isMiss = gachaResult && gachaResult.rarity === 'miss'
+        const rarityLabel =
+          gachaResult?.rarity === 'common' ? 'COMMON'
+          : gachaResult?.rarity === 'rare' ? 'RARE'
+          : gachaResult?.rarity === 'super_rare' ? 'SUPER RARE'
+          : gachaResult?.rarity === 'ultra_rare' ? 'ULTRA RARE'
+          : ''
+        const rarityColor =
+          gachaResult?.rarity === 'common' ? '#f59e0b'
+          : gachaResult?.rarity === 'rare' ? '#3b82f6'
+          : gachaResult?.rarity === 'super_rare' ? '#ec4899'
+          : gachaResult?.rarity === 'ultra_rare' ? '#a855f7'
+          : '#9ca3af'
+        const bgGradient =
+          isSpinning ? 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)'
+          : isMiss ? 'linear-gradient(135deg, #4b5563 0%, #1f2937 100%)'
+          : gachaResult?.rarity === 'common' ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+          : gachaResult?.rarity === 'rare' ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'
+          : gachaResult?.rarity === 'super_rare' ? 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)'
+          : gachaResult?.rarity === 'ultra_rare' ? 'linear-gradient(135deg, #a855f7 0%, #6b21a8 100%)'
+          : 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)'
+
+        return (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: bgGradient,
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            padding: '20px',
+            animation: 'gachaFadeIn 0.3s ease-out',
+          }}>
+            <style>{`
+              @keyframes gachaFadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+              }
+              @keyframes gachaSpin {
+                0% { transform: rotate(0deg) scale(1); }
+                50% { transform: rotate(180deg) scale(1.1); }
+                100% { transform: rotate(360deg) scale(1); }
+              }
+              @keyframes gachaPop {
+                0% { transform: scale(0.3); opacity: 0; }
+                60% { transform: scale(1.2); opacity: 1; }
+                100% { transform: scale(1); opacity: 1; }
+              }
+              @keyframes gachaShake {
+                0%, 100% { transform: translateX(0); }
+                25% { transform: translateX(-8px); }
+                75% { transform: translateX(8px); }
+              }
+              @keyframes gachaPulse {
+                0%, 100% { transform: scale(1); opacity: 0.8; }
+                50% { transform: scale(1.05); opacity: 1; }
+              }
+              @keyframes sparkle {
+                0%, 100% { transform: scale(0) rotate(0deg); opacity: 0; }
+                50% { transform: scale(1) rotate(180deg); opacity: 1; }
+              }
+            `}</style>
+
+            {isSpinning && (
+              <>
+                <div style={{
+                  fontSize: '140px',
+                  animation: 'gachaSpin 0.8s ease-in-out infinite',
+                  marginBottom: '24px',
+                }}>🎰</div>
+                <div style={{
+                  color: 'white', fontSize: '24px', fontWeight: 900,
+                  letterSpacing: '4px',
+                  animation: 'gachaPulse 1s ease-in-out infinite',
+                }}>
+                  抽選中...
+                </div>
+                <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px', marginTop: '16px' }}>
+                  結果が出るまでしばらくお待ちください
+                </div>
+              </>
+            )}
+
+            {!isSpinning && gachaError && (
+              <>
+                <div style={{ fontSize: '80px', marginBottom: '16px' }}>⚠️</div>
+                <div style={{ color: 'white', fontSize: '20px', fontWeight: 800, marginBottom: '8px' }}>
+                  エラーが発生しました
+                </div>
+                <div style={{
+                  color: 'rgba(255,255,255,0.8)', fontSize: '13px',
+                  background: 'rgba(0,0,0,0.3)', padding: '12px 20px', borderRadius: '10px',
+                  maxWidth: '400px', textAlign: 'center', marginBottom: '24px',
+                }}>
+                  {gachaError}
+                </div>
+                <button onClick={closeGachaModal} style={{
+                  background: 'white', color: '#1f2937', fontWeight: 800,
+                  padding: '12px 32px', borderRadius: '12px', border: 'none',
+                  fontSize: '15px', cursor: 'pointer', fontFamily: 'inherit',
+                }}>
+                  閉じる
+                </button>
+              </>
+            )}
+
+            {!isSpinning && !gachaError && gachaResult && (
+              <>
+                {/* 判定バナー */}
+                <div style={{
+                  fontSize: isWin ? '72px' : '56px',
+                  fontWeight: 900,
+                  color: 'white',
+                  letterSpacing: isWin ? '8px' : '6px',
+                  textShadow: isWin
+                    ? '0 0 40px rgba(255,255,255,0.8), 0 4px 12px rgba(0,0,0,0.3)'
+                    : '0 4px 12px rgba(0,0,0,0.3)',
+                  marginBottom: '32px',
+                  animation: isWin ? 'gachaPop 0.6s ease-out' : 'gachaShake 0.4s ease-in-out',
+                }}>
+                  {isWin ? '🎉 当たり 🎉' : '外れ'}
+                </div>
+
+                {/* 景品カード */}
+                <div style={{
+                  background: 'white',
+                  borderRadius: '24px',
+                  padding: '32px 40px',
+                  minWidth: '280px',
+                  maxWidth: '400px',
+                  textAlign: 'center',
+                  boxShadow: isWin
+                    ? `0 0 60px ${rarityColor}88, 0 10px 40px rgba(0,0,0,0.3)`
+                    : '0 10px 40px rgba(0,0,0,0.3)',
+                  animation: 'gachaPop 0.6s ease-out 0.1s both',
+                  position: 'relative',
+                }}>
+                  {/* レアリティバッジ */}
+                  {isWin && rarityLabel && (
+                    <div style={{
+                      position: 'absolute', top: '-14px', left: '50%',
+                      transform: 'translateX(-50%)',
+                      background: rarityColor, color: 'white',
+                      fontSize: '12px', fontWeight: 900,
+                      padding: '6px 16px', borderRadius: '20px',
+                      letterSpacing: '2px',
+                      boxShadow: `0 4px 12px ${rarityColor}88`,
+                    }}>
+                      ★ {rarityLabel} ★
+                    </div>
+                  )}
+
+                  <div style={{ fontSize: '100px', marginBottom: '12px', lineHeight: 1 }}>
+                    {gachaResult.icon}
+                  </div>
+
+                  <div style={{
+                    fontSize: '11px', fontWeight: 700, color: '#6b7280',
+                    letterSpacing: '2px', marginBottom: '4px',
+                  }}>
+                    {isWin ? 'GET!' : 'SORRY'}
+                  </div>
+
+                  <div style={{
+                    fontSize: '24px', fontWeight: 900,
+                    color: isWin ? '#1f2937' : '#6b7280',
+                    lineHeight: 1.3,
+                  }}>
+                    {gachaResult.prize}
+                  </div>
+
+                  {isMiss && (
+                    <div style={{
+                      fontSize: '12px', color: '#9ca3af', marginTop: '12px',
+                    }}>
+                      また挑戦してください 🙏
+                    </div>
+                  )}
+                </div>
+
+                {/* アクションボタン */}
+                <div style={{
+                  display: 'flex', gap: '12px', marginTop: '32px',
+                  animation: 'gachaPop 0.6s ease-out 0.4s both',
+                }}>
+                  <button onClick={closeGachaModal} style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    color: 'white', fontWeight: 800,
+                    padding: '12px 24px', borderRadius: '12px',
+                    border: '1.5px solid rgba(255,255,255,0.4)',
+                    fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit',
+                    backdropFilter: 'blur(8px)',
+                  }}>
+                    閉じる
+                  </button>
+                  <button onClick={() => { closeGachaModal(); setTimeout(() => spinTestGacha(), 350) }} style={{
+                    background: 'white', color: '#1f2937', fontWeight: 800,
+                    padding: '12px 28px', borderRadius: '12px', border: 'none',
+                    fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                  }}>
+                    🔄 もう一度回す
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )
+      })()}
 
       {/* ========== 最近の食事更新フィード ========== */}
       <div style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: '16px', marginBottom: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
