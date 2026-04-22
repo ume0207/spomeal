@@ -714,6 +714,10 @@ export default function AdminDashboardPage() {
                 0%, 100% { transform: scale(0) rotate(0deg); opacity: 0; }
                 50% { transform: scale(1) rotate(180deg); opacity: 1; }
               }
+              @keyframes confettiFall {
+                0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+                100% { transform: translateY(105vh) rotate(720deg); opacity: 0.8; }
+              }
             `}</style>
 
             {isSpinning && (
@@ -761,34 +765,72 @@ export default function AdminDashboardPage() {
 
             {!isSpinning && !gachaError && gachaResult && (
               <>
+                {/* 紙吹雪（当たり時のみ） */}
+                {isWin && (
+                  <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+                    {Array.from({ length: 24 }).map((_, i) => {
+                      const colors = ['#fbbf24', '#f472b6', '#60a5fa', '#34d399', '#a78bfa', '#fb7185']
+                      const left = (i * 4.2 + (i % 3) * 7) % 100
+                      const delay = (i * 0.08) % 1.5
+                      const duration = 2.5 + (i % 4) * 0.4
+                      const size = 8 + (i % 3) * 4
+                      return (
+                        <div key={i} style={{
+                          position: 'absolute',
+                          left: `${left}%`,
+                          top: '-20px',
+                          width: `${size}px`, height: `${size}px`,
+                          background: colors[i % colors.length],
+                          borderRadius: i % 2 === 0 ? '50%' : '2px',
+                          animation: `confettiFall ${duration}s ease-in ${delay}s infinite`,
+                        }} />
+                      )
+                    })}
+                  </div>
+                )}
+
                 {/* 判定バナー */}
                 <div style={{
-                  fontSize: isWin ? '72px' : '56px',
+                  fontSize: isWin ? '80px' : '56px',
                   fontWeight: 900,
                   color: 'white',
                   letterSpacing: isWin ? '8px' : '6px',
                   textShadow: isWin
-                    ? '0 0 40px rgba(255,255,255,0.8), 0 4px 12px rgba(0,0,0,0.3)'
+                    ? '0 0 40px rgba(255,255,255,0.9), 0 4px 12px rgba(0,0,0,0.3)'
                     : '0 4px 12px rgba(0,0,0,0.3)',
-                  marginBottom: '32px',
+                  marginBottom: isWin ? '12px' : '32px',
                   animation: isWin ? 'gachaPop 0.6s ease-out' : 'gachaShake 0.4s ease-in-out',
+                  position: 'relative', zIndex: 2,
                 }}>
                   {isWin ? '🎉 当たり 🎉' : '外れ'}
+                </div>
+
+                {/* お祝い／残念メッセージ */}
+                <div style={{
+                  color: 'white',
+                  fontSize: isWin ? '16px' : '14px',
+                  fontWeight: 700,
+                  marginBottom: '24px',
+                  textShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                  position: 'relative', zIndex: 2,
+                  animation: 'gachaPop 0.6s ease-out 0.2s both',
+                }}>
+                  {isWin ? '🎊 おめでとうございます！ 🎊' : '残念！次回に期待...'}
                 </div>
 
                 {/* 景品カード */}
                 <div style={{
                   background: 'white',
                   borderRadius: '24px',
-                  padding: '32px 40px',
-                  minWidth: '280px',
-                  maxWidth: '400px',
+                  padding: '36px 40px 28px',
+                  minWidth: '300px',
+                  maxWidth: '420px',
                   textAlign: 'center',
                   boxShadow: isWin
-                    ? `0 0 60px ${rarityColor}88, 0 10px 40px rgba(0,0,0,0.3)`
+                    ? `0 0 80px ${rarityColor}aa, 0 10px 40px rgba(0,0,0,0.3)`
                     : '0 10px 40px rgba(0,0,0,0.3)',
                   animation: 'gachaPop 0.6s ease-out 0.1s both',
-                  position: 'relative',
+                  position: 'relative', zIndex: 2,
                 }}>
                   {/* レアリティバッジ */}
                   {isWin && rarityLabel && (
@@ -800,34 +842,73 @@ export default function AdminDashboardPage() {
                       padding: '6px 16px', borderRadius: '20px',
                       letterSpacing: '2px',
                       boxShadow: `0 4px 12px ${rarityColor}88`,
+                      whiteSpace: 'nowrap',
                     }}>
                       ★ {rarityLabel} ★
                     </div>
                   )}
 
-                  <div style={{ fontSize: '100px', marginBottom: '12px', lineHeight: 1 }}>
+                  {/* 景品ラベル */}
+                  <div style={{
+                    fontSize: '11px', fontWeight: 800, color: rarityColor,
+                    letterSpacing: '4px', marginBottom: '12px',
+                    borderBottom: `2px dashed ${rarityColor}44`,
+                    paddingBottom: '12px',
+                  }}>
+                    {isWin ? '🎁 獲得した景品' : '結果'}
+                  </div>
+
+                  <div style={{
+                    fontSize: '110px', marginBottom: '8px', lineHeight: 1,
+                    filter: isMiss ? 'grayscale(50%)' : 'none',
+                  }}>
                     {gachaResult.icon}
                   </div>
 
+                  {/* 景品名 */}
                   <div style={{
-                    fontSize: '11px', fontWeight: 700, color: '#6b7280',
-                    letterSpacing: '2px', marginBottom: '4px',
+                    fontSize: '11px', fontWeight: 700, color: '#9ca3af',
+                    letterSpacing: '2px', marginBottom: '6px',
                   }}>
-                    {isWin ? 'GET!' : 'SORRY'}
+                    {isWin ? '景品名' : '結果'}
                   </div>
 
                   <div style={{
-                    fontSize: '24px', fontWeight: 900,
+                    fontSize: '28px', fontWeight: 900,
                     color: isWin ? '#1f2937' : '#6b7280',
                     lineHeight: 1.3,
+                    marginBottom: '12px',
                   }}>
                     {gachaResult.prize}
                   </div>
 
+                  {/* 景品の説明 */}
+                  {isWin && (() => {
+                    const description =
+                      gachaResult.prize === 'スポミルステッカー' ? 'スポミル限定ロゴステッカー1枚をプレゼント！'
+                      : gachaResult.prize === 'スポミルTシャツ' ? 'スポミルオリジナルTシャツ（サイズ選択可）をプレゼント！'
+                      : gachaResult.prize === 'プロテイン1kg' ? 'ホエイプロテイン1kg（フレーバー選択可）をプレゼント！'
+                      : gachaResult.prize === 'クオカード500円' ? 'クオカード500円分をプレゼント！'
+                      : gachaResult.prize === 'リカバリープロ' ? 'リカバリーマシン1回無料券（超レア！）'
+                      : ''
+                    return description ? (
+                      <div style={{
+                        fontSize: '12px', color: '#6b7280',
+                        background: '#f9fafb', padding: '10px 14px',
+                        borderRadius: '10px', lineHeight: 1.5,
+                        marginTop: '8px',
+                      }}>
+                        {description}
+                      </div>
+                    ) : null
+                  })()}
+
                   {isMiss && (
                     <div style={{
-                      fontSize: '12px', color: '#9ca3af', marginTop: '12px',
+                      fontSize: '13px', color: '#6b7280', marginTop: '8px',
+                      background: '#f3f4f6', padding: '10px 14px', borderRadius: '10px',
                     }}>
+                      今回は景品なし。<br />
                       また挑戦してください 🙏
                     </div>
                   )}
