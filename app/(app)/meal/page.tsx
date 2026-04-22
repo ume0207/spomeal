@@ -241,6 +241,26 @@ export default function MealPage() {
   const [bottomTab, setBottomTab] = useState<'search' | 'favorite' | 'manual' | 'history'>('search')
   const [searchQuery, setSearchQuery] = useState('')
   const [favorites, setFavorites] = useState<string[]>([])
+  // お気に入りトグル（localStorageに永続化）
+  const toggleFavorite = useCallback((name: string) => {
+    setFavorites(prev => {
+      const next = prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
+      try {
+        if (typeof window !== 'undefined') {
+          const supabase = createClient()
+          supabase.auth.getSession().then(({ data: { session } }) => {
+            const uid = session?.user?.id
+            if (uid) {
+              localStorage.setItem(`favoriteFoods_${uid}`, JSON.stringify(next))
+            } else {
+              localStorage.setItem('favoriteFoods', JSON.stringify(next))
+            }
+          })
+        }
+      } catch { /* ignore */ }
+      return next
+    })
+  }, [])
   // 検索で選択した食品リスト（複数選択・PFC合計計算用）
   const [selectedSearchFoods, setSelectedSearchFoods] = useState<Array<{name: string; kcal: number; p: number; f: number; c: number; g: number}>>([])
 
@@ -414,6 +434,26 @@ export default function MealPage() {
               } catch { /* ignore */ }
             } else {
               localStorage.setItem(migratedKey, '1')
+            }
+          }
+        }
+      } catch { /* ignore */ }
+
+      // お気に入り食品を localStorage から読み込み（ユーザーごと）
+      try {
+        const favRaw = localStorage.getItem(`favoriteFoods_${uid}`)
+        if (favRaw) {
+          const favs = JSON.parse(favRaw)
+          if (Array.isArray(favs)) setFavorites(favs.filter(f => typeof f === 'string'))
+        } else {
+          // 旧キーからの移行（ユーザーIDなしのグローバル）
+          const legacy = localStorage.getItem('favoriteFoods')
+          if (legacy) {
+            const favs = JSON.parse(legacy)
+            if (Array.isArray(favs)) {
+              const arr = favs.filter(f => typeof f === 'string')
+              setFavorites(arr)
+              localStorage.setItem(`favoriteFoods_${uid}`, JSON.stringify(arr))
             }
           }
         }
@@ -2100,24 +2140,44 @@ export default function MealPage() {
                             if (results.length === 0) {
                               return <p style={{ fontSize: '14px', color: '#9ca3af', textAlign: 'center', padding: '20px 0' }}>該当する食品がありません</p>
                             }
-                            return results.map((item) => (
-                              <button
-                                key={item.name}
-                                onClick={() => addSearchFood({ name: item.name, kcal: item.kcal, p: item.p, f: item.f, c: item.c, g: item.g })}
-                                style={{
-                                  width: '100%', textAlign: 'left', padding: '12px',
-                                  background: 'none', border: 'none', borderBottom: '1px solid #f3f4f6',
-                                  cursor: 'pointer', fontSize: '15px', color: '#374151', fontFamily: 'inherit',
-                                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                }}
-                              >
-                                <div>
-                                  <span style={{ fontWeight: 600, display: 'block' }}>{item.name}</span>
-                                  <span style={{ fontSize: '11px', color: '#9ca3af' }}>P{item.p}g / F{item.f}g / C{item.c}g</span>
+                            return results.map((item) => {
+                              const isFav = favorites.includes(item.name)
+                              return (
+                                <div key={item.name} style={{
+                                  display: 'flex', alignItems: 'center',
+                                  borderBottom: '1px solid #f3f4f6',
+                                }}>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); toggleFavorite(item.name) }}
+                                    aria-label={isFav ? 'お気に入り解除' : 'お気に入り登録'}
+                                    style={{
+                                      padding: '12px 6px 12px 10px',
+                                      background: 'none', border: 'none',
+                                      cursor: 'pointer', fontSize: '20px', fontFamily: 'inherit',
+                                      color: isFav ? '#f59e0b' : '#d1d5db',
+                                      lineHeight: 1,
+                                    }}
+                                  >
+                                    {isFav ? '★' : '☆'}
+                                  </button>
+                                  <button
+                                    onClick={() => addSearchFood({ name: item.name, kcal: item.kcal, p: item.p, f: item.f, c: item.c, g: item.g })}
+                                    style={{
+                                      flex: 1, textAlign: 'left', padding: '12px 12px 12px 4px',
+                                      background: 'none', border: 'none',
+                                      cursor: 'pointer', fontSize: '15px', color: '#374151', fontFamily: 'inherit',
+                                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                    }}
+                                  >
+                                    <div>
+                                      <span style={{ fontWeight: 600, display: 'block' }}>{item.name}</span>
+                                      <span style={{ fontSize: '11px', color: '#9ca3af' }}>P{item.p}g / F{item.f}g / C{item.c}g</span>
+                                    </div>
+                                    <span style={{ fontSize: '13px', color: '#22c55e', fontWeight: 700 }}>＋ {item.kcal}kcal</span>
+                                  </button>
                                 </div>
-                                <span style={{ fontSize: '13px', color: '#22c55e', fontWeight: 700 }}>＋ {item.kcal}kcal</span>
-                              </button>
-                            ))
+                              )
+                            })
                           })()}
                         </div>
                       ) : (
@@ -2133,21 +2193,47 @@ export default function MealPage() {
                         favorites.map((name) => {
                           const results = searchFoodDB(name)
                           const info = results.length > 0 ? results[0] : null
-                          return info ? (
-                            <button
-                              key={name}
-                              onClick={() => addSearchFood({ name, kcal: info.kcal, p: info.p, f: info.f, c: info.c, g: info.g })}
-                              style={{
-                                width: '100%', textAlign: 'left', padding: '14px 12px',
-                                background: 'none', border: 'none', borderBottom: '1px solid #f3f4f6',
-                                cursor: 'pointer', fontSize: '15px', color: '#374151', fontFamily: 'inherit',
-                                fontWeight: 600,
-                              }}
-                            >{name} - <span style={{ fontSize: '13px', color: '#9ca3af', fontWeight: 400 }}>{info.kcal}kcal</span></button>
-                          ) : null
+                          return (
+                            <div key={name} style={{
+                              display: 'flex', alignItems: 'center',
+                              borderBottom: '1px solid #f3f4f6',
+                            }}>
+                              <button
+                                onClick={() => {
+                                  if (info) addSearchFood({ name, kcal: info.kcal, p: info.p, f: info.f, c: info.c, g: info.g })
+                                }}
+                                disabled={!info}
+                                style={{
+                                  flex: 1, textAlign: 'left', padding: '14px 8px 14px 12px',
+                                  background: 'none', border: 'none',
+                                  cursor: info ? 'pointer' : 'not-allowed',
+                                  fontSize: '15px', color: info ? '#374151' : '#9ca3af', fontFamily: 'inherit',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {name}
+                                {info && <span style={{ fontSize: '13px', color: '#9ca3af', fontWeight: 400, marginLeft: '8px' }}>{info.kcal}kcal</span>}
+                                {!info && <span style={{ fontSize: '11px', color: '#ef4444', fontWeight: 400, marginLeft: '8px' }}>（食品DBに無し）</span>}
+                              </button>
+                              <button
+                                onClick={() => toggleFavorite(name)}
+                                aria-label="お気に入り解除"
+                                style={{
+                                  padding: '10px 12px',
+                                  background: 'none', border: 'none',
+                                  cursor: 'pointer', fontSize: '18px',
+                                  color: '#ef4444', fontFamily: 'inherit',
+                                  lineHeight: 1,
+                                }}
+                              >✕</button>
+                            </div>
+                          )
                         })
                       ) : (
-                        <p style={{ fontSize: '14px', color: '#9ca3af', textAlign: 'center', padding: '20px 0' }}>お気に入りの食品はまだありません</p>
+                        <div style={{ textAlign: 'center', padding: '24px 16px' }}>
+                          <p style={{ fontSize: '14px', color: '#9ca3af', marginBottom: '8px' }}>お気に入りの食品はまだありません</p>
+                          <p style={{ fontSize: '12px', color: '#9ca3af' }}>検索結果の ☆ をタップして登録できます</p>
+                        </div>
                       )}
                     </div>
                   )}
