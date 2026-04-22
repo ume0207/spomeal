@@ -840,14 +840,8 @@ export default function MealPage() {
         body: JSON.stringify({ userId, action: 'addMeal', dateStr: mealDateStr, mealType: mealTypeEn }),
       }).then(async res => {
         if (res.ok) {
-          const ptData = await res.json()
-          const added = ptData.total_points - (ptData.total_points - 1)
-          if (ptData.total_points > 0) {
-            const bonusMsg = ptData.lotteryResult ? '' : ''
-            setTimeout(() => {
-              // ポイントメッセージは控えめに（アラートなし）
-            }, 300)
-          }
+          // ポイント付与完了後にダッシュボードへ通知（この時点でDB反映済み）
+          window.dispatchEvent(new Event('mealRecordsUpdated'))
         }
       }).catch(() => {})
     }

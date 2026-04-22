@@ -117,6 +117,22 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
       date: new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tokyo' }),
     }
     lotteryHistory.unshift(lotteryResult)
+  } else if (action === 'testLottery') {
+    // テスト用：ポイント消費なしで抽選
+    lotteryCount += 1
+    const totalWeight = PRIZES.reduce((s, p) => s + p.weight, 0)
+    let random = Math.random() * totalWeight
+    let selected = PRIZES[0]
+    for (const prize of PRIZES) {
+      random -= prize.weight
+      if (random <= 0) { selected = prize; break }
+    }
+    lotteryResult = {
+      prize: selected.prize, rarity: selected.rarity, icon: selected.icon,
+      date: new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tokyo' }),
+      isTest: true,
+    }
+    lotteryHistory.unshift(lotteryResult)
   } else if (action === 'save') {
     // 外部から直接データを保存（マイグレーション用）
     totalPoints = body.totalPoints ?? totalPoints
