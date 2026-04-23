@@ -16,6 +16,7 @@ export function getRarityColor(rarity: string): string {
     case 'rare': return '#3b82f6'
     case 'super_rare': return '#f59e0b'
     case 'ultra_rare': return '#ef4444'
+    case 'legendary': return '#a855f7'
     default: return '#9ca3af'
   }
 }
@@ -27,6 +28,7 @@ export function getRarityLabel(rarity: string): string {
     case 'rare': return 'レア'
     case 'super_rare': return 'スーパーレア'
     case 'ultra_rare': return 'ウルトラレア!'
+    case 'legendary': return 'LEGENDARY!!'
     default: return ''
   }
 }

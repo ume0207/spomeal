@@ -660,23 +660,29 @@ export default function AdminDashboardPage() {
       {showGachaModal && (() => {
         const isWin = !!gachaResult && gachaResult.rarity !== 'miss'
         const isMiss = !!gachaResult && gachaResult.rarity === 'miss'
+        const isLegendary = gachaResult?.rarity === 'legendary'
         const isUltra = gachaResult?.rarity === 'ultra_rare'
         const isSuper = gachaResult?.rarity === 'super_rare'
         const rarityLabel =
-          isUltra ? 'ULTRA RARE'
+          isLegendary ? 'LEGENDARY'
+          : isUltra ? 'ULTRA RARE'
           : isSuper ? 'SUPER RARE'
           : ''
         // 当たり背景：漆黒ベースに rarity 別のアクセント光
-        const winBg = isUltra
+        const winBg = isLegendary
+          ? 'radial-gradient(ellipse at center, #2a0f3d 0%, #0a0418 55%, #000 100%)'
+          : isUltra
           ? 'radial-gradient(ellipse at center, #3b2412 0%, #1a0f07 55%, #000 100%)'
           : 'radial-gradient(ellipse at center, #3a1430 0%, #150810 55%, #000 100%)'
         const loseBg = 'linear-gradient(180deg, #1f2937 0%, #0f172a 60%, #0b1018 100%)'
         const spinBg = 'radial-gradient(ellipse at center, #1e293b 0%, #0a0f1a 100%)'
-        const accentGold = isSuper
+        const accentGold = isLegendary
+          ? 'linear-gradient(135deg, #60a5fa 0%, #a855f7 25%, #ec4899 50%, #f59e0b 75%, #60a5fa 100%)'
+          : isSuper
           ? 'linear-gradient(180deg, #fde68a 0%, #e879f9 45%, #be185d 100%)'
           : 'linear-gradient(180deg, #fef3c7 0%, #fbbf24 40%, #b45309 100%)'
-        const accentSolid = isSuper ? '#e879f9' : '#fbbf24'
-        const accentDeep = isSuper ? '#be185d' : '#b45309'
+        const accentSolid = isLegendary ? '#a855f7' : isSuper ? '#e879f9' : '#fbbf24'
+        const accentDeep = isLegendary ? '#6d28d9' : isSuper ? '#be185d' : '#b45309'
         const bgGradient = isSpinning ? spinBg : isWin ? winBg : isMiss ? loseBg : spinBg
 
         return (
@@ -703,6 +709,15 @@ export default function AdminDashboardPage() {
               @keyframes shimmerRose {
                 0%, 100% { filter: brightness(1) drop-shadow(0 0 30px rgba(232,121,249,0.4)); }
                 50%      { filter: brightness(1.3) drop-shadow(0 0 60px rgba(232,121,249,0.9)); }
+              }
+              @keyframes shimmerIridescent {
+                0%, 100% { filter: brightness(1) drop-shadow(0 0 30px rgba(168,85,247,0.5)) hue-rotate(0deg); }
+                50%      { filter: brightness(1.4) drop-shadow(0 0 80px rgba(236,72,153,0.9)) hue-rotate(30deg); }
+              }
+              @keyframes iridescentShift {
+                0%   { background-position: 0% 50%; }
+                50%  { background-position: 100% 50%; }
+                100% { background-position: 0% 50%; }
               }
               @keyframes raysRotate {
                 from { transform: translate(-50%, -50%) rotate(0deg); }
@@ -822,11 +837,15 @@ export default function AdminDashboardPage() {
                 <div style={{
                   position: 'absolute', top: '50%', left: '50%',
                   width: '200vmax', height: '200vmax',
-                  background: isSuper
+                  background: isLegendary
+                    ? 'repeating-conic-gradient(from 0deg, rgba(168,85,247,0.14) 0deg, rgba(236,72,153,0.1) 5deg, rgba(96,165,250,0.08) 10deg, rgba(168,85,247,0) 16deg)'
+                    : isSuper
                     ? 'repeating-conic-gradient(from 0deg, rgba(232,121,249,0.12) 0deg, rgba(232,121,249,0) 8deg, rgba(232,121,249,0) 16deg)'
                     : 'repeating-conic-gradient(from 0deg, rgba(251,191,36,0.15) 0deg, rgba(251,191,36,0) 8deg, rgba(251,191,36,0) 16deg)',
                   pointerEvents: 'none',
-                  animation: 'raysRotate 30s linear infinite',
+                  animation: isLegendary
+                    ? 'raysRotate 18s linear infinite'
+                    : 'raysRotate 30s linear infinite',
                   transformOrigin: 'center',
                 }} />
 
@@ -835,7 +854,9 @@ export default function AdminDashboardPage() {
                   position: 'absolute', top: '50%', left: '50%',
                   width: '600px', height: '600px',
                   transform: 'translate(-50%, -50%)',
-                  background: isSuper
+                  background: isLegendary
+                    ? 'radial-gradient(circle, rgba(168,85,247,0.45) 0%, rgba(236,72,153,0.2) 40%, rgba(96,165,250,0) 70%)'
+                    : isSuper
                     ? 'radial-gradient(circle, rgba(232,121,249,0.35) 0%, rgba(232,121,249,0) 60%)'
                     : 'radial-gradient(circle, rgba(251,191,36,0.4) 0%, rgba(251,191,36,0) 60%)',
                   pointerEvents: 'none',
@@ -843,10 +864,11 @@ export default function AdminDashboardPage() {
 
                 {/* 紙吹雪（倍量） */}
                 <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
-                  {Array.from({ length: 60 }).map((_, i) => {
+                  {Array.from({ length: isLegendary ? 90 : 60 }).map((_, i) => {
                     const goldPalette = ['#fde68a', '#fbbf24', '#f59e0b', '#fef3c7', '#d97706', '#ffffff']
                     const rosePalette = ['#fbcfe8', '#f472b6', '#e879f9', '#fef3c7', '#be185d', '#ffffff']
-                    const palette = isSuper ? rosePalette : goldPalette
+                    const iridescentPalette = ['#60a5fa', '#a855f7', '#ec4899', '#f59e0b', '#34d399', '#fde68a', '#ffffff']
+                    const palette = isLegendary ? iridescentPalette : isSuper ? rosePalette : goldPalette
                     const left = (i * 1.7 + (i % 5) * 3) % 100
                     const delay = (i * 0.06) % 2.5
                     const duration = 3 + (i % 5) * 0.5
@@ -870,28 +892,33 @@ export default function AdminDashboardPage() {
                 {/* メインタイトル「大当選」 */}
                 <h1 style={{
                   fontFamily: '"Noto Serif JP", "Hiragino Mincho ProN", "游明朝", serif',
-                  fontSize: 'clamp(80px, 16vw, 160px)',
+                  fontSize: isLegendary ? 'clamp(90px, 18vw, 180px)' : 'clamp(80px, 16vw, 160px)',
                   fontWeight: 900,
                   letterSpacing: '24px',
                   paddingLeft: '24px', // letter-spacing 補正
                   margin: 0,
                   background: accentGold,
+                  backgroundSize: isLegendary ? '300% 300%' : '100% 100%',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text',
-                  animation: `luxuryEntrance 1.1s cubic-bezier(0.34, 1.56, 0.64, 1) both, ${isSuper ? 'shimmerRose' : 'shimmerGold'} 2.5s ease-in-out 1.1s infinite`,
+                  animation: isLegendary
+                    ? 'luxuryEntrance 1.1s cubic-bezier(0.34, 1.56, 0.64, 1) both, shimmerIridescent 2.5s ease-in-out 1.1s infinite, iridescentShift 4s ease-in-out 1.1s infinite'
+                    : `luxuryEntrance 1.1s cubic-bezier(0.34, 1.56, 0.64, 1) both, ${isSuper ? 'shimmerRose' : 'shimmerGold'} 2.5s ease-in-out 1.1s infinite`,
                   position: 'relative', zIndex: 2,
                   textAlign: 'center',
                   lineHeight: 1,
                 }}>
-                  大当選
+                  {isLegendary ? '神引き' : '大当選'}
                 </h1>
 
                 {/* サブタイトル */}
                 <div style={{
                   fontFamily: '"Cormorant Garamond", "Times New Roman", serif',
                   fontSize: '14px',
-                  color: isSuper ? 'rgba(251,207,232,0.9)' : 'rgba(253,230,138,0.9)',
+                  color: isLegendary
+                    ? 'rgba(216,180,254,0.95)'
+                    : isSuper ? 'rgba(251,207,232,0.9)' : 'rgba(253,230,138,0.9)',
                   letterSpacing: '14px',
                   paddingLeft: '14px',
                   marginTop: '16px',
@@ -901,7 +928,7 @@ export default function AdminDashboardPage() {
                   animation: 'heavyFade 0.8s ease-out 0.6s both',
                   position: 'relative', zIndex: 2,
                 }}>
-                  CONGRATULATIONS
+                  {isLegendary ? 'LEGENDARY DRAW' : 'CONGRATULATIONS'}
                 </div>
 
                 {/* 景品カード（豪華・金縁） */}
@@ -989,6 +1016,9 @@ export default function AdminDashboardPage() {
                       ) : gachaResult.prize === 'スタバギフト券1000円' ? (
                         <>スターバックスギフト券1,000円分を進呈いたします。<br />
                         <span style={{ fontSize: '11px', color: accentDeep, fontWeight: 700 }}>当選確率 1 / 100　— 最上位賞 —</span></>
+                      ) : gachaResult.prize === 'リカバリープロ' ? (
+                        <>リカバリーマシン1回無料券を進呈いたします。<br />
+                        <span style={{ fontSize: '11px', color: accentDeep, fontWeight: 700 }}>当選確率 1 / 150　— 超最上位賞 LEGENDARY —</span></>
                       ) : null}
                     </div>
 

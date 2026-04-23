@@ -1040,10 +1040,13 @@ export default function DashboardPage() {
             {(() => {
               const isWinResult = !!lotteryResult && lotteryResult.rarity !== 'miss'
               const isMissResult = !!lotteryResult && lotteryResult.rarity === 'miss'
+              const isLegendaryResult = lotteryResult?.rarity === 'legendary'
               const isUltra = lotteryResult?.rarity === 'ultra_rare'
-              const accentSolid = isUltra ? '#fbbf24' : '#e879f9'
-              const accentDeep = isUltra ? '#b45309' : '#be185d'
-              const accentGold = isUltra
+              const accentSolid = isLegendaryResult ? '#a855f7' : isUltra ? '#fbbf24' : '#e879f9'
+              const accentDeep = isLegendaryResult ? '#6d28d9' : isUltra ? '#b45309' : '#be185d'
+              const accentGold = isLegendaryResult
+                ? 'linear-gradient(135deg, #60a5fa 0%, #a855f7 25%, #ec4899 50%, #f59e0b 75%, #60a5fa 100%)'
+                : isUltra
                 ? 'linear-gradient(180deg, #fef3c7 0%, #fbbf24 40%, #b45309 100%)'
                 : 'linear-gradient(180deg, #fde68a 0%, #e879f9 45%, #be185d 100%)'
               return (
@@ -1057,6 +1060,15 @@ export default function DashboardPage() {
                     @keyframes dashShimmer {
                       0%, 100% { filter: brightness(1) drop-shadow(0 0 10px rgba(251,191,36,0.5)); }
                       50%      { filter: brightness(1.25) drop-shadow(0 0 20px rgba(251,191,36,0.9)); }
+                    }
+                    @keyframes dashShimmerIridescent {
+                      0%, 100% { filter: brightness(1) drop-shadow(0 0 12px rgba(168,85,247,0.6)) hue-rotate(0deg); }
+                      50%      { filter: brightness(1.4) drop-shadow(0 0 30px rgba(236,72,153,0.9)) hue-rotate(30deg); }
+                    }
+                    @keyframes dashIridescentShift {
+                      0%   { background-position: 0% 50%; }
+                      50%  { background-position: 100% 50%; }
+                      100% { background-position: 0% 50%; }
                     }
                     @keyframes dashSadEntrance {
                       0%   { opacity: 0; letter-spacing: 32px; filter: blur(6px); }
@@ -1081,7 +1093,11 @@ export default function DashboardPage() {
                   {/* ========== ヘッダー（結果に応じて変化） ========== */}
                   <div style={{
                     background: isWinResult
-                      ? (isUltra ? 'linear-gradient(135deg, #1a0f07 0%, #3b2412 100%)' : 'linear-gradient(135deg, #150810 0%, #3a1430 100%)')
+                      ? (isLegendaryResult
+                          ? 'linear-gradient(135deg, #0a0418 0%, #2a0f3d 50%, #0a0418 100%)'
+                          : isUltra
+                          ? 'linear-gradient(135deg, #1a0f07 0%, #3b2412 100%)'
+                          : 'linear-gradient(135deg, #150810 0%, #3a1430 100%)')
                       : isMissResult ? 'linear-gradient(135deg, #1f2937 0%, #0f172a 100%)'
                       : 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
                     padding: '28px 20px 22px', textAlign: 'center',
@@ -1134,6 +1150,7 @@ export default function DashboardPage() {
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                             {[
+                              { name: 'リカバリープロ', prob: '1 / 150', tier: '超最上位' },
                               { name: 'Amazonギフト券 1,000円', prob: '1 / 100', tier: '最上位' },
                               { name: 'スタバギフト券 1,000円', prob: '1 / 100', tier: '最上位' },
                               { name: 'クオカード 500円', prob: '1 / 50', tier: '上位' },
@@ -1206,10 +1223,11 @@ export default function DashboardPage() {
                         <div style={{ position: 'relative', textAlign: 'center', overflow: 'hidden', borderRadius: '12px' }}>
                           {/* 紙吹雪 */}
                           <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 0 }}>
-                            {Array.from({ length: 30 }).map((_, i) => {
+                            {Array.from({ length: isLegendaryResult ? 50 : 30 }).map((_, i) => {
                               const gold = ['#fde68a', '#fbbf24', '#f59e0b', '#fef3c7', '#d97706']
                               const rose = ['#fbcfe8', '#f472b6', '#e879f9', '#fef3c7', '#be185d']
-                              const palette = isUltra ? gold : rose
+                              const iridescent = ['#60a5fa', '#a855f7', '#ec4899', '#f59e0b', '#34d399', '#fde68a', '#ffffff']
+                              const palette = isLegendaryResult ? iridescent : isUltra ? gold : rose
                               const left = (i * 3.3) % 100
                               const delay = (i * 0.08) % 2
                               const duration = 2.5 + (i % 4) * 0.4
@@ -1231,7 +1249,9 @@ export default function DashboardPage() {
                             position: 'absolute', top: '30%', left: '50%',
                             width: '280px', height: '280px',
                             transform: 'translate(-50%, -50%)',
-                            background: isUltra
+                            background: isLegendaryResult
+                              ? 'radial-gradient(circle, rgba(168,85,247,0.45) 0%, rgba(236,72,153,0.2) 40%, rgba(96,165,250,0) 70%)'
+                              : isUltra
                               ? 'radial-gradient(circle, rgba(251,191,36,0.35) 0%, rgba(251,191,36,0) 60%)'
                               : 'radial-gradient(circle, rgba(232,121,249,0.35) 0%, rgba(232,121,249,0) 60%)',
                             pointerEvents: 'none', zIndex: 0,
@@ -1241,16 +1261,19 @@ export default function DashboardPage() {
                             {/* 大当選 */}
                             <div style={{
                               fontFamily: '"Noto Serif JP", serif',
-                              fontSize: '44px', fontWeight: 900,
+                              fontSize: isLegendaryResult ? '48px' : '44px', fontWeight: 900,
                               letterSpacing: '14px', paddingLeft: '14px',
                               background: accentGold,
+                              backgroundSize: isLegendaryResult ? '300% 300%' : '100% 100%',
                               WebkitBackgroundClip: 'text',
                               WebkitTextFillColor: 'transparent',
                               margin: '8px 0 4px',
-                              animation: 'dashLuxuryEntrance 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both, dashShimmer 2.5s ease-in-out 0.9s infinite',
+                              animation: isLegendaryResult
+                                ? 'dashLuxuryEntrance 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both, dashShimmerIridescent 2.5s ease-in-out 0.9s infinite, dashIridescentShift 4s ease-in-out 0.9s infinite'
+                                : 'dashLuxuryEntrance 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both, dashShimmer 2.5s ease-in-out 0.9s infinite',
                               lineHeight: 1,
                             }}>
-                              大当選
+                              {isLegendaryResult ? '神引き' : '大当選'}
                             </div>
                             <div style={{
                               fontFamily: 'serif', fontStyle: 'italic',
@@ -1258,7 +1281,7 @@ export default function DashboardPage() {
                               paddingLeft: '8px', marginBottom: '18px',
                               animation: 'dashFade 0.6s ease-out 0.7s both',
                             }}>
-                              CONGRATULATIONS
+                              {isLegendaryResult ? 'LEGENDARY DRAW' : 'CONGRATULATIONS'}
                             </div>
 
                             {/* 景品カード */}
@@ -1282,7 +1305,7 @@ export default function DashboardPage() {
                                   color: accentDeep, letterSpacing: '5px', fontStyle: 'italic',
                                   whiteSpace: 'nowrap',
                                 }}>
-                                  {isUltra ? 'ULTRA RARE' : 'SUPER RARE'} PRIZE
+                                  {isLegendaryResult ? 'LEGENDARY' : isUltra ? 'ULTRA RARE' : 'SUPER RARE'} PRIZE
                                 </div>
                                 <div style={{ flex: 1, height: '1px', background: `linear-gradient(90deg, ${accentDeep}, transparent)` }} />
                               </div>
@@ -1299,8 +1322,23 @@ export default function DashboardPage() {
                                 fontSize: '11px', color: accentDeep, fontWeight: 700,
                                 letterSpacing: '1px', fontFamily: 'serif',
                               }}>
-                                {isUltra ? '当選確率 1 / 100　— 最上位賞 —' : '当選確率 1 / 50'}
+                                {isLegendaryResult
+                                  ? '当選確率 1 / 150　— 超最上位賞 LEGENDARY —'
+                                  : isUltra
+                                  ? '当選確率 1 / 100　— 最上位賞 —'
+                                  : '当選確率 1 / 50'}
                               </div>
+                              {lotteryResult.prize === 'リカバリープロ' && (
+                                <div style={{
+                                  marginTop: '10px', paddingTop: '8px',
+                                  borderTop: `1px dashed ${accentSolid}66`,
+                                  fontSize: '11px', color: '#57493b',
+                                  fontFamily: 'serif', fontStyle: 'italic',
+                                  lineHeight: 1.6,
+                                }}>
+                                  リカバリーマシン1回無料券
+                                </div>
+                              )}
                             </div>
 
                             <p style={{ fontSize: '11px', color: '#78644c', margin: '0 0 14px', fontStyle: 'italic' }}>

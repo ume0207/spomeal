@@ -17,16 +17,18 @@ async function authorize(request: Request, env: Env, targetUserId: string) {
   return { ok: false as const, status: 403, error: '他のユーザーのデータにはアクセスできません' }
 }
 
-// 景品テーブル（合計weight=100）
-// - クオカード500円:       1/50 (=2/100) super_rare
-// - Amazonギフト券1000円:  1/100        ultra_rare
-// - スタバギフト券1000円:  1/100        ultra_rare
-// - ハズレ:                96/100       miss
+// 景品テーブル（合計weight=300、LCM(50,100,150)=300で確率を厳密に揃える）
+// - クオカード500円:       6/300 = 1/50    super_rare
+// - Amazonギフト券1000円:  3/300 = 1/100   ultra_rare
+// - スタバギフト券1000円:  3/300 = 1/100   ultra_rare
+// - リカバリープロ:        2/300 = 1/150   legendary（最上位）
+// - ハズレ:              286/300           miss
 const PRIZES = [
-  { prize: 'ハズレ', rarity: 'miss', icon: '', weight: 96 },
-  { prize: 'クオカード500円', rarity: 'super_rare', icon: '', weight: 2 },
-  { prize: 'Amazonギフト券1000円', rarity: 'ultra_rare', icon: '', weight: 1 },
-  { prize: 'スタバギフト券1000円', rarity: 'ultra_rare', icon: '', weight: 1 },
+  { prize: 'ハズレ', rarity: 'miss', icon: '', weight: 286 },
+  { prize: 'クオカード500円', rarity: 'super_rare', icon: '', weight: 6 },
+  { prize: 'Amazonギフト券1000円', rarity: 'ultra_rare', icon: '', weight: 3 },
+  { prize: 'スタバギフト券1000円', rarity: 'ultra_rare', icon: '', weight: 3 },
+  { prize: 'リカバリープロ', rarity: 'legendary', icon: '', weight: 2 },
 ]
 
 function drawPrize() {
