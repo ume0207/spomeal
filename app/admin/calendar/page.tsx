@@ -202,10 +202,14 @@ export default function AdminCalendarPage() {
   const firstDay = new Date(curYear, curMonth, 1).getDay()
   const daysInMonth = new Date(curYear, curMonth + 1, 0).getDate()
 
+  // 「すべて」選択時はキャンセル済みを除外（予約カレンダーは実際に成立した予約だけ表示）
+  // キャンセル済みを見たいときは明示的に「キャンセル」フィルタを選ぶ
   const filtered = (dateKey: string) =>
-    reservations.filter(
-      (r) => r.date === dateKey && (filter === 'all' || r.status === filter)
-    )
+    reservations.filter((r) => {
+      if (r.date !== dateKey) return false
+      if (filter === 'all') return r.status !== 'cancelled'
+      return r.status === filter
+    })
 
   const prevPeriod = () => {
     if (curMonth === 0) { setCurYear(curYear - 1); setCurMonth(11) }
@@ -339,10 +343,12 @@ export default function AdminCalendarPage() {
           </div>
         )}
 
-        {/* フィルター */}
+        {/* フィルター（「すべて」= 有効な予約のみ＝キャンセルは除外） */}
         <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', overflowX: 'auto', scrollbarWidth: 'none' }}>
           {(['all', 'confirmed', 'completed', 'cancelled'] as const).map((f) => {
-            const count = f === 'all' ? reservations.length : reservations.filter((r) => r.status === f).length
+            const count = f === 'all'
+              ? reservations.filter(r => r.status !== 'cancelled').length
+              : reservations.filter((r) => r.status === f).length
             return (
               <button
                 key={f}
@@ -355,7 +361,7 @@ export default function AdminCalendarPage() {
                   fontFamily: 'inherit', whiteSpace: 'nowrap',
                 }}
               >
-                {f === 'all' ? `すべて (${count})` : f === 'confirmed' ? `確定 (${count})` : f === 'completed' ? `完了 (${count})` : `キャンセル (${count})`}
+                {f === 'all' ? `有効な予約 (${count})` : f === 'confirmed' ? `確定 (${count})` : f === 'completed' ? `完了 (${count})` : `キャンセル (${count})`}
               </button>
             )
           })}
@@ -401,7 +407,7 @@ export default function AdminCalendarPage() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderTop: '1px solid #e5e7eb' }}>
               {Array.from({ length: firstDay }).map((_, i) => (
-                <div key={`e-${i}`} style={{ minHeight: '90px', background: '#f9fafb', borderRight: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb' }} />
+                <div key={`e-${i}`} style={{ height: '108px', background: '#f9fafb', borderRight: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb' }} />
               ))}
               {Array.from({ length: daysInMonth }).map((_, i) => {
                 const d = i + 1
@@ -414,13 +420,14 @@ export default function AdminCalendarPage() {
                     key={d}
                     onClick={() => dayRes.length > 0 && setDetail({ date: dateKey, list: dayRes })}
                     style={{
-                      minHeight: '90px', padding: '5px',
+                      height: '108px', padding: '5px', boxSizing: 'border-box', overflow: 'hidden',
                       background: isToday ? '#eff6ff' : 'white',
                       borderRight: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb',
                       cursor: dayRes.length > 0 ? 'pointer' : 'default',
+                      display: 'flex', flexDirection: 'column', gap: '2px',
                     }}
                   >
-                    <div style={{ fontSize: '11px', fontWeight: 700, marginBottom: '3px', color: isToday ? '#4f46e5' : dow === 0 ? '#ef4444' : dow === 6 ? '#3b82f6' : '#374151' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, marginBottom: '2px', color: isToday ? '#4f46e5' : dow === 0 ? '#ef4444' : dow === 6 ? '#3b82f6' : '#374151', flexShrink: 0 }}>
                       {d}
                     </div>
                     {dayRes.slice(0, 3).map((r) => {
@@ -467,7 +474,7 @@ export default function AdminCalendarPage() {
                 const dateKey = toDateKey(wd.getFullYear(), wd.getMonth(), wd.getDate())
                 const dayRes = filtered(dateKey)
                 return (
-                  <div key={i} style={{ minHeight: '160px', padding: '6px', borderRight: i < 6 ? '1px solid #e5e7eb' : 'none' }}>
+                  <div key={i} style={{ height: '220px', padding: '6px', boxSizing: 'border-box', overflow: 'hidden', borderRight: i < 6 ? '1px solid #e5e7eb' : 'none', display: 'flex', flexDirection: 'column', gap: '3px' }}>
                     {dayRes.map((r) => {
                       const sc = STATUS_COLORS[r.status]
                       return (
