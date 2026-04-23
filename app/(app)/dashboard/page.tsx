@@ -1150,10 +1150,10 @@ export default function DashboardPage() {
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                             {[
-                              { name: 'リカバリープロ', prob: '1 / 150', tier: '超最上位' },
+                              { name: 'リカバリープロ', prob: '1 / 300', tier: '超最上位' },
                               { name: 'Amazonギフト券 1,000円', prob: '1 / 100', tier: '最上位' },
                               { name: 'スタバギフト券 1,000円', prob: '1 / 100', tier: '最上位' },
-                              { name: 'クオカード 500円', prob: '1 / 50', tier: '上位' },
+                              { name: 'レストランギフト券 1,000円', prob: '1 / 99', tier: '上位' },
                             ].map(p => (
                               <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px' }}>
                                 <span style={{ flex: 1, fontFamily: 'serif', fontWeight: 700, color: '#1f2937' }}>{p.name}</span>
@@ -1323,10 +1323,10 @@ export default function DashboardPage() {
                                 letterSpacing: '1px', fontFamily: 'serif',
                               }}>
                                 {isLegendaryResult
-                                  ? '当選確率 1 / 150　— 超最上位賞 LEGENDARY —'
+                                  ? '当選確率 1 / 300　— 超最上位賞 LEGENDARY —'
                                   : isUltra
                                   ? '当選確率 1 / 100　— 最上位賞 —'
-                                  : '当選確率 1 / 50'}
+                                  : '当選確率 1 / 99'}
                               </div>
                               {lotteryResult.prize === 'リカバリープロ' && (
                                 <div style={{
@@ -1337,6 +1337,19 @@ export default function DashboardPage() {
                                   lineHeight: 1.6,
                                 }}>
                                   リカバリーマシン1回無料券
+                                </div>
+                              )}
+                              {(lotteryResult.prize === 'Amazonギフト券1000円'
+                                || lotteryResult.prize === 'スタバギフト券1000円'
+                                || lotteryResult.prize === 'レストランギフト券1000円') && (
+                                <div style={{
+                                  marginTop: '10px', paddingTop: '8px',
+                                  borderTop: `1px dashed ${accentSolid}66`,
+                                  fontSize: '10px', color: '#78644c',
+                                  lineHeight: 1.6, letterSpacing: '0.3px',
+                                }}>
+                                  ※ コードをお伝えします。<br />
+                                  公式LINEまでご連絡ください。
                                 </div>
                               )}
                             </div>

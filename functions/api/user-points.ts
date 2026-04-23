@@ -17,18 +17,18 @@ async function authorize(request: Request, env: Env, targetUserId: string) {
   return { ok: false as const, status: 403, error: '他のユーザーのデータにはアクセスできません' }
 }
 
-// 景品テーブル（合計weight=300、LCM(50,100,150)=300で確率を厳密に揃える）
-// - クオカード500円:       6/300 = 1/50    super_rare
-// - Amazonギフト券1000円:  3/300 = 1/100   ultra_rare
-// - スタバギフト券1000円:  3/300 = 1/100   ultra_rare
-// - リカバリープロ:        2/300 = 1/150   legendary（最上位）
-// - ハズレ:              286/300           miss
+// 景品テーブル（合計weight=9900、LCM(99,100,300)=9900で確率を厳密に揃える）
+// - レストランギフト券1000円:  100/9900 = 1/99    super_rare
+// - Amazonギフト券1000円:       99/9900 = 1/100   ultra_rare
+// - スタバギフト券1000円:       99/9900 = 1/100   ultra_rare
+// - リカバリープロ:              33/9900 = 1/300   legendary（超最上位）
+// - ハズレ:                    9569/9900          miss
 const PRIZES = [
-  { prize: 'ハズレ', rarity: 'miss', icon: '', weight: 286 },
-  { prize: 'クオカード500円', rarity: 'super_rare', icon: '', weight: 6 },
-  { prize: 'Amazonギフト券1000円', rarity: 'ultra_rare', icon: '', weight: 3 },
-  { prize: 'スタバギフト券1000円', rarity: 'ultra_rare', icon: '', weight: 3 },
-  { prize: 'リカバリープロ', rarity: 'legendary', icon: '', weight: 2 },
+  { prize: 'ハズレ', rarity: 'miss', icon: '', weight: 9569 },
+  { prize: 'レストランギフト券1000円', rarity: 'super_rare', icon: '', weight: 100 },
+  { prize: 'Amazonギフト券1000円', rarity: 'ultra_rare', icon: '', weight: 99 },
+  { prize: 'スタバギフト券1000円', rarity: 'ultra_rare', icon: '', weight: 99 },
+  { prize: 'リカバリープロ', rarity: 'legendary', icon: '', weight: 33 },
 ]
 
 function drawPrize() {

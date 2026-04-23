@@ -1007,18 +1007,27 @@ export default function AdminDashboardPage() {
                       lineHeight: 1.75, fontStyle: 'italic',
                       padding: '0 8px',
                     }}>
-                      {gachaResult.prize === 'クオカード500円' ? (
-                        <>クオカード500円分を進呈いたします。<br />
-                        <span style={{ fontSize: '11px', color: accentDeep, fontWeight: 700 }}>当選確率 1 / 50</span></>
+                      {gachaResult.prize === 'レストランギフト券1000円' ? (
+                        <>レストランギフト券1,000円分を進呈いたします。<br />
+                        <span style={{ fontSize: '11px', color: accentDeep, fontWeight: 700 }}>当選確率 1 / 99</span><br />
+                        <span style={{ fontSize: '10px', color: '#78644c', fontStyle: 'normal', fontWeight: 500 }}>
+                          ※ コードをお伝えします。公式LINEまでご連絡ください。
+                        </span></>
                       ) : gachaResult.prize === 'Amazonギフト券1000円' ? (
                         <>Amazonギフト券1,000円分を進呈いたします。<br />
-                        <span style={{ fontSize: '11px', color: accentDeep, fontWeight: 700 }}>当選確率 1 / 100　— 最上位賞 —</span></>
+                        <span style={{ fontSize: '11px', color: accentDeep, fontWeight: 700 }}>当選確率 1 / 100　— 最上位賞 —</span><br />
+                        <span style={{ fontSize: '10px', color: '#78644c', fontStyle: 'normal', fontWeight: 500 }}>
+                          ※ コードをお伝えします。公式LINEまでご連絡ください。
+                        </span></>
                       ) : gachaResult.prize === 'スタバギフト券1000円' ? (
                         <>スターバックスギフト券1,000円分を進呈いたします。<br />
-                        <span style={{ fontSize: '11px', color: accentDeep, fontWeight: 700 }}>当選確率 1 / 100　— 最上位賞 —</span></>
+                        <span style={{ fontSize: '11px', color: accentDeep, fontWeight: 700 }}>当選確率 1 / 100　— 最上位賞 —</span><br />
+                        <span style={{ fontSize: '10px', color: '#78644c', fontStyle: 'normal', fontWeight: 500 }}>
+                          ※ コードをお伝えします。公式LINEまでご連絡ください。
+                        </span></>
                       ) : gachaResult.prize === 'リカバリープロ' ? (
                         <>リカバリーマシン1回無料券を進呈いたします。<br />
-                        <span style={{ fontSize: '11px', color: accentDeep, fontWeight: 700 }}>当選確率 1 / 150　— 超最上位賞 LEGENDARY —</span></>
+                        <span style={{ fontSize: '11px', color: accentDeep, fontWeight: 700 }}>当選確率 1 / 300　— 超最上位賞 LEGENDARY —</span></>
                       ) : null}
                     </div>
 
