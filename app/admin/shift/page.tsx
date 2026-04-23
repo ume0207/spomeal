@@ -85,29 +85,44 @@ export default function ShiftPage() {
       .then(data => setStaff(data))
       .catch(() => {})
     // シフトデータをAPIから取得（localStorage fallback付き）
+    // ★重要★ APIが正（= サーバ側の永続データ）。
+    // 空が返った場合だけ localStorage から復元してサーバへ push する。
     apiFetch('/api/shifts')
-      .then(r => r.ok ? r.json() : [])
+      .then(async r => {
+        if (!r.ok) {
+          console.error('[shifts] load failed:', r.status)
+          return [] as Shift[]
+        }
+        try { return (await r.json()) as Shift[] } catch { return [] as Shift[] }
+      })
       .then((data: Shift[]) => {
-        if (data && data.length > 0) {
+        if (Array.isArray(data) && data.length > 0) {
           setShifts(migrateLegacyShifts(data))
-        } else {
-          // APIに無い場合はlocalStorageから復元してAPIに保存
-          try {
-            const saved = localStorage.getItem('shifts_v1')
-            if (saved) {
-              const parsed = migrateLegacyShifts(JSON.parse(saved))
-              setShifts(parsed)
-              // localStorageのデータをAPIにマイグレーション
-              apiFetch('/api/shifts', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(parsed),
-              }).catch(() => {})
-            }
-          } catch {}
+          return
+        }
+        // APIに無い（初回 or 新デバイス）→ localStorage から復元してサーバへ保存
+        try {
+          const saved = localStorage.getItem('shifts_v1')
+          if (!saved) return
+          const parsed = migrateLegacyShifts(JSON.parse(saved))
+          if (!Array.isArray(parsed) || parsed.length === 0) return
+          setShifts(parsed)
+          // localStorageのデータをAPIにマイグレーション（失敗時はログに残す）
+          apiFetch('/api/shifts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(parsed),
+          })
+            .then(r => {
+              if (!r.ok) console.error('[shifts] migrate to API failed:', r.status)
+            })
+            .catch(err => console.error('[shifts] migrate network error:', err))
+        } catch (err) {
+          console.error('[shifts] localStorage parse error:', err)
         }
       })
-      .catch(() => {
+      .catch(err => {
+        console.error('[shifts] load network error:', err)
         try {
           const saved = localStorage.getItem('shifts_v1')
           if (saved) setShifts(migrateLegacyShifts(JSON.parse(saved)))
@@ -117,13 +132,34 @@ export default function ShiftPage() {
 
   const saveShifts = (data: Shift[]) => {
     setShifts(data)
-    localStorage.setItem('shifts_v1', JSON.stringify(data))
-    // APIにも保存（管理者→会員の共有用）
+    // ローカルにもバックアップ（万一APIが落ちた時の復元元）
+    try { localStorage.setItem('shifts_v1', JSON.stringify(data)) } catch {}
+    // APIに永続化（管理者→会員の共有用 / デバイスを跨いで保持）
+    // 失敗したら必ずユーザーに通知（silent failure でリセット事故を防ぐ）
     apiFetch('/api/shifts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
-    }).catch(() => {})
+    })
+      .then(async r => {
+        if (!r.ok) {
+          const body = await r.text().catch(() => '')
+          console.error('[shifts] save failed:', r.status, body)
+          alert(`シフトの保存に失敗しました（${r.status}）\nもう一度お試しください。\n${body.slice(0, 200)}`)
+          return
+        }
+        // 成功時のバリデーション：サーバが受け取った件数が合っているか
+        try {
+          const j = await r.json()
+          if (j && typeof j.count === 'number' && j.count !== data.length) {
+            console.warn('[shifts] saved count mismatch', j.count, data.length)
+          }
+        } catch {}
+      })
+      .catch(err => {
+        console.error('[shifts] save network error:', err)
+        alert('シフトの保存に失敗しました（通信エラー）。もう一度お試しください。')
+      })
   }
 
   const activeStaff = staff.filter(s => s.active !== false)
