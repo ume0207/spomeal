@@ -23,10 +23,10 @@ async function authorize(request: Request, env: Env, targetUserId: string) {
 // - スタバギフト券1000円:  1/100        ultra_rare
 // - ハズレ:                96/100       miss
 const PRIZES = [
-  { prize: 'ハズレ', rarity: 'miss', icon: '💨', weight: 96 },
-  { prize: 'クオカード500円', rarity: 'super_rare', icon: '💳', weight: 2 },
-  { prize: 'Amazonギフト券1000円', rarity: 'ultra_rare', icon: '📦', weight: 1 },
-  { prize: 'スタバギフト券1000円', rarity: 'ultra_rare', icon: '☕', weight: 1 },
+  { prize: 'ハズレ', rarity: 'miss', icon: '', weight: 96 },
+  { prize: 'クオカード500円', rarity: 'super_rare', icon: '', weight: 2 },
+  { prize: 'Amazonギフト券1000円', rarity: 'ultra_rare', icon: '', weight: 1 },
+  { prize: 'スタバギフト券1000円', rarity: 'ultra_rare', icon: '', weight: 1 },
 ]
 
 function drawPrize() {

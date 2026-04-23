@@ -560,15 +560,20 @@ export default function AdminDashboardPage() {
           padding: '14px 16px',
           display: 'flex', alignItems: 'center', gap: '8px',
         }}>
-          <span style={{ fontSize: '18px' }}>🎰</span>
-          <span style={{ fontWeight: 800, color: 'white', fontSize: '14px' }}>ガチャテスト</span>
+          <span style={{
+            fontFamily: 'serif', fontSize: '11px', fontWeight: 800,
+            color: 'rgba(255,255,255,0.85)', letterSpacing: '4px',
+            paddingLeft: '4px',
+          }}>PRIZE DRAW TEST</span>
+          <span style={{ fontWeight: 900, color: 'white', fontSize: '14px', letterSpacing: '3px' }}>ガチャテスト</span>
           {selectedPoints !== null && (
             <span style={{
               marginLeft: 'auto',
               background: 'rgba(255,255,255,0.25)', color: 'white',
               fontSize: '12px', fontWeight: 800, padding: '3px 10px', borderRadius: '10px',
+              letterSpacing: '1px',
             }}>
-              💰 {selectedPoints}pt
+              {selectedPoints} pt
             </span>
           )}
         </div>
@@ -607,7 +612,7 @@ export default function AdminDashboardPage() {
               fontFamily: 'inherit',
             }}
           >
-            {addingPoints ? '追加中...' : '➕ 100ポイント追加'}
+            {addingPoints ? '追加中...' : '100ポイント追加'}
           </button>
           {pointsMessage && (
             <span style={{
@@ -622,19 +627,28 @@ export default function AdminDashboardPage() {
           )}
         </div>
         <div style={{ padding: '20px 16px', textAlign: 'center' }}>
-          <div style={{ fontSize: '64px', marginBottom: '12px', opacity: 0.3 }}>🎁</div>
+          <div style={{
+            fontFamily: '"Noto Serif JP", "Hiragino Mincho ProN", "游明朝", serif',
+            fontSize: '34px', fontWeight: 900, color: '#111827',
+            letterSpacing: '10px', marginBottom: '14px',
+            background: 'linear-gradient(180deg, #fef3c7 0%, #d97706 100%)',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+            opacity: 0.7,
+          }}>
+            賞品抽選
+          </div>
           <button
             onClick={spinTestGacha}
             disabled={!selectedMemberId || isSpinning}
             style={{
               background: isSpinning ? '#d1d5db' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
               color: 'white', fontWeight: 800, padding: '14px 28px', borderRadius: '12px',
-              fontSize: '15px', border: 'none',
+              fontSize: '15px', border: 'none', letterSpacing: '2px',
               cursor: (!selectedMemberId || isSpinning) ? 'not-allowed' : 'pointer',
               fontFamily: 'inherit',
             }}
           >
-            {isSpinning ? '🎰 抽選中...' : '🎰 ガチャを回す'}
+            {isSpinning ? '抽選中...' : 'ガチャを回す'}
           </button>
           <p style={{ fontSize: '10px', color: '#9ca3af', marginTop: '8px' }}>
             ※ テスト用ボタン。ポイント消費なし＆抽選履歴にも残りません（DB未書き込み）。
@@ -644,28 +658,26 @@ export default function AdminDashboardPage() {
 
       {/* ========== ガチャ結果モーダル（全画面） ========== */}
       {showGachaModal && (() => {
-        const isWin = gachaResult && gachaResult.rarity !== 'miss'
-        const isMiss = gachaResult && gachaResult.rarity === 'miss'
+        const isWin = !!gachaResult && gachaResult.rarity !== 'miss'
+        const isMiss = !!gachaResult && gachaResult.rarity === 'miss'
+        const isUltra = gachaResult?.rarity === 'ultra_rare'
+        const isSuper = gachaResult?.rarity === 'super_rare'
         const rarityLabel =
-          gachaResult?.rarity === 'common' ? 'COMMON'
-          : gachaResult?.rarity === 'rare' ? 'RARE'
-          : gachaResult?.rarity === 'super_rare' ? 'SUPER RARE'
-          : gachaResult?.rarity === 'ultra_rare' ? 'ULTRA RARE'
+          isUltra ? 'ULTRA RARE'
+          : isSuper ? 'SUPER RARE'
           : ''
-        const rarityColor =
-          gachaResult?.rarity === 'common' ? '#f59e0b'
-          : gachaResult?.rarity === 'rare' ? '#3b82f6'
-          : gachaResult?.rarity === 'super_rare' ? '#ec4899'
-          : gachaResult?.rarity === 'ultra_rare' ? '#a855f7'
-          : '#9ca3af'
-        const bgGradient =
-          isSpinning ? 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)'
-          : isMiss ? 'linear-gradient(135deg, #4b5563 0%, #1f2937 100%)'
-          : gachaResult?.rarity === 'common' ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
-          : gachaResult?.rarity === 'rare' ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'
-          : gachaResult?.rarity === 'super_rare' ? 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)'
-          : gachaResult?.rarity === 'ultra_rare' ? 'linear-gradient(135deg, #a855f7 0%, #6b21a8 100%)'
-          : 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)'
+        // 当たり背景：漆黒ベースに rarity 別のアクセント光
+        const winBg = isUltra
+          ? 'radial-gradient(ellipse at center, #3b2412 0%, #1a0f07 55%, #000 100%)'
+          : 'radial-gradient(ellipse at center, #3a1430 0%, #150810 55%, #000 100%)'
+        const loseBg = 'linear-gradient(180deg, #1f2937 0%, #0f172a 60%, #0b1018 100%)'
+        const spinBg = 'radial-gradient(ellipse at center, #1e293b 0%, #0a0f1a 100%)'
+        const accentGold = isSuper
+          ? 'linear-gradient(180deg, #fde68a 0%, #e879f9 45%, #be185d 100%)'
+          : 'linear-gradient(180deg, #fef3c7 0%, #fbbf24 40%, #b45309 100%)'
+        const accentSolid = isSuper ? '#e879f9' : '#fbbf24'
+        const accentDeep = isSuper ? '#be185d' : '#b45309'
+        const bgGradient = isSpinning ? spinBg : isWin ? winBg : isMiss ? loseBg : spinBg
 
         return (
           <div style={{
@@ -673,257 +685,494 @@ export default function AdminDashboardPage() {
             background: bgGradient,
             display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center',
-            padding: '20px',
-            animation: 'gachaFadeIn 0.3s ease-out',
+            padding: '20px', overflow: 'hidden',
+            animation: 'gachaFadeIn 0.4s ease-out',
           }}>
             <style>{`
-              @keyframes gachaFadeIn {
-                from { opacity: 0; }
-                to { opacity: 1; }
+              @keyframes gachaFadeIn { from { opacity: 0; } to { opacity: 1; } }
+              @keyframes ringSpin { to { transform: rotate(360deg); } }
+              @keyframes luxuryEntrance {
+                0%   { opacity: 0; transform: scale(0.5) translateY(30px); filter: blur(12px); }
+                60%  { opacity: 1; transform: scale(1.08) translateY(0); filter: blur(0); }
+                100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
               }
-              @keyframes gachaSpin {
-                0% { transform: rotate(0deg) scale(1); }
-                50% { transform: rotate(180deg) scale(1.1); }
-                100% { transform: rotate(360deg) scale(1); }
+              @keyframes shimmerGold {
+                0%, 100% { filter: brightness(1) drop-shadow(0 0 30px rgba(251,191,36,0.4)); }
+                50%      { filter: brightness(1.3) drop-shadow(0 0 60px rgba(251,191,36,0.9)); }
               }
-              @keyframes gachaPop {
-                0% { transform: scale(0.3); opacity: 0; }
-                60% { transform: scale(1.2); opacity: 1; }
-                100% { transform: scale(1); opacity: 1; }
+              @keyframes shimmerRose {
+                0%, 100% { filter: brightness(1) drop-shadow(0 0 30px rgba(232,121,249,0.4)); }
+                50%      { filter: brightness(1.3) drop-shadow(0 0 60px rgba(232,121,249,0.9)); }
               }
-              @keyframes gachaShake {
-                0%, 100% { transform: translateX(0); }
-                25% { transform: translateX(-8px); }
-                75% { transform: translateX(8px); }
+              @keyframes raysRotate {
+                from { transform: translate(-50%, -50%) rotate(0deg); }
+                to   { transform: translate(-50%, -50%) rotate(360deg); }
               }
-              @keyframes gachaPulse {
-                0%, 100% { transform: scale(1); opacity: 0.8; }
-                50% { transform: scale(1.05); opacity: 1; }
+              @keyframes cardReveal {
+                0%   { opacity: 0; transform: scale(0.7) translateY(40px); }
+                100% { opacity: 1; transform: scale(1) translateY(0); }
               }
-              @keyframes sparkle {
-                0%, 100% { transform: scale(0) rotate(0deg); opacity: 0; }
-                50% { transform: scale(1) rotate(180deg); opacity: 1; }
+              @keyframes sadEntrance {
+                0%   { opacity: 0; transform: translateY(-20px) scale(1.2); letter-spacing: 40px; filter: blur(8px); }
+                100% { opacity: 1; transform: translateY(0) scale(1); letter-spacing: 16px; filter: blur(0); }
+              }
+              @keyframes heavyFade {
+                0%   { opacity: 0; transform: translateY(12px); }
+                100% { opacity: 1; transform: translateY(0); }
+              }
+              @keyframes rainFall {
+                0%   { transform: translateY(-10vh); opacity: 0; }
+                15%  { opacity: 0.6; }
+                100% { transform: translateY(110vh); opacity: 0; }
               }
               @keyframes confettiFall {
-                0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
-                100% { transform: translateY(105vh) rotate(720deg); opacity: 0.8; }
+                0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+                100% { transform: translateY(110vh) rotate(720deg); opacity: 0.7; }
+              }
+              @keyframes pulseSoft {
+                0%, 100% { opacity: 0.6; }
+                50%      { opacity: 1; }
+              }
+              @keyframes borderShimmer {
+                0%, 100% { opacity: 0.5; }
+                50%      { opacity: 1; }
               }
             `}</style>
 
+            {/* ========== 抽選中 ========== */}
             {isSpinning && (
               <>
                 <div style={{
-                  fontSize: '140px',
-                  animation: 'gachaSpin 0.8s ease-in-out infinite',
-                  marginBottom: '24px',
-                }}>🎰</div>
-                <div style={{
-                  color: 'white', fontSize: '24px', fontWeight: 900,
-                  letterSpacing: '4px',
-                  animation: 'gachaPulse 1s ease-in-out infinite',
+                  position: 'relative', width: '160px', height: '160px',
+                  marginBottom: '32px',
                 }}>
-                  抽選中...
+                  {/* 外側リング */}
+                  <div style={{
+                    position: 'absolute', inset: 0,
+                    borderRadius: '50%',
+                    border: '3px solid rgba(251,191,36,0.2)',
+                    borderTopColor: '#fbbf24',
+                    borderRightColor: '#f59e0b',
+                    animation: 'ringSpin 0.9s linear infinite',
+                  }} />
+                  {/* 内側リング（逆回転） */}
+                  <div style={{
+                    position: 'absolute', inset: '18px',
+                    borderRadius: '50%',
+                    border: '2px solid rgba(251,191,36,0.15)',
+                    borderBottomColor: '#fde68a',
+                    animation: 'ringSpin 1.4s linear infinite reverse',
+                  }} />
+                  {/* 中央テキスト */}
+                  <div style={{
+                    position: 'absolute', inset: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontFamily: '"Noto Serif JP", serif',
+                    fontSize: '13px', fontWeight: 800,
+                    color: '#fde68a', letterSpacing: '6px',
+                    animation: 'pulseSoft 1.2s ease-in-out infinite',
+                  }}>
+                    抽選中
+                  </div>
                 </div>
-                <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px', marginTop: '16px' }}>
-                  結果が出るまでしばらくお待ちください
+                <div style={{
+                  color: 'rgba(253,230,138,0.9)',
+                  fontSize: '12px', letterSpacing: '8px',
+                  fontWeight: 600,
+                }}>
+                  DRAWING A PRIZE
                 </div>
               </>
             )}
 
+            {/* ========== エラー ========== */}
             {!isSpinning && gachaError && (
               <>
-                <div style={{ fontSize: '80px', marginBottom: '16px' }}>⚠️</div>
-                <div style={{ color: 'white', fontSize: '20px', fontWeight: 800, marginBottom: '8px' }}>
-                  エラーが発生しました
+                <div style={{
+                  fontFamily: '"Noto Serif JP", serif',
+                  fontSize: '48px', fontWeight: 900,
+                  color: '#fca5a5', letterSpacing: '12px',
+                  marginBottom: '16px',
+                }}>
+                  エラー
                 </div>
                 <div style={{
-                  color: 'rgba(255,255,255,0.8)', fontSize: '13px',
-                  background: 'rgba(0,0,0,0.3)', padding: '12px 20px', borderRadius: '10px',
-                  maxWidth: '400px', textAlign: 'center', marginBottom: '24px',
+                  color: 'rgba(255,255,255,0.85)', fontSize: '13px',
+                  background: 'rgba(0,0,0,0.4)', padding: '14px 22px', borderRadius: '10px',
+                  maxWidth: '420px', textAlign: 'center', marginBottom: '28px',
+                  border: '1px solid rgba(252,165,165,0.3)',
                 }}>
                   {gachaError}
                 </div>
                 <button onClick={closeGachaModal} style={{
                   background: 'white', color: '#1f2937', fontWeight: 800,
-                  padding: '12px 32px', borderRadius: '12px', border: 'none',
-                  fontSize: '15px', cursor: 'pointer', fontFamily: 'inherit',
+                  padding: '12px 32px', borderRadius: '10px', border: 'none',
+                  fontSize: '14px', letterSpacing: '2px',
+                  cursor: 'pointer', fontFamily: 'inherit',
                 }}>
                   閉じる
                 </button>
               </>
             )}
 
-            {!isSpinning && !gachaError && gachaResult && (
+            {/* ========== 結果：当たり（豪華） ========== */}
+            {!isSpinning && !gachaError && gachaResult && isWin && (
               <>
-                {/* 紙吹雪（当たり時のみ） */}
-                {isWin && (
-                  <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
-                    {Array.from({ length: 24 }).map((_, i) => {
-                      const colors = ['#fbbf24', '#f472b6', '#60a5fa', '#34d399', '#a78bfa', '#fb7185']
-                      const left = (i * 4.2 + (i % 3) * 7) % 100
-                      const delay = (i * 0.08) % 1.5
-                      const duration = 2.5 + (i % 4) * 0.4
-                      const size = 8 + (i % 3) * 4
-                      return (
-                        <div key={i} style={{
-                          position: 'absolute',
-                          left: `${left}%`,
-                          top: '-20px',
-                          width: `${size}px`, height: `${size}px`,
-                          background: colors[i % colors.length],
-                          borderRadius: i % 2 === 0 ? '50%' : '2px',
-                          animation: `confettiFall ${duration}s ease-in ${delay}s infinite`,
-                        }} />
-                      )
-                    })}
-                  </div>
-                )}
-
-                {/* 判定バナー */}
+                {/* 背景の放射状ゴールドレイ（ゆっくり回転） */}
                 <div style={{
-                  fontSize: isWin ? '80px' : '56px',
+                  position: 'absolute', top: '50%', left: '50%',
+                  width: '200vmax', height: '200vmax',
+                  background: isSuper
+                    ? 'repeating-conic-gradient(from 0deg, rgba(232,121,249,0.12) 0deg, rgba(232,121,249,0) 8deg, rgba(232,121,249,0) 16deg)'
+                    : 'repeating-conic-gradient(from 0deg, rgba(251,191,36,0.15) 0deg, rgba(251,191,36,0) 8deg, rgba(251,191,36,0) 16deg)',
+                  pointerEvents: 'none',
+                  animation: 'raysRotate 30s linear infinite',
+                  transformOrigin: 'center',
+                }} />
+
+                {/* 中心の光の爆発 */}
+                <div style={{
+                  position: 'absolute', top: '50%', left: '50%',
+                  width: '600px', height: '600px',
+                  transform: 'translate(-50%, -50%)',
+                  background: isSuper
+                    ? 'radial-gradient(circle, rgba(232,121,249,0.35) 0%, rgba(232,121,249,0) 60%)'
+                    : 'radial-gradient(circle, rgba(251,191,36,0.4) 0%, rgba(251,191,36,0) 60%)',
+                  pointerEvents: 'none',
+                }} />
+
+                {/* 紙吹雪（倍量） */}
+                <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+                  {Array.from({ length: 60 }).map((_, i) => {
+                    const goldPalette = ['#fde68a', '#fbbf24', '#f59e0b', '#fef3c7', '#d97706', '#ffffff']
+                    const rosePalette = ['#fbcfe8', '#f472b6', '#e879f9', '#fef3c7', '#be185d', '#ffffff']
+                    const palette = isSuper ? rosePalette : goldPalette
+                    const left = (i * 1.7 + (i % 5) * 3) % 100
+                    const delay = (i * 0.06) % 2.5
+                    const duration = 3 + (i % 5) * 0.5
+                    const size = 6 + (i % 4) * 4
+                    const shape = i % 3
+                    return (
+                      <div key={i} style={{
+                        position: 'absolute',
+                        left: `${left}%`, top: '-20px',
+                        width: `${size}px`, height: `${size * (shape === 2 ? 1.8 : 1)}px`,
+                        background: palette[i % palette.length],
+                        borderRadius: shape === 0 ? '50%' : shape === 1 ? '2px' : '1px',
+                        opacity: 0.9,
+                        boxShadow: `0 0 8px ${palette[i % palette.length]}`,
+                        animation: `confettiFall ${duration}s ease-in ${delay}s infinite`,
+                      }} />
+                    )
+                  })}
+                </div>
+
+                {/* メインタイトル「大当選」 */}
+                <h1 style={{
+                  fontFamily: '"Noto Serif JP", "Hiragino Mincho ProN", "游明朝", serif',
+                  fontSize: 'clamp(80px, 16vw, 160px)',
                   fontWeight: 900,
-                  color: 'white',
-                  letterSpacing: isWin ? '8px' : '6px',
-                  textShadow: isWin
-                    ? '0 0 40px rgba(255,255,255,0.9), 0 4px 12px rgba(0,0,0,0.3)'
-                    : '0 4px 12px rgba(0,0,0,0.3)',
-                  marginBottom: isWin ? '12px' : '32px',
-                  animation: isWin ? 'gachaPop 0.6s ease-out' : 'gachaShake 0.4s ease-in-out',
+                  letterSpacing: '24px',
+                  paddingLeft: '24px', // letter-spacing 補正
+                  margin: 0,
+                  background: accentGold,
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                  animation: `luxuryEntrance 1.1s cubic-bezier(0.34, 1.56, 0.64, 1) both, ${isSuper ? 'shimmerRose' : 'shimmerGold'} 2.5s ease-in-out 1.1s infinite`,
                   position: 'relative', zIndex: 2,
-                }}>
-                  {isWin ? '🎉 当たり 🎉' : '外れ'}
-                </div>
-
-                {/* お祝い／残念メッセージ */}
-                <div style={{
-                  color: 'white',
-                  fontSize: isWin ? '16px' : '14px',
-                  fontWeight: 700,
-                  marginBottom: '24px',
-                  textShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                  position: 'relative', zIndex: 2,
-                  animation: 'gachaPop 0.6s ease-out 0.2s both',
-                }}>
-                  {isWin ? '🎊 おめでとうございます！ 🎊' : '残念！次回に期待...'}
-                </div>
-
-                {/* 景品カード */}
-                <div style={{
-                  background: 'white',
-                  borderRadius: '24px',
-                  padding: '36px 40px 28px',
-                  minWidth: '300px',
-                  maxWidth: '420px',
                   textAlign: 'center',
-                  boxShadow: isWin
-                    ? `0 0 80px ${rarityColor}aa, 0 10px 40px rgba(0,0,0,0.3)`
-                    : '0 10px 40px rgba(0,0,0,0.3)',
-                  animation: 'gachaPop 0.6s ease-out 0.1s both',
+                  lineHeight: 1,
+                }}>
+                  大当選
+                </h1>
+
+                {/* サブタイトル */}
+                <div style={{
+                  fontFamily: '"Cormorant Garamond", "Times New Roman", serif',
+                  fontSize: '14px',
+                  color: isSuper ? 'rgba(251,207,232,0.9)' : 'rgba(253,230,138,0.9)',
+                  letterSpacing: '14px',
+                  paddingLeft: '14px',
+                  marginTop: '16px',
+                  marginBottom: '40px',
+                  fontWeight: 500,
+                  fontStyle: 'italic',
+                  animation: 'heavyFade 0.8s ease-out 0.6s both',
                   position: 'relative', zIndex: 2,
                 }}>
-                  {/* レアリティバッジ */}
-                  {isWin && rarityLabel && (
+                  CONGRATULATIONS
+                </div>
+
+                {/* 景品カード（豪華・金縁） */}
+                <div style={{
+                  position: 'relative', zIndex: 2,
+                  minWidth: '340px', maxWidth: '460px',
+                  animation: 'cardReveal 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) 0.8s both',
+                }}>
+                  {/* 金縁グラデーション枠 */}
+                  <div style={{
+                    position: 'absolute', inset: '-3px',
+                    borderRadius: '22px',
+                    background: accentGold,
+                    filter: 'blur(0.5px)',
+                    animation: 'borderShimmer 2.5s ease-in-out infinite',
+                  }} />
+
+                  <div style={{
+                    position: 'relative',
+                    background: 'linear-gradient(180deg, #fffbeb 0%, #ffffff 40%, #fef3c7 100%)',
+                    borderRadius: '20px',
+                    padding: '44px 40px 36px',
+                    textAlign: 'center',
+                    boxShadow: `0 0 80px ${accentSolid}66, 0 20px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.9)`,
+                  }}>
+                    {/* 上部レアリティ表記 */}
                     <div style={{
-                      position: 'absolute', top: '-14px', left: '50%',
-                      transform: 'translateX(-50%)',
-                      background: rarityColor, color: 'white',
-                      fontSize: '12px', fontWeight: 900,
-                      padding: '6px 16px', borderRadius: '20px',
-                      letterSpacing: '2px',
-                      boxShadow: `0 4px 12px ${rarityColor}88`,
-                      whiteSpace: 'nowrap',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      gap: '14px', marginBottom: '18px',
                     }}>
-                      ★ {rarityLabel} ★
-                    </div>
-                  )}
-
-                  {/* 景品ラベル */}
-                  <div style={{
-                    fontSize: '11px', fontWeight: 800, color: rarityColor,
-                    letterSpacing: '4px', marginBottom: '12px',
-                    borderBottom: `2px dashed ${rarityColor}44`,
-                    paddingBottom: '12px',
-                  }}>
-                    {isWin ? '🎁 獲得した景品' : '結果'}
-                  </div>
-
-                  <div style={{
-                    fontSize: '110px', marginBottom: '8px', lineHeight: 1,
-                    filter: isMiss ? 'grayscale(50%)' : 'none',
-                  }}>
-                    {gachaResult.icon}
-                  </div>
-
-                  {/* 景品名 */}
-                  <div style={{
-                    fontSize: '11px', fontWeight: 700, color: '#9ca3af',
-                    letterSpacing: '2px', marginBottom: '6px',
-                  }}>
-                    {isWin ? '景品名' : '結果'}
-                  </div>
-
-                  <div style={{
-                    fontSize: '28px', fontWeight: 900,
-                    color: isWin ? '#1f2937' : '#6b7280',
-                    lineHeight: 1.3,
-                    marginBottom: '12px',
-                  }}>
-                    {gachaResult.prize}
-                  </div>
-
-                  {/* 景品の説明 */}
-                  {isWin && (() => {
-                    const description =
-                      gachaResult.prize === 'クオカード500円' ? 'クオカード500円分をプレゼント！（当選確率 1/50）'
-                      : gachaResult.prize === 'Amazonギフト券1000円' ? 'Amazonギフト券1,000円分をプレゼント！（当選確率 1/100・激レア！）'
-                      : gachaResult.prize === 'スタバギフト券1000円' ? 'スターバックスギフト券1,000円分をプレゼント！（当選確率 1/100・激レア！）'
-                      : ''
-                    return description ? (
+                      <div style={{ flex: 1, height: '1px', background: `linear-gradient(90deg, transparent, ${accentDeep})` }} />
                       <div style={{
-                        fontSize: '12px', color: '#6b7280',
-                        background: '#f9fafb', padding: '10px 14px',
-                        borderRadius: '10px', lineHeight: 1.5,
-                        marginTop: '8px',
+                        fontFamily: '"Cormorant Garamond", serif',
+                        fontSize: '11px', fontWeight: 700, letterSpacing: '6px',
+                        color: accentDeep, fontStyle: 'italic',
+                        whiteSpace: 'nowrap',
                       }}>
-                        {description}
+                        {rarityLabel} PRIZE
                       </div>
-                    ) : null
-                  })()}
-
-                  {isMiss && (
-                    <div style={{
-                      fontSize: '13px', color: '#6b7280', marginTop: '8px',
-                      background: '#f3f4f6', padding: '10px 14px', borderRadius: '10px',
-                    }}>
-                      今回は景品なし。<br />
-                      また挑戦してください 🙏
+                      <div style={{ flex: 1, height: '1px', background: `linear-gradient(90deg, ${accentDeep}, transparent)` }} />
                     </div>
-                  )}
+
+                    {/* ラベル */}
+                    <div style={{
+                      fontFamily: '"Noto Serif JP", serif',
+                      fontSize: '13px', fontWeight: 700,
+                      color: accentDeep, letterSpacing: '10px',
+                      marginBottom: '20px',
+                    }}>
+                      獲得賞品
+                    </div>
+
+                    {/* 景品名（超大） */}
+                    <div style={{
+                      fontFamily: '"Noto Serif JP", "Hiragino Mincho ProN", serif',
+                      fontSize: 'clamp(30px, 5vw, 42px)',
+                      fontWeight: 900,
+                      color: '#1a0f07',
+                      lineHeight: 1.2,
+                      letterSpacing: '2px',
+                      marginBottom: '18px',
+                    }}>
+                      {gachaResult.prize}
+                    </div>
+
+                    {/* 装飾罫線 */}
+                    <div style={{
+                      width: '60%', margin: '0 auto 22px',
+                      height: '1px',
+                      background: `linear-gradient(90deg, transparent, ${accentSolid}, transparent)`,
+                    }} />
+
+                    {/* 説明文 */}
+                    <div style={{
+                      fontSize: '13px', color: '#57493b',
+                      lineHeight: 1.75, fontStyle: 'italic',
+                      padding: '0 8px',
+                    }}>
+                      {gachaResult.prize === 'クオカード500円' ? (
+                        <>クオカード500円分を進呈いたします。<br />
+                        <span style={{ fontSize: '11px', color: accentDeep, fontWeight: 700 }}>当選確率 1 / 50</span></>
+                      ) : gachaResult.prize === 'Amazonギフト券1000円' ? (
+                        <>Amazonギフト券1,000円分を進呈いたします。<br />
+                        <span style={{ fontSize: '11px', color: accentDeep, fontWeight: 700 }}>当選確率 1 / 100　— 最上位賞 —</span></>
+                      ) : gachaResult.prize === 'スタバギフト券1000円' ? (
+                        <>スターバックスギフト券1,000円分を進呈いたします。<br />
+                        <span style={{ fontSize: '11px', color: accentDeep, fontWeight: 700 }}>当選確率 1 / 100　— 最上位賞 —</span></>
+                      ) : null}
+                    </div>
+
+                    {/* 受取り案内 */}
+                    <div style={{
+                      marginTop: '24px', paddingTop: '18px',
+                      borderTop: `1px dashed ${accentSolid}66`,
+                      fontSize: '11px', color: '#78644c',
+                      letterSpacing: '1px',
+                    }}>
+                      賞品のお受取り方法は後日スタッフよりご案内いたします
+                    </div>
+                  </div>
                 </div>
 
                 {/* アクションボタン */}
                 <div style={{
-                  display: 'flex', gap: '12px', marginTop: '32px',
-                  animation: 'gachaPop 0.6s ease-out 0.4s both',
+                  display: 'flex', gap: '14px', marginTop: '36px',
+                  position: 'relative', zIndex: 2,
+                  animation: 'heavyFade 0.6s ease-out 1.3s both',
                 }}>
                   <button onClick={closeGachaModal} style={{
-                    background: 'rgba(255,255,255,0.2)',
-                    color: 'white', fontWeight: 800,
-                    padding: '12px 24px', borderRadius: '12px',
-                    border: '1.5px solid rgba(255,255,255,0.4)',
-                    fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit',
-                    backdropFilter: 'blur(8px)',
+                    background: 'rgba(255,255,255,0.08)',
+                    color: 'white', fontWeight: 700,
+                    padding: '13px 26px', borderRadius: '10px',
+                    border: '1px solid rgba(255,255,255,0.35)',
+                    fontSize: '13px', letterSpacing: '4px',
+                    cursor: 'pointer', fontFamily: 'inherit',
+                    backdropFilter: 'blur(10px)',
                   }}>
                     閉じる
                   </button>
                   <button onClick={() => { closeGachaModal(); setTimeout(() => spinTestGacha(), 350) }} style={{
-                    background: 'white', color: '#1f2937', fontWeight: 800,
-                    padding: '12px 28px', borderRadius: '12px', border: 'none',
-                    fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                    background: accentGold,
+                    color: '#1a0f07', fontWeight: 900,
+                    padding: '13px 30px', borderRadius: '10px', border: 'none',
+                    fontSize: '13px', letterSpacing: '4px',
+                    cursor: 'pointer', fontFamily: 'inherit',
+                    boxShadow: `0 8px 24px ${accentSolid}88`,
                   }}>
-                    🔄 もう一度回す
+                    もう一度回す
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* ========== 結果：外れ（とても残念） ========== */}
+            {!isSpinning && !gachaError && gachaResult && isMiss && (
+              <>
+                {/* 雨アニメーション */}
+                <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+                  {Array.from({ length: 60 }).map((_, i) => {
+                    const left = (i * 1.7 + (i % 7) * 2.3) % 100
+                    const delay = (i * 0.12) % 3
+                    const duration = 1.2 + (i % 4) * 0.3
+                    const height = 40 + (i % 3) * 20
+                    return (
+                      <div key={i} style={{
+                        position: 'absolute',
+                        left: `${left}%`, top: '-10vh',
+                        width: '1px', height: `${height}px`,
+                        background: 'linear-gradient(180deg, rgba(148,163,184,0) 0%, rgba(148,163,184,0.4) 100%)',
+                        animation: `rainFall ${duration}s linear ${delay}s infinite`,
+                      }} />
+                    )
+                  })}
+                </div>
+
+                {/* 暗い vignette */}
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  background: 'radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.7) 100%)',
+                  pointerEvents: 'none',
+                }} />
+
+                {/* 『残念...』タイトル */}
+                <h1 style={{
+                  fontFamily: '"Noto Serif JP", "Hiragino Mincho ProN", "游明朝", serif',
+                  fontSize: 'clamp(64px, 13vw, 130px)',
+                  fontWeight: 900,
+                  color: '#64748b',
+                  letterSpacing: '16px',
+                  paddingLeft: '16px',
+                  margin: 0,
+                  textShadow: '0 4px 30px rgba(0,0,0,0.8)',
+                  animation: 'sadEntrance 1.5s ease-out both',
+                  position: 'relative', zIndex: 2,
+                  textAlign: 'center',
+                  lineHeight: 1,
+                }}>
+                  残念...
+                </h1>
+
+                <div style={{
+                  fontFamily: '"Cormorant Garamond", "Times New Roman", serif',
+                  fontSize: '13px',
+                  color: '#64748b',
+                  letterSpacing: '10px',
+                  paddingLeft: '10px',
+                  marginTop: '20px',
+                  marginBottom: '40px',
+                  fontStyle: 'italic',
+                  animation: 'heavyFade 1s ease-out 1s both',
+                  position: 'relative', zIndex: 2,
+                }}>
+                  NOT A WINNER
+                </div>
+
+                {/* 外れカード（くすんだ） */}
+                <div style={{
+                  position: 'relative', zIndex: 2,
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(148,163,184,0.2)',
+                  borderRadius: '14px',
+                  padding: '32px 40px',
+                  minWidth: '320px', maxWidth: '440px',
+                  textAlign: 'center',
+                  backdropFilter: 'blur(8px)',
+                  animation: 'heavyFade 1s ease-out 1.3s both',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 10px 40px rgba(0,0,0,0.4)',
+                }}>
+                  <div style={{
+                    fontFamily: '"Noto Serif JP", serif',
+                    fontSize: '32px', fontWeight: 900,
+                    color: '#94a3b8',
+                    letterSpacing: '12px',
+                    paddingLeft: '12px',
+                    marginBottom: '8px',
+                  }}>
+                    外　れ
+                  </div>
+
+                  <div style={{
+                    width: '40%', margin: '14px auto',
+                    height: '1px',
+                    background: 'linear-gradient(90deg, transparent, rgba(148,163,184,0.5), transparent)',
+                  }} />
+
+                  <div style={{
+                    color: '#94a3b8',
+                    fontSize: '13px',
+                    lineHeight: 2,
+                    fontFamily: '"Noto Serif JP", serif',
+                    letterSpacing: '2px',
+                  }}>
+                    今回は当選されませんでした。<br />
+                    また挑戦していただければ幸いです。
+                  </div>
+
+                  <div style={{
+                    marginTop: '20px', paddingTop: '16px',
+                    borderTop: '1px dashed rgba(148,163,184,0.2)',
+                    fontSize: '11px', color: '#64748b',
+                    letterSpacing: '2px', fontStyle: 'italic',
+                  }}>
+                    次の挑戦をお待ちしています
+                  </div>
+                </div>
+
+                {/* アクションボタン */}
+                <div style={{
+                  display: 'flex', gap: '14px', marginTop: '32px',
+                  position: 'relative', zIndex: 2,
+                  animation: 'heavyFade 1s ease-out 1.8s both',
+                }}>
+                  <button onClick={closeGachaModal} style={{
+                    background: 'rgba(255,255,255,0.06)',
+                    color: 'rgba(255,255,255,0.8)', fontWeight: 700,
+                    padding: '13px 26px', borderRadius: '10px',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    fontSize: '13px', letterSpacing: '4px',
+                    cursor: 'pointer', fontFamily: 'inherit',
+                  }}>
+                    閉じる
+                  </button>
+                  <button onClick={() => { closeGachaModal(); setTimeout(() => spinTestGacha(), 350) }} style={{
+                    background: 'linear-gradient(135deg, #475569, #334155)',
+                    color: '#e2e8f0', fontWeight: 800,
+                    padding: '13px 30px', borderRadius: '10px', border: 'none',
+                    fontSize: '13px', letterSpacing: '4px',
+                    cursor: 'pointer', fontFamily: 'inherit',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                  }}>
+                    もう一度挑戦する
                   </button>
                 </div>
               </>

@@ -1012,7 +1012,7 @@ export default function DashboardPage() {
                 boxShadow: availableLotteries > 0 ? '0 4px 12px rgba(239,68,68,0.3)' : 'none',
               }}
             >
-              {availableLotteries > 0 ? `🎰 抽選する（${availableLotteries}回）` : '🎰 100pt で抽選（あと' + (100 - totalPoints % 100) + 'pt）'}
+              {availableLotteries > 0 ? `抽選する（${availableLotteries}回）` : `100pt で抽選（あと ${100 - totalPoints % 100} pt）`}
             </button>
           </div>
         </div>
@@ -1037,141 +1037,452 @@ export default function DashboardPage() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{
-              background: 'linear-gradient(135deg, #ef4444, #f59e0b)',
-              padding: '24px 20px', textAlign: 'center',
-            }}>
-              <div style={{ fontSize: '40px', marginBottom: '8px' }}>🎰</div>
-              <h2 style={{ fontSize: '20px', fontWeight: 900, color: 'white', margin: 0 }}>スポミル抽選</h2>
-              <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.8)', margin: '4px 0 0' }}>100pt で1回抽選できます</p>
-            </div>
-            <div style={{ padding: '20px' }}>
-              {!lotteryResult ? (
+            {(() => {
+              const isWinResult = !!lotteryResult && lotteryResult.rarity !== 'miss'
+              const isMissResult = !!lotteryResult && lotteryResult.rarity === 'miss'
+              const isUltra = lotteryResult?.rarity === 'ultra_rare'
+              const accentSolid = isUltra ? '#fbbf24' : '#e879f9'
+              const accentDeep = isUltra ? '#b45309' : '#be185d'
+              const accentGold = isUltra
+                ? 'linear-gradient(180deg, #fef3c7 0%, #fbbf24 40%, #b45309 100%)'
+                : 'linear-gradient(180deg, #fde68a 0%, #e879f9 45%, #be185d 100%)'
+              return (
                 <>
-                  <p style={{ fontSize: '13px', color: '#6b7280', textAlign: 'center', marginBottom: '12px' }}>
-                    残りポイント: <strong>{totalPoints}pt</strong>（{availableLotteries}回抽選可能）
-                  </p>
-                  <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '16px' }}>
-                    <p style={{ fontWeight: 700, marginBottom: '6px' }}>景品一覧:</p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      {[
-                        { icon: '📦', name: 'Amazonギフト券1000円', prob: '1/100' },
-                        { icon: '☕', name: 'スタバギフト券1000円', prob: '1/100' },
-                        { icon: '💳', name: 'クオカード500円', prob: '1/50' },
-                      ].map(p => (
-                        <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
-                          <span style={{ fontSize: '16px' }}>{p.icon}</span>
-                          <span style={{ flex: 1, fontSize: '12px' }}>{p.name}</span>
-                          <span style={{ fontSize: '10px', fontWeight: 700, color: '#f59e0b' }}>{p.prob}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      if (!userId) return
-                      setIsSpinning(true)
-                      setTimeout(async () => {
-                        try {
-                          const res = await apiFetch('/api/user-points', {
-                            method: 'POST',
-                            body: JSON.stringify({ userId, action: 'lottery' }),
-                          })
-                          if (res.ok) {
-                            const data = await res.json()
-                            if (data.lotteryResult) {
-                              setLotteryResult(data.lotteryResult)
-                              setTotalPoints(data.total_points ?? 0)
-                              setAvailableLotteries(Math.floor((data.total_points ?? 0) / 100))
-                              setLotteryHistory((data.lottery_history || []).slice(0, 10))
-                            }
-                          }
-                        } catch { /* ignore */ }
-                        setIsSpinning(false)
-                      }, 1500)
-                    }}
-                    disabled={availableLotteries === 0 || isSpinning}
-                    style={{
-                      width: '100%', padding: '14px', borderRadius: '12px', fontSize: '15px',
-                      fontWeight: 800, border: 'none', fontFamily: 'inherit',
-                      cursor: (availableLotteries > 0 && !isSpinning) ? 'pointer' : 'not-allowed',
-                      background: (availableLotteries > 0 && !isSpinning) ? 'linear-gradient(90deg, #ef4444, #f59e0b)' : '#d1d5db',
-                      color: 'white',
-                      animation: isSpinning ? 'pulse 0.5s infinite' : 'none',
-                    }}
-                  >
-                    {isSpinning ? '🎰 抽選中...' : '100pt 使って抽選する！'}
-                  </button>
-                </>
-              ) : (
-                <div style={{ textAlign: 'center' }}>
+                  <style>{`
+                    @keyframes dashLuxuryEntrance {
+                      0%   { opacity: 0; transform: scale(0.5); filter: blur(8px); }
+                      60%  { opacity: 1; transform: scale(1.08); filter: blur(0); }
+                      100% { opacity: 1; transform: scale(1); filter: blur(0); }
+                    }
+                    @keyframes dashShimmer {
+                      0%, 100% { filter: brightness(1) drop-shadow(0 0 10px rgba(251,191,36,0.5)); }
+                      50%      { filter: brightness(1.25) drop-shadow(0 0 20px rgba(251,191,36,0.9)); }
+                    }
+                    @keyframes dashSadEntrance {
+                      0%   { opacity: 0; letter-spacing: 32px; filter: blur(6px); }
+                      100% { opacity: 1; letter-spacing: 10px; filter: blur(0); }
+                    }
+                    @keyframes dashFade {
+                      from { opacity: 0; transform: translateY(8px); }
+                      to   { opacity: 1; transform: translateY(0); }
+                    }
+                    @keyframes dashRingSpin { to { transform: rotate(360deg); } }
+                    @keyframes dashConfetti {
+                      0%   { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+                      100% { transform: translateY(400px) rotate(540deg); opacity: 0.7; }
+                    }
+                    @keyframes dashRain {
+                      0%   { transform: translateY(-20px); opacity: 0; }
+                      20%  { opacity: 0.6; }
+                      100% { transform: translateY(380px); opacity: 0; }
+                    }
+                  `}</style>
+
+                  {/* ========== ヘッダー（結果に応じて変化） ========== */}
                   <div style={{
-                    fontSize: '64px', marginBottom: '12px',
-                    animation: 'bounce 0.5s',
+                    background: isWinResult
+                      ? (isUltra ? 'linear-gradient(135deg, #1a0f07 0%, #3b2412 100%)' : 'linear-gradient(135deg, #150810 0%, #3a1430 100%)')
+                      : isMissResult ? 'linear-gradient(135deg, #1f2937 0%, #0f172a 100%)'
+                      : 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+                    padding: '28px 20px 22px', textAlign: 'center',
+                    position: 'relative', overflow: 'hidden',
                   }}>
-                    {lotteryResult.icon}
-                  </div>
-                  {lotteryResult.rarity !== 'miss' && (
                     <div style={{
-                      fontSize: '12px', fontWeight: 800,
-                      color: getRarityColor(lotteryResult.rarity),
-                      marginBottom: '4px',
+                      fontFamily: '"Noto Serif JP", "Hiragino Mincho ProN", serif',
+                      fontSize: '26px', fontWeight: 900,
+                      letterSpacing: '12px', paddingLeft: '12px',
+                      color: '#fde68a', margin: 0,
+                      background: 'linear-gradient(180deg, #fef3c7 0%, #fbbf24 100%)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
                     }}>
-                      {getRarityLabel(lotteryResult.rarity)}
+                      賞品抽選
                     </div>
-                  )}
-                  <h3 style={{
-                    fontSize: '20px', fontWeight: 900, color: '#111827', margin: '0 0 8px',
-                  }}>
-                    {lotteryResult.prize}
-                  </h3>
-                  <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '16px' }}>
-                    残りポイント: {totalPoints}pt
-                  </p>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      onClick={() => setShowLotteryModal(false)}
-                      style={{
-                        flex: 1, padding: '11px', borderRadius: '10px', fontSize: '13px',
-                        fontWeight: 600, border: '1px solid #e5e7eb', background: 'white',
-                        color: '#6b7280', cursor: 'pointer', fontFamily: 'inherit',
-                      }}
-                    >
-                      閉じる
-                    </button>
-                    {availableLotteries > 0 && (
-                      <button
-                        onClick={() => setLotteryResult(null)}
-                        style={{
-                          flex: 1, padding: '11px', borderRadius: '10px', fontSize: '13px',
-                          fontWeight: 700, border: 'none',
-                          background: 'linear-gradient(90deg, #ef4444, #f59e0b)',
-                          color: 'white', cursor: 'pointer', fontFamily: 'inherit',
-                        }}
-                      >
-                        もう1回！
-                      </button>
+                    <p style={{
+                      fontSize: '11px', color: 'rgba(253,230,138,0.7)',
+                      letterSpacing: '4px', margin: '8px 0 0',
+                      fontFamily: 'serif', fontStyle: 'italic',
+                    }}>
+                      100 POINTS × 1 DRAW
+                    </p>
+                  </div>
+
+                  <div style={{ padding: '22px 20px', background: '#fffefb' }}>
+                    {!lotteryResult ? (
+                      <>
+                        {/* 状況 */}
+                        <p style={{ fontSize: '13px', color: '#57493b', textAlign: 'center', marginBottom: '14px', fontFamily: 'serif' }}>
+                          保有ポイント <strong style={{ color: '#b45309', fontSize: '18px' }}>{totalPoints}</strong> pt
+                          <span style={{ color: '#9ca3af', marginLeft: '8px', fontSize: '11px' }}>（{availableLotteries} 回抽選可能）</span>
+                        </p>
+
+                        {/* 景品一覧 */}
+                        <div style={{
+                          marginBottom: '20px',
+                          border: '1px solid #f3e8d0',
+                          borderRadius: '10px',
+                          background: 'linear-gradient(180deg, #fffbeb 0%, #ffffff 100%)',
+                          padding: '12px 14px',
+                        }}>
+                          <div style={{
+                            fontFamily: 'serif', fontSize: '11px', fontWeight: 700,
+                            color: '#b45309', letterSpacing: '6px', textAlign: 'center',
+                            paddingBottom: '8px', marginBottom: '8px',
+                            borderBottom: '1px dashed #f3e8d0',
+                          }}>
+                            PRIZE LIST
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            {[
+                              { name: 'Amazonギフト券 1,000円', prob: '1 / 100', tier: '最上位' },
+                              { name: 'スタバギフト券 1,000円', prob: '1 / 100', tier: '最上位' },
+                              { name: 'クオカード 500円', prob: '1 / 50', tier: '上位' },
+                            ].map(p => (
+                              <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px' }}>
+                                <span style={{ flex: 1, fontFamily: 'serif', fontWeight: 700, color: '#1f2937' }}>{p.name}</span>
+                                <span style={{
+                                  fontSize: '10px', fontWeight: 800, color: '#b45309',
+                                  background: '#fef3c7', padding: '2px 8px', borderRadius: '6px',
+                                  fontFamily: 'serif', letterSpacing: '1px',
+                                }}>{p.prob}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            if (!userId) return
+                            setIsSpinning(true)
+                            setTimeout(async () => {
+                              try {
+                                const res = await apiFetch('/api/user-points', {
+                                  method: 'POST',
+                                  body: JSON.stringify({ userId, action: 'lottery' }),
+                                })
+                                if (res.ok) {
+                                  const data = await res.json()
+                                  if (data.lotteryResult) {
+                                    setLotteryResult(data.lotteryResult)
+                                    setTotalPoints(data.total_points ?? 0)
+                                    setAvailableLotteries(Math.floor((data.total_points ?? 0) / 100))
+                                    setLotteryHistory((data.lottery_history || []).slice(0, 10))
+                                  }
+                                }
+                              } catch { /* ignore */ }
+                              setIsSpinning(false)
+                            }, 1800)
+                          }}
+                          disabled={availableLotteries === 0 || isSpinning}
+                          style={{
+                            width: '100%', padding: '15px', borderRadius: '10px', fontSize: '14px',
+                            fontWeight: 900, border: 'none', fontFamily: 'inherit',
+                            letterSpacing: '4px',
+                            cursor: (availableLotteries > 0 && !isSpinning) ? 'pointer' : 'not-allowed',
+                            background: (availableLotteries > 0 && !isSpinning)
+                              ? 'linear-gradient(135deg, #fbbf24 0%, #b45309 100%)' : '#d1d5db',
+                            color: (availableLotteries > 0 && !isSpinning) ? '#1a0f07' : 'white',
+                            boxShadow: (availableLotteries > 0 && !isSpinning) ? '0 6px 20px rgba(180,83,9,0.4)' : 'none',
+                          }}
+                        >
+                          {isSpinning ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
+                              <span style={{
+                                width: '14px', height: '14px',
+                                border: '2px solid rgba(26,15,7,0.3)',
+                                borderTopColor: '#1a0f07',
+                                borderRadius: '50%',
+                                animation: 'dashRingSpin 0.7s linear infinite',
+                                display: 'inline-block',
+                              }} />
+                              抽選中...
+                            </span>
+                          ) : '100pt で抽選する'}
+                        </button>
+                      </>
+                    ) : isWinResult ? (
+                      <>
+                        {/* 当選：豪華表示 */}
+                        <div style={{ position: 'relative', textAlign: 'center', overflow: 'hidden', borderRadius: '12px' }}>
+                          {/* 紙吹雪 */}
+                          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 0 }}>
+                            {Array.from({ length: 30 }).map((_, i) => {
+                              const gold = ['#fde68a', '#fbbf24', '#f59e0b', '#fef3c7', '#d97706']
+                              const rose = ['#fbcfe8', '#f472b6', '#e879f9', '#fef3c7', '#be185d']
+                              const palette = isUltra ? gold : rose
+                              const left = (i * 3.3) % 100
+                              const delay = (i * 0.08) % 2
+                              const duration = 2.5 + (i % 4) * 0.4
+                              return (
+                                <div key={i} style={{
+                                  position: 'absolute', left: `${left}%`, top: '-10px',
+                                  width: '7px', height: `${7 + (i % 3) * 5}px`,
+                                  background: palette[i % palette.length],
+                                  borderRadius: i % 2 === 0 ? '50%' : '1px',
+                                  animation: `dashConfetti ${duration}s ease-in ${delay}s infinite`,
+                                  opacity: 0.9,
+                                }} />
+                              )
+                            })}
+                          </div>
+
+                          {/* 中央ゴールドグロー */}
+                          <div style={{
+                            position: 'absolute', top: '30%', left: '50%',
+                            width: '280px', height: '280px',
+                            transform: 'translate(-50%, -50%)',
+                            background: isUltra
+                              ? 'radial-gradient(circle, rgba(251,191,36,0.35) 0%, rgba(251,191,36,0) 60%)'
+                              : 'radial-gradient(circle, rgba(232,121,249,0.35) 0%, rgba(232,121,249,0) 60%)',
+                            pointerEvents: 'none', zIndex: 0,
+                          }} />
+
+                          <div style={{ position: 'relative', zIndex: 1, padding: '12px 0 4px' }}>
+                            {/* 大当選 */}
+                            <div style={{
+                              fontFamily: '"Noto Serif JP", serif',
+                              fontSize: '44px', fontWeight: 900,
+                              letterSpacing: '14px', paddingLeft: '14px',
+                              background: accentGold,
+                              WebkitBackgroundClip: 'text',
+                              WebkitTextFillColor: 'transparent',
+                              margin: '8px 0 4px',
+                              animation: 'dashLuxuryEntrance 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both, dashShimmer 2.5s ease-in-out 0.9s infinite',
+                              lineHeight: 1,
+                            }}>
+                              大当選
+                            </div>
+                            <div style={{
+                              fontFamily: 'serif', fontStyle: 'italic',
+                              fontSize: '11px', color: accentDeep, letterSpacing: '8px',
+                              paddingLeft: '8px', marginBottom: '18px',
+                              animation: 'dashFade 0.6s ease-out 0.7s both',
+                            }}>
+                              CONGRATULATIONS
+                            </div>
+
+                            {/* 景品カード */}
+                            <div style={{
+                              position: 'relative',
+                              background: 'linear-gradient(180deg, #fffbeb 0%, #ffffff 50%, #fef3c7 100%)',
+                              border: `2px solid ${accentSolid}`,
+                              borderRadius: '14px',
+                              padding: '22px 18px 18px',
+                              margin: '0 auto 14px',
+                              animation: 'dashLuxuryEntrance 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) 0.5s both',
+                              boxShadow: `0 0 40px ${accentSolid}66, 0 8px 20px rgba(0,0,0,0.15)`,
+                            }}>
+                              <div style={{
+                                display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center',
+                                marginBottom: '10px',
+                              }}>
+                                <div style={{ flex: 1, height: '1px', background: `linear-gradient(90deg, transparent, ${accentDeep})` }} />
+                                <div style={{
+                                  fontFamily: 'serif', fontSize: '10px', fontWeight: 700,
+                                  color: accentDeep, letterSpacing: '5px', fontStyle: 'italic',
+                                  whiteSpace: 'nowrap',
+                                }}>
+                                  {isUltra ? 'ULTRA RARE' : 'SUPER RARE'} PRIZE
+                                </div>
+                                <div style={{ flex: 1, height: '1px', background: `linear-gradient(90deg, ${accentDeep}, transparent)` }} />
+                              </div>
+                              <div style={{
+                                fontFamily: '"Noto Serif JP", serif',
+                                fontSize: '22px', fontWeight: 900,
+                                color: '#1a0f07', lineHeight: 1.25,
+                                letterSpacing: '1px',
+                                margin: '0 0 8px',
+                              }}>
+                                {lotteryResult.prize}
+                              </div>
+                              <div style={{
+                                fontSize: '11px', color: accentDeep, fontWeight: 700,
+                                letterSpacing: '1px', fontFamily: 'serif',
+                              }}>
+                                {isUltra ? '当選確率 1 / 100　— 最上位賞 —' : '当選確率 1 / 50'}
+                              </div>
+                            </div>
+
+                            <p style={{ fontSize: '11px', color: '#78644c', margin: '0 0 14px', fontStyle: 'italic' }}>
+                              賞品のお受取り方法は後日スタッフよりご案内いたします
+                            </p>
+                            <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '16px' }}>
+                              残りポイント: <strong>{totalPoints}</strong> pt
+                            </p>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={() => setShowLotteryModal(false)}
+                            style={{
+                              flex: 1, padding: '11px', borderRadius: '10px', fontSize: '12px',
+                              fontWeight: 700, letterSpacing: '3px',
+                              border: `1px solid ${accentSolid}55`, background: 'white',
+                              color: accentDeep, cursor: 'pointer', fontFamily: 'inherit',
+                            }}
+                          >
+                            閉じる
+                          </button>
+                          {availableLotteries > 0 && (
+                            <button
+                              onClick={() => setLotteryResult(null)}
+                              style={{
+                                flex: 1, padding: '11px', borderRadius: '10px', fontSize: '12px',
+                                fontWeight: 900, letterSpacing: '3px', border: 'none',
+                                background: accentGold,
+                                color: '#1a0f07', cursor: 'pointer', fontFamily: 'inherit',
+                                boxShadow: `0 6px 16px ${accentSolid}66`,
+                              }}
+                            >
+                              もう一度回す
+                            </button>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {/* 外れ：残念表示 */}
+                        <div style={{ position: 'relative', textAlign: 'center', overflow: 'hidden', borderRadius: '12px', padding: '16px 0 8px' }}>
+                          {/* 雨 */}
+                          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 0 }}>
+                            {Array.from({ length: 28 }).map((_, i) => {
+                              const left = (i * 3.6) % 100
+                              const delay = (i * 0.1) % 2
+                              const duration = 1.1 + (i % 4) * 0.25
+                              return (
+                                <div key={i} style={{
+                                  position: 'absolute', left: `${left}%`, top: '-20px',
+                                  width: '1px', height: `${28 + (i % 3) * 14}px`,
+                                  background: 'linear-gradient(180deg, rgba(148,163,184,0) 0%, rgba(148,163,184,0.5) 100%)',
+                                  animation: `dashRain ${duration}s linear ${delay}s infinite`,
+                                }} />
+                              )
+                            })}
+                          </div>
+
+                          <div style={{ position: 'relative', zIndex: 1 }}>
+                            <div style={{
+                              fontFamily: '"Noto Serif JP", serif',
+                              fontSize: '42px', fontWeight: 900,
+                              color: '#64748b',
+                              letterSpacing: '10px', paddingLeft: '10px',
+                              animation: 'dashSadEntrance 1.3s ease-out both',
+                              textShadow: '0 2px 10px rgba(0,0,0,0.15)',
+                              margin: '4px 0',
+                            }}>
+                              残念...
+                            </div>
+                            <div style={{
+                              fontFamily: 'serif', fontStyle: 'italic',
+                              fontSize: '11px', color: '#94a3b8', letterSpacing: '8px',
+                              paddingLeft: '8px', marginBottom: '18px',
+                              animation: 'dashFade 1s ease-out 0.8s both',
+                            }}>
+                              NOT A WINNER
+                            </div>
+
+                            <div style={{
+                              background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
+                              border: '1px solid #e2e8f0',
+                              borderRadius: '12px',
+                              padding: '20px 18px',
+                              margin: '0 auto 14px',
+                              animation: 'dashFade 1s ease-out 1s both',
+                            }}>
+                              <div style={{
+                                fontFamily: '"Noto Serif JP", serif',
+                                fontSize: '22px', fontWeight: 900, color: '#94a3b8',
+                                letterSpacing: '8px', paddingLeft: '8px',
+                                marginBottom: '8px',
+                              }}>
+                                外　れ
+                              </div>
+                              <div style={{
+                                width: '40%', margin: '10px auto',
+                                height: '1px',
+                                background: 'linear-gradient(90deg, transparent, #cbd5e1, transparent)',
+                              }} />
+                              <div style={{
+                                color: '#64748b', fontSize: '12px', lineHeight: 1.8,
+                                fontFamily: 'serif', letterSpacing: '1px',
+                              }}>
+                                今回は当選されませんでした。<br />
+                                次の挑戦をお待ちしています。
+                              </div>
+                            </div>
+
+                            <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '14px' }}>
+                              残りポイント: <strong>{totalPoints}</strong> pt
+                            </p>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={() => setShowLotteryModal(false)}
+                            style={{
+                              flex: 1, padding: '11px', borderRadius: '10px', fontSize: '12px',
+                              fontWeight: 700, letterSpacing: '3px',
+                              border: '1px solid #e2e8f0', background: 'white',
+                              color: '#64748b', cursor: 'pointer', fontFamily: 'inherit',
+                            }}
+                          >
+                            閉じる
+                          </button>
+                          {availableLotteries > 0 && (
+                            <button
+                              onClick={() => setLotteryResult(null)}
+                              style={{
+                                flex: 1, padding: '11px', borderRadius: '10px', fontSize: '12px',
+                                fontWeight: 800, letterSpacing: '3px', border: 'none',
+                                background: 'linear-gradient(135deg, #475569, #334155)',
+                                color: '#e2e8f0', cursor: 'pointer', fontFamily: 'inherit',
+                                boxShadow: '0 6px 16px rgba(0,0,0,0.25)',
+                              }}
+                            >
+                              もう一度挑戦する
+                            </button>
+                          )}
+                        </div>
+                      </>
+                    )}
+
+                    {/* 抽選履歴 */}
+                    {lotteryHistory.length > 0 && (
+                      <div style={{ marginTop: '18px', paddingTop: '14px', borderTop: '1px solid #f3e8d0' }}>
+                        <p style={{
+                          fontSize: '10px', fontWeight: 700, color: '#b45309',
+                          marginBottom: '8px', letterSpacing: '4px', fontFamily: 'serif',
+                          textAlign: 'center',
+                        }}>RECENT RESULTS</p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          {lotteryHistory.slice(0, 5).map((r, i) => {
+                            const isWin = r.rarity !== 'miss'
+                            return (
+                              <div key={i} style={{
+                                display: 'flex', alignItems: 'center', gap: '8px',
+                                fontSize: '11px',
+                                padding: '6px 10px',
+                                background: isWin ? '#fffbeb' : '#f8fafc',
+                                border: `1px solid ${isWin ? '#fde68a' : '#e2e8f0'}`,
+                                borderRadius: '6px',
+                              }}>
+                                <span style={{
+                                  flex: 1, fontWeight: 700, fontFamily: 'serif',
+                                  color: isWin ? '#b45309' : '#94a3b8',
+                                }}>{r.prize}</span>
+                                <span style={{ fontSize: '10px', color: '#9ca3af' }}>{new Date(r.date).toLocaleDateString('ja-JP')}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
                     )}
                   </div>
-                </div>
-              )}
-
-              {/* 抽選履歴 */}
-              {lotteryHistory.length > 0 && (
-                <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #f3f4f6' }}>
-                  <p style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px' }}>最近の抽選結果</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                    {lotteryHistory.slice(0, 5).map((r, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#6b7280' }}>
-                        <span>{r.icon}</span>
-                        <span style={{ flex: 1, fontWeight: 600, color: getRarityColor(r.rarity) }}>{r.prize}</span>
-                        <span style={{ fontSize: '10px' }}>{new Date(r.date).toLocaleDateString('ja-JP')}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+                </>
+              )
+            })()}
           </div>
         </div>
       )}
