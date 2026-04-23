@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { apiFetch } from '@/lib/api'
 import { toJSTDateStr } from '@/lib/date-utils'
-import { addBodyPoint } from '@/lib/points'
 import { createClient } from '@/lib/supabase/client'
 
 interface BodyRecord {
@@ -132,11 +131,12 @@ export default function BodyPage() {
         })
         if (ptRes.ok) {
           const ptData = await ptRes.json()
-          const prevTotal = ptData.total_points - 1
-          if (ptData.total_points > prevTotal) {
-            setPointMessage(`🎉 体組成記録で +1pt！ (累計: ${ptData.total_points}pt)`)
+          const added = Number(ptData.pointsAdded ?? 0)
+          if (added > 0) {
+            setPointMessage(`🎉 体組成記録で +${added}pt！ (累計: ${ptData.total_points}pt)`)
             setTimeout(() => setPointMessage(''), 3000)
           }
+          // 加算ゼロ（その日既に記録済み）の場合はトーストを出さない
         }
       }
     } catch { /* ignore */ }

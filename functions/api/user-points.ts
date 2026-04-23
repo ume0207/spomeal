@@ -17,14 +17,28 @@ async function authorize(request: Request, env: Env, targetUserId: string) {
   return { ok: false as const, status: 403, error: '他のユーザーのデータにはアクセスできません' }
 }
 
+// 景品テーブル（合計weight=100）
+// - クオカード500円:       1/50 (=2/100) super_rare
+// - Amazonギフト券1000円:  1/100        ultra_rare
+// - スタバギフト券1000円:  1/100        ultra_rare
+// - ハズレ:                96/100       miss
 const PRIZES = [
-  { prize: 'ハズレ', rarity: 'miss', icon: '💨', weight: 400 },
-  { prize: 'スポミルステッカー', rarity: 'common', icon: '🎫', weight: 350 },
-  { prize: 'スポミルTシャツ', rarity: 'rare', icon: '👕', weight: 130 },
-  { prize: 'プロテイン1kg', rarity: 'rare', icon: '💪', weight: 80 },
-  { prize: 'クオカード500円', rarity: 'super_rare', icon: '💳', weight: 30 },
-  { prize: 'リカバリープロ', rarity: 'ultra_rare', icon: '🏆', weight: 10 },
+  { prize: 'ハズレ', rarity: 'miss', icon: '💨', weight: 96 },
+  { prize: 'クオカード500円', rarity: 'super_rare', icon: '💳', weight: 2 },
+  { prize: 'Amazonギフト券1000円', rarity: 'ultra_rare', icon: '📦', weight: 1 },
+  { prize: 'スタバギフト券1000円', rarity: 'ultra_rare', icon: '☕', weight: 1 },
 ]
+
+function drawPrize() {
+  const totalWeight = PRIZES.reduce((s, p) => s + p.weight, 0)
+  let random = Math.random() * totalWeight
+  let selected = PRIZES[0]
+  for (const prize of PRIZES) {
+    random -= prize.weight
+    if (random <= 0) { selected = prize; break }
+  }
+  return selected
+}
 
 export const onRequestOptions: PagesFunction = async ({ request }) => handleOptions(request)
 
@@ -47,7 +61,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
 }
 
 // POST /api/user-points
-// action: 'addMeal' | 'addBody' | 'lottery' | 'save'
+// action: 'addMeal' | 'addBody' | 'lottery' | 'testLottery' | 'adminAddPoints'
+// ※ 'save' action は削除（records/lottery_history の破壊的上書きを防止）
 export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
   const cors = corsHeaders(request)
   const { NEXT_PUBLIC_SUPABASE_URL: sbUrl, SUPABASE_SERVICE_ROLE_KEY: sbKey } = env
@@ -66,11 +81,14 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
   const hasExisting = Array.isArray(existing) && existing.length > 0
   const current = hasExisting ? existing[0] : { total_points: 0, lottery_count: 0, records: [], lottery_history: [] }
 
-  let totalPoints: number = current.total_points ?? 0
+  const prevTotalPoints: number = current.total_points ?? 0
+  let totalPoints: number = prevTotalPoints
   let lotteryCount: number = current.lottery_count ?? 0
   let records: any[] = Array.isArray(current.records) ? [...current.records] : []
   let lotteryHistory: any[] = Array.isArray(current.lottery_history) ? [...current.lottery_history] : []
   let lotteryResult = null
+  // adminAddPoints はレスポンスをadminに返すだけで保存処理はそのまま流す
+  let isTestLotteryOnly = false
 
   if (action === 'addMeal') {
     const { dateStr, mealType } = body
@@ -106,50 +124,61 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
     }
     totalPoints -= 100
     lotteryCount += 1
-    const totalWeight = PRIZES.reduce((s, p) => s + p.weight, 0)
-    let random = Math.random() * totalWeight
-    let selected = PRIZES[0]
-    for (const prize of PRIZES) {
-      random -= prize.weight
-      if (random <= 0) { selected = prize; break }
-    }
+    const selected = drawPrize()
     lotteryResult = {
       prize: selected.prize, rarity: selected.rarity, icon: selected.icon,
       date: new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tokyo' }),
     }
     lotteryHistory.unshift(lotteryResult)
   } else if (action === 'testLottery') {
-    // テスト用：ポイント消費なしで抽選
-    lotteryCount += 1
-    const totalWeight = PRIZES.reduce((s, p) => s + p.weight, 0)
-    let random = Math.random() * totalWeight
-    let selected = PRIZES[0]
-    for (const prize of PRIZES) {
-      random -= prize.weight
-      if (random <= 0) { selected = prize; break }
-    }
+    // テスト用：ポイント消費なし & DB書き込みなしで抽選結果のみ返す
+    const selected = drawPrize()
     lotteryResult = {
       prize: selected.prize, rarity: selected.rarity, icon: selected.icon,
       date: new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tokyo' }),
       isTest: true,
     }
-    lotteryHistory.unshift(lotteryResult)
-  } else if (action === 'save') {
-    // 外部から直接データを保存（マイグレーション用）
-    totalPoints = body.totalPoints ?? totalPoints
-    lotteryCount = body.lotteryCount ?? lotteryCount
-    records = body.records ?? records
-    lotteryHistory = body.lotteryHistory ?? lotteryHistory
+    isTestLotteryOnly = true
+  } else if (action === 'adminAddPoints') {
+    // 管理者による手動ポイント加算。total_points のみ atomic に加算し
+    // records / lottery_history / lottery_count は一切触らない。
+    const admin = await verifyAdmin(request, env)
+    if (!admin.ok) {
+      return new Response(JSON.stringify({ error: '管理者のみ実行可能' }), { status: 403, headers: cors })
+    }
+    const amount = Number(body.amount)
+    if (!Number.isFinite(amount) || amount === 0) {
+      return new Response(JSON.stringify({ error: 'amount が不正です' }), { status: 400, headers: cors })
+    }
+    totalPoints = Math.max(0, prevTotalPoints + Math.trunc(amount))
+  } else {
+    return new Response(JSON.stringify({ error: `未対応のaction: ${action}` }), { status: 400, headers: cors })
+  }
+
+  // testLottery は DB書き込み不要。結果だけ返す。
+  if (isTestLotteryOnly) {
+    return new Response(JSON.stringify({
+      total_points: prevTotalPoints,
+      lottery_count: lotteryCount,
+      records,
+      lottery_history: lotteryHistory,
+      lotteryResult,
+      pointsAdded: 0,
+    }), { status: 200, headers: cors })
   }
 
   // 既存レコード有無で PATCH / POST を分岐（Supabaseのupsert衝突を回避）
-  const payload = {
-    total_points: totalPoints,
-    lottery_count: lotteryCount,
-    records,
-    lottery_history: lotteryHistory,
-    updated_at: new Date().toISOString(),
-  }
+  // adminAddPoints は total_points / updated_at のみ更新（他フィールドへの副作用ゼロ）
+  const isAdminAdd = action === 'adminAddPoints'
+  const payload: Record<string, unknown> = isAdminAdd
+    ? { total_points: totalPoints, updated_at: new Date().toISOString() }
+    : {
+        total_points: totalPoints,
+        lottery_count: lotteryCount,
+        records,
+        lottery_history: lotteryHistory,
+        updated_at: new Date().toISOString(),
+      }
 
   let saveRes: Response
   if (hasExisting) {
@@ -187,5 +216,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
   const saved = await saveRes.json() as any[]
   const result = (Array.isArray(saved) && saved[0])
     || { total_points: totalPoints, lottery_count: lotteryCount, records, lottery_history: lotteryHistory }
-  return new Response(JSON.stringify({ ...result, lotteryResult }), { status: 200, headers: cors })
+  const pointsAdded = Math.max(0, (result.total_points ?? totalPoints) - prevTotalPoints)
+  return new Response(JSON.stringify({ ...result, lotteryResult, pointsAdded }), { status: 200, headers: cors })
 }

@@ -217,24 +217,14 @@ export default function AdminDashboardPage() {
     setAddingPoints(true)
     setPointsMessage(null)
     try {
-      const getRes = await apiFetch(`/api/user-points?userId=${selectedMemberId}`)
-      if (!getRes.ok) {
-        const errText = await getRes.text().catch(() => '')
-        setPointsMessage({ type: 'error', text: `取得失敗: ${getRes.status} ${errText.slice(0, 80)}` })
-        return
-      }
-      const cur = await getRes.json()
-      const newTotal = (cur.total_points ?? 0) + 100
+      // atomic な加算API（records/lottery_historyには一切触らない）
       const res = await apiFetch('/api/user-points', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: selectedMemberId,
-          action: 'save',
-          totalPoints: newTotal,
-          lotteryCount: cur.lottery_count ?? 0,
-          records: cur.records ?? [],
-          lotteryHistory: cur.lottery_history ?? [],
+          action: 'adminAddPoints',
+          amount: 100,
         }),
       })
       if (!res.ok) {
@@ -243,7 +233,7 @@ export default function AdminDashboardPage() {
         return
       }
       const data = await res.json()
-      const finalPoints = data.total_points ?? newTotal
+      const finalPoints = data.total_points ?? 0
       setSelectedPoints(finalPoints)
       setPointsMessage({ type: 'success', text: `✅ 100pt追加しました（合計 ${finalPoints}pt）` })
       setTimeout(() => setPointsMessage(null), 4000)
@@ -647,7 +637,7 @@ export default function AdminDashboardPage() {
             {isSpinning ? '🎰 抽選中...' : '🎰 ガチャを回す'}
           </button>
           <p style={{ fontSize: '10px', color: '#9ca3af', marginTop: '8px' }}>
-            ※ テスト用ボタン。ポイントは消費されませんが、選択中メンバーの抽選履歴には記録されます。
+            ※ テスト用ボタン。ポイント消費なし＆抽選履歴にも残りません（DB未書き込み）。
           </p>
         </div>
       </div>
@@ -885,11 +875,9 @@ export default function AdminDashboardPage() {
                   {/* 景品の説明 */}
                   {isWin && (() => {
                     const description =
-                      gachaResult.prize === 'スポミルステッカー' ? 'スポミル限定ロゴステッカー1枚をプレゼント！'
-                      : gachaResult.prize === 'スポミルTシャツ' ? 'スポミルオリジナルTシャツ（サイズ選択可）をプレゼント！'
-                      : gachaResult.prize === 'プロテイン1kg' ? 'ホエイプロテイン1kg（フレーバー選択可）をプレゼント！'
-                      : gachaResult.prize === 'クオカード500円' ? 'クオカード500円分をプレゼント！'
-                      : gachaResult.prize === 'リカバリープロ' ? 'リカバリーマシン1回無料券（超レア！）'
+                      gachaResult.prize === 'クオカード500円' ? 'クオカード500円分をプレゼント！（当選確率 1/50）'
+                      : gachaResult.prize === 'Amazonギフト券1000円' ? 'Amazonギフト券1,000円分をプレゼント！（当選確率 1/100・激レア！）'
+                      : gachaResult.prize === 'スタバギフト券1000円' ? 'スターバックスギフト券1,000円分をプレゼント！（当選確率 1/100・激レア！）'
                       : ''
                     return description ? (
                       <div style={{

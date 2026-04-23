@@ -1055,16 +1055,14 @@ export default function DashboardPage() {
                     <p style={{ fontWeight: 700, marginBottom: '6px' }}>景品一覧:</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       {[
-                        { icon: '💳', name: 'クオカード500円', rarity: 'スーパーレア' },
-                        { icon: '🏆', name: 'リカバリープロ', rarity: 'ウルトラレア' },
-                        { icon: '👕', name: 'スポミルTシャツ', rarity: 'レア' },
-                        { icon: '💪', name: 'プロテイン1kg', rarity: 'レア' },
-                        { icon: '🎫', name: 'スポミルステッカー', rarity: 'コモン' },
+                        { icon: '📦', name: 'Amazonギフト券1000円', prob: '1/100' },
+                        { icon: '☕', name: 'スタバギフト券1000円', prob: '1/100' },
+                        { icon: '💳', name: 'クオカード500円', prob: '1/50' },
                       ].map(p => (
                         <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
                           <span style={{ fontSize: '16px' }}>{p.icon}</span>
                           <span style={{ flex: 1, fontSize: '12px' }}>{p.name}</span>
-                          <span style={{ fontSize: '10px', fontWeight: 700, color: '#f59e0b' }}>{p.rarity}</span>
+                          <span style={{ fontSize: '10px', fontWeight: 700, color: '#f59e0b' }}>{p.prob}</span>
                         </div>
                       ))}
                     </div>

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { apiFetch } from '@/lib/api'
-import { addMealPoint } from '@/lib/points'
 import { FOOD_DB, searchFoodDB } from '@/lib/food-db'
 import { toJSTDateStr, toJSTDateTimeStr } from '@/lib/date-utils'
 import { createClient } from '@/lib/supabase/client'
