@@ -1153,7 +1153,6 @@ export default function DashboardPage() {
                               { name: 'リカバリープロ', prob: '1 / 300', tier: '超最上位' },
                               { name: 'Amazonギフト券 1,000円', prob: '1 / 100', tier: '最上位' },
                               { name: 'スタバギフト券 1,000円', prob: '1 / 100', tier: '最上位' },
-                              { name: 'レストランギフト券 1,000円', prob: '1 / 99', tier: '上位' },
                             ].map(p => (
                               <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px' }}>
                                 <span style={{ flex: 1, fontFamily: 'serif', fontWeight: 700, color: '#1f2937' }}>{p.name}</span>
@@ -1324,9 +1323,7 @@ export default function DashboardPage() {
                               }}>
                                 {isLegendaryResult
                                   ? '当選確率 1 / 300　— 超最上位賞 LEGENDARY —'
-                                  : isUltra
-                                  ? '当選確率 1 / 100　— 最上位賞 —'
-                                  : '当選確率 1 / 99'}
+                                  : '当選確率 1 / 100　— 最上位賞 —'}
                               </div>
                               {lotteryResult.prize === 'リカバリープロ' && (
                                 <div style={{
@@ -1340,8 +1337,7 @@ export default function DashboardPage() {
                                 </div>
                               )}
                               {(lotteryResult.prize === 'Amazonギフト券1000円'
-                                || lotteryResult.prize === 'スタバギフト券1000円'
-                                || lotteryResult.prize === 'レストランギフト券1000円') && (
+                                || lotteryResult.prize === 'スタバギフト券1000円') && (
                                 <div style={{
                                   marginTop: '10px', paddingTop: '8px',
                                   borderTop: `1px dashed ${accentSolid}66`,

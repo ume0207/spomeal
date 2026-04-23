@@ -1007,13 +1007,7 @@ export default function AdminDashboardPage() {
                       lineHeight: 1.75, fontStyle: 'italic',
                       padding: '0 8px',
                     }}>
-                      {gachaResult.prize === 'レストランギフト券1000円' ? (
-                        <>レストランギフト券1,000円分を進呈いたします。<br />
-                        <span style={{ fontSize: '11px', color: accentDeep, fontWeight: 700 }}>当選確率 1 / 99</span><br />
-                        <span style={{ fontSize: '10px', color: '#78644c', fontStyle: 'normal', fontWeight: 500 }}>
-                          ※ コードをお伝えします。公式LINEまでご連絡ください。
-                        </span></>
-                      ) : gachaResult.prize === 'Amazonギフト券1000円' ? (
+                      {gachaResult.prize === 'Amazonギフト券1000円' ? (
                         <>Amazonギフト券1,000円分を進呈いたします。<br />
                         <span style={{ fontSize: '11px', color: accentDeep, fontWeight: 700 }}>当選確率 1 / 100　— 最上位賞 —</span><br />
                         <span style={{ fontSize: '10px', color: '#78644c', fontStyle: 'normal', fontWeight: 500 }}>

@@ -17,27 +17,31 @@ async function authorize(request: Request, env: Env, targetUserId: string) {
   return { ok: false as const, status: 403, error: '他のユーザーのデータにはアクセスできません' }
 }
 
-// 景品テーブル（合計weight=9900、LCM(99,100,300)=9900で確率を厳密に揃える）
-// - レストランギフト券1000円:  100/9900 = 1/99    super_rare
-// - Amazonギフト券1000円:       99/9900 = 1/100   ultra_rare
-// - スタバギフト券1000円:       99/9900 = 1/100   ultra_rare
-// - リカバリープロ:              33/9900 = 1/300   legendary（超最上位）
-// - ハズレ:                    9569/9900          miss
+// 景品テーブル（合計weight=300、LCM(100,300)=300で確率を厳密に揃える）
+// - Amazonギフト券1000円:   3/300 = 1/100   ultra_rare
+// - スタバギフト券1000円:   3/300 = 1/100   ultra_rare
+// - リカバリープロ:         1/300           legendary（超最上位）
+// - ハズレ:               293/300          miss
 const PRIZES = [
-  { prize: 'ハズレ', rarity: 'miss', icon: '', weight: 9569 },
-  { prize: 'レストランギフト券1000円', rarity: 'super_rare', icon: '', weight: 100 },
-  { prize: 'Amazonギフト券1000円', rarity: 'ultra_rare', icon: '', weight: 99 },
-  { prize: 'スタバギフト券1000円', rarity: 'ultra_rare', icon: '', weight: 99 },
-  { prize: 'リカバリープロ', rarity: 'legendary', icon: '', weight: 33 },
+  { prize: 'ハズレ', rarity: 'miss', icon: '', weight: 293 },
+  { prize: 'Amazonギフト券1000円', rarity: 'ultra_rare', icon: '', weight: 3 },
+  { prize: 'スタバギフト券1000円', rarity: 'ultra_rare', icon: '', weight: 3 },
+  { prize: 'リカバリープロ', rarity: 'legendary', icon: '', weight: 1 },
 ]
 
+// 毎回の抽選で確率を完全にリセットするため、暗号学的に安全な乱数を
+// その都度新しく生成する（Math.random の内部状態や過去の抽選結果に
+// 一切依存しない。Cloudflare Workers / Edge 環境の Web Crypto API を使用）。
 function drawPrize() {
   const totalWeight = PRIZES.reduce((s, p) => s + p.weight, 0)
-  let random = Math.random() * totalWeight
+  // 32bit の暗号乱数 [0, 2^32) を毎回フレッシュに取得 → [0, totalWeight) に変換
+  const buf = new Uint32Array(1)
+  crypto.getRandomValues(buf)
+  let random = (buf[0] / 0x100000000) * totalWeight
   let selected = PRIZES[0]
   for (const prize of PRIZES) {
     random -= prize.weight
-    if (random <= 0) { selected = prize; break }
+    if (random < 0) { selected = prize; break }
   }
   return selected
 }
