@@ -76,27 +76,45 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
 
   // idがある場合はUPDATE、ない場合はINSERT
   if (id) {
+    // ★重要バグ修正★
+    // 以前は、送られなかったフィールドに `|| 0` `|| []` `|| null` でデフォルト値を
+    // 入れて PATCH していたため、AIアドバイスだけ後追い保存する経路や
+    // インライン編集経路で「栄養価 / items / 写真」が毎回ゼロ・空配列・null で
+    // 上書きされて消えていた。
+    //
+    // 差分更新に変更：body に実際に含まれているキーだけを PATCH する。
+    // （undefined のフィールドには触らない）
+    const patch: Record<string, unknown> = {}
+    if ('mealDate' in record && record.mealDate !== undefined) patch.meal_date = record.mealDate
+    if ('mealType' in record && record.mealType !== undefined) patch.meal_type = record.mealType
+    if ('foodName' in record && record.foodName !== undefined) patch.food_name = record.foodName
+    if ('caloriesKcal' in record && record.caloriesKcal !== undefined) patch.calories_kcal = record.caloriesKcal
+    if ('proteinG' in record && record.proteinG !== undefined) patch.protein_g = record.proteinG
+    if ('fatG' in record && record.fatG !== undefined) patch.fat_g = record.fatG
+    if ('carbsG' in record && record.carbsG !== undefined) patch.carbs_g = record.carbsG
+    if ('items' in record && record.items !== undefined) patch.items = record.items
+    // photoUrl と advice は「明示的に null」で消したいケースがあるので undefined のみ除外
+    if ('photoUrl' in record && record.photoUrl !== undefined) patch.photo_url = record.photoUrl
+    if ('advice' in record && record.advice !== undefined) patch.advice = record.advice
+
+    if (Object.keys(patch).length === 0) {
+      return new Response(JSON.stringify({ error: '更新するフィールドがありません' }), { status: 400, headers: cors })
+    }
+
     const res = await fetch(`${sbUrl}/rest/v1/meal_records?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(userId)}`, {
       method: 'PATCH',
       headers: {
         Authorization: `Bearer ${sbKey}`, apikey: sbKey,
         'Content-Type': 'application/json', 'Prefer': 'return=representation',
       },
-      body: JSON.stringify({
-        meal_date: record.mealDate,
-        meal_type: record.mealType,
-        food_name: record.foodName,
-        calories_kcal: record.caloriesKcal || 0,
-        protein_g: record.proteinG || 0,
-        fat_g: record.fatG || 0,
-        carbs_g: record.carbsG || 0,
-        items: record.items || [],
-        photo_url: record.photoUrl || null,
-        advice: record.advice || null,
-      }),
+      body: JSON.stringify(patch),
     })
     const data = await res.json()
-    return new Response(JSON.stringify(data), { status: res.ok ? 200 : 500, headers: cors })
+    if (!res.ok) {
+      const errText = typeof data === 'string' ? data : JSON.stringify(data)
+      return new Response(JSON.stringify({ error: 'meal_records PATCH失敗', status: res.status, supabaseError: errText.slice(0, 500) }), { status: 500, headers: cors })
+    }
+    return new Response(JSON.stringify(data), { status: 200, headers: cors })
   }
 
   const res = await fetch(`${sbUrl}/rest/v1/meal_records`, {
