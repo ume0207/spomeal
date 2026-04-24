@@ -11,18 +11,21 @@ interface Env {
 export const onRequestOptions: PagesFunction = async ({ request }) => handleOptions(request)
 
 // GET /api/admin/comments?memberId=xxx
-// 会員: 自分のコメントのみ読める / 管理者: 全員分読める
+//   会員: 自分のコメントのみ読める
+//   管理者: memberId 指定時はその会員分、未指定なら全件読める
 export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
   const cors = corsHeaders(request)
   const url = new URL(request.url)
   const memberId = url.searchParams.get('memberId')
-  if (!memberId) {
-    return new Response(JSON.stringify({ error: 'memberId required' }), { status: 400, headers: cors })
-  }
 
   // 管理者トークン優先、次に会員のSupabase JWT
   const adminAuth = await verifyAdmin(request, env)
-  if (!adminAuth.ok) {
+  const isAdmin = adminAuth.ok
+  if (!isAdmin) {
+    // 会員は memberId 必須 + 自分のみ
+    if (!memberId) {
+      return new Response(JSON.stringify({ error: 'memberId required' }), { status: 400, headers: cors })
+    }
     const userAuth = await verifyUser(request, env)
     if (!userAuth.ok) return authErrorResponse(userAuth, request)
     if (userAuth.user.id !== memberId) {
@@ -31,8 +34,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
   }
 
   const { NEXT_PUBLIC_SUPABASE_URL: sbUrl, SUPABASE_SERVICE_ROLE_KEY: sbKey } = env
+  const filterPart = memberId ? `target_member_id=eq.${memberId}&` : ''
+  const limitPart = memberId ? '' : '&limit=500'
   const res = await fetch(
-    `${sbUrl}/rest/v1/nutritionist_comments?target_member_id=eq.${memberId}&order=created_at.desc`,
+    `${sbUrl}/rest/v1/nutritionist_comments?${filterPart}order=created_at.desc${limitPart}`,
     { headers: { Authorization: `Bearer ${sbKey}`, apikey: sbKey } }
   )
   const data = res.ok ? await res.json() : []

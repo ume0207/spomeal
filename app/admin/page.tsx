@@ -82,21 +82,10 @@ interface BodyFeedItem {
   updatedAt: string
 }
 
-const COMMENTS_KEY = 'nutritionist_comments_v1'
 const MEETING_NOTES_KEY = 'meeting_notes_v1'
 
-function loadComments(): NutritionistComment[] {
-  if (typeof window === 'undefined') return []
-  try {
-    const raw = localStorage.getItem(COMMENTS_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch { return [] }
-}
-
-function saveComments(comments: NutritionistComment[]) {
-  if (typeof window === 'undefined') return
-  localStorage.setItem(COMMENTS_KEY, JSON.stringify(comments))
-}
+// ★修正: コメントは localStorage ではなく /api/admin/comments（DB）を真実源にする。
+// 以前は localStorage にしか保存されず、会員ダッシュボードに届かないバグがあった。
 
 function loadMeetingNotes(): MeetingNote[] {
   if (typeof window === 'undefined') return []
@@ -172,7 +161,25 @@ export default function AdminDashboardPage() {
       .then((data: Stats) => { setStats(data); setLoading(false) })
       .catch(() => setLoading(false))
 
-    setComments(loadComments())
+    // 管理栄養士コメントを DB から取得（管理者は全件）
+    apiFetch('/api/admin/comments')
+      .then(r => r.ok ? r.json() : [])
+      .then((rows: any[]) => {
+        const mapped: NutritionistComment[] = (rows || []).map(r => ({
+          id: String(r.id),
+          date: r.created_at
+            ? new Date(r.created_at).toLocaleString('sv-SE', { timeZone: 'Asia/Tokyo' }).slice(0, 16)
+            : '',
+          staffName: r.staff_name || '管理栄養士',
+          targetMember: r.target_member_id || '',
+          targetMemberName: '',
+          category: r.category || '全般',
+          comment: r.comment || '',
+        }))
+        setComments(mapped)
+      })
+      .catch(() => setComments([]))
+
     setMeetingNotes(loadMeetingNotes())
 
     // スタッフ一覧を読み込み（Supabase API）
@@ -320,35 +327,71 @@ export default function AdminDashboardPage() {
       })
   }, [bodyFeedRange])
 
-  const handleSendComment = () => {
+  const handleSendComment = async () => {
     if (!commentText.trim()) return
-    const now = new Date()
-    const dateStr = now.toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' })
-    const timeStr = now.toLocaleTimeString('sv-SE', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' })
 
-    const newComment: NutritionistComment = {
-      id: Date.now().toString(),
-      date: `${dateStr} ${timeStr}`,
-      staffName: commentStaff || '管理栄養士',
-      targetMember: commentTarget,
-      targetMemberName: commentTarget === '__all__' ? '全員' : (commentTargetName || commentTarget),
-      category: commentCategory,
-      comment: commentText.trim(),
+    // 送信対象の会員IDリストを決める
+    const targetIds: string[] = commentTarget === '__all__'
+      ? members.map(m => m.id)
+      : [commentTarget]
+
+    if (targetIds.length === 0 || targetIds.some(id => !id)) {
+      alert('送信対象が見つかりません')
+      return
     }
 
-    const updated = [newComment, ...comments]
-    saveComments(updated)
-    setComments(updated)
-    setCommentText('')
-    setCommentSaved(true)
-    setTimeout(() => { setCommentSaved(false); setShowCommentModal(false) }, 1500)
+    const staffName = commentStaff || '管理栄養士'
+    const category = commentCategory
+    const commentBody = commentText.trim()
+
+    try {
+      // 各会員分の POST を並列実行（DB に実際に保存される）
+      const results = await Promise.all(
+        targetIds.map(memberId =>
+          apiFetch('/api/admin/comments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ memberId, staffName, category, comment: commentBody }),
+          }).then(r => r.ok ? r.json() : null).catch(() => null)
+        )
+      )
+
+      // 新規分を state に反映（サーバの id / created_at を優先）
+      const newRows: NutritionistComment[] = results
+        .filter((r): r is any => r && r.id)
+        .map(r => ({
+          id: String(r.id),
+          date: r.created_at
+            ? new Date(r.created_at).toLocaleString('sv-SE', { timeZone: 'Asia/Tokyo' }).slice(0, 16)
+            : '',
+          staffName: r.staff_name || staffName,
+          targetMember: r.target_member_id || '',
+          targetMemberName: '',
+          category: r.category || category,
+          comment: r.comment || commentBody,
+        }))
+
+      setComments([...newRows, ...comments])
+      setCommentText('')
+      setCommentSaved(true)
+      setTimeout(() => { setCommentSaved(false); setShowCommentModal(false) }, 1500)
+    } catch {
+      alert('コメントの送信に失敗しました')
+    }
   }
 
-  const deleteComment = (id: string) => {
+  const deleteComment = async (id: string) => {
     if (!confirm('このコメントを削除しますか？')) return
-    const updated = comments.filter(c => c.id !== id)
-    saveComments(updated)
-    setComments(updated)
+    try {
+      const res = await apiFetch(`/api/admin/comments?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+      if (!res.ok) {
+        alert('コメントの削除に失敗しました')
+        return
+      }
+      setComments(comments.filter(c => c.id !== id))
+    } catch {
+      alert('コメントの削除に失敗しました')
+    }
   }
 
   // コメントモーダルを特定メンバー向けに開く

@@ -115,6 +115,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const handleLogout = async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
+    // ★修正: ログアウト時は「ログイン情報を記憶する」で保存したメールも消す。
+    // 共有端末で前のユーザーのメールが自動入力されるプライバシー問題を防ぐ。
+    try {
+      localStorage.removeItem('spomeal_saved_email')
+    } catch { /* ignore */ }
     router.push('/login')
   }
 

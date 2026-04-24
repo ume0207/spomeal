@@ -1,6 +1,11 @@
 import { verifyAdmin, corsHeaders, handleOptions, authErrorResponse } from '../../_shared/auth'
+import { invalidateMembersCache, invalidateStatsCache, invalidateMealFeedCache, invalidateBodyFeedCache } from '../../_shared/admin-cache'
 
-type PagesFunction<Env = Record<string, unknown>> = (context: { request: Request; env: Env }) => Promise<Response> | Response
+type PagesFunction<Env = Record<string, unknown>> = (context: {
+  request: Request
+  env: Env
+  waitUntil?: (p: Promise<unknown>) => void
+}) => Promise<Response> | Response
 
 interface Env {
   NEXT_PUBLIC_SUPABASE_URL: string
@@ -33,7 +38,7 @@ async function stripeRequest(
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
-  const { request, env } = context
+  const { request, env, waitUntil } = context
 
   // 管理者認証
   const auth = await verifyAdmin(request, env)
@@ -172,6 +177,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       const errText = await delRes.text()
       return new Response(JSON.stringify({ success: false, error: `削除に失敗しました: ${errText}` }), { status: 500, headers: cors })
     }
+
+    // 管理者画面の各キャッシュを無効化（会員リストが古いままにならないように）
+    invalidateMembersCache(waitUntil)
+    invalidateStatsCache(waitUntil)
+    invalidateMealFeedCache(waitUntil)
+    invalidateBodyFeedCache(waitUntil)
 
     return new Response(JSON.stringify({
       success: true,

@@ -73,11 +73,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       activityLevel: goalData[0].activity_level, goalType: goalData[0].goal_type,
     } : (meta.goal_data || null)
 
+    // ★修正: user_metadata へのフォールバックを廃止。
+    // meal_activity / body_activity / goal_activity API を no-op 化したため、
+    // user_metadata にはもう書き込まれない。古い残骸と新データが混ざるのを防ぐ
+    // ため、真実源は meal_records / body_records / user_goals テーブルのみ。
     return new Response(JSON.stringify({
-      meal_activity: meal_activity.length > 0 ? meal_activity : (meta.meal_activity || []),
-      body_activity: body_activity.length > 0 ? body_activity : (meta.body_activity || []),
+      meal_activity,
+      body_activity,
       goal_data: goal,
-      display_name: meta.display_name || userData.email || '',
+      display_name: meta.full_name || meta.display_name || userData.email || '',
       email: userData.email || '',
     }), { headers: cors })
   } catch (e: any) {

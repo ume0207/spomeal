@@ -1,6 +1,11 @@
 import { verifyUser, verifyAdmin, corsHeaders, handleOptions, authErrorResponse } from '../_shared/auth'
+import { invalidateBodyFeedCache, invalidateStatsCache } from '../_shared/admin-cache'
 
-type PagesFunction<Env = Record<string, unknown>> = (context: { request: Request; env: Env }) => Promise<Response> | Response
+type PagesFunction<Env = Record<string, unknown>> = (context: {
+  request: Request
+  env: Env
+  waitUntil?: (p: Promise<unknown>) => void
+}) => Promise<Response> | Response
 
 interface Env {
   NEXT_PUBLIC_SUPABASE_URL: string
@@ -38,7 +43,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
 }
 
 // POST /api/body-records  { userId, date, weight, bodyFat, muscle, bmi }  → upsert by (user_id, date)
-export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
+export const onRequestPost: PagesFunction<Env> = async ({ env, request, waitUntil }) => {
   const cors = corsHeaders(request)
   const { NEXT_PUBLIC_SUPABASE_URL: sbUrl, SUPABASE_SERVICE_ROLE_KEY: sbKey } = env
   const body = await request.json() as {
@@ -65,11 +70,15 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
     body: JSON.stringify({ user_id: userId, date, weight, body_fat: bodyFat, muscle, bmi }),
   })
   const data = await res.json()
+  if (res.ok) {
+    invalidateBodyFeedCache(waitUntil)
+    invalidateStatsCache(waitUntil)
+  }
   return new Response(JSON.stringify(data), { status: res.ok ? 200 : 500, headers: cors })
 }
 
 // DELETE /api/body-records?userId=xxx&date=YYYY-MM-DD
-export const onRequestDelete: PagesFunction<Env> = async ({ env, request }) => {
+export const onRequestDelete: PagesFunction<Env> = async ({ env, request, waitUntil }) => {
   const cors = corsHeaders(request)
   const url = new URL(request.url)
   const userId = url.searchParams.get('userId')
@@ -84,5 +93,9 @@ export const onRequestDelete: PagesFunction<Env> = async ({ env, request }) => {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${sbKey}`, apikey: sbKey },
   })
+  if (res.ok) {
+    invalidateBodyFeedCache(waitUntil)
+    invalidateStatsCache(waitUntil)
+  }
   return new Response(JSON.stringify({ ok: res.ok }), { status: res.ok ? 200 : 500, headers: cors })
 }

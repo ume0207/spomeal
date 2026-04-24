@@ -1,6 +1,11 @@
 import { verifyUser, verifyAdmin, corsHeaders, handleOptions, authErrorResponse } from '../_shared/auth'
+import { invalidateMealFeedCache, invalidateStatsCache } from '../_shared/admin-cache'
 
-type PagesFunction<Env = Record<string, unknown>> = (context: { request: Request; env: Env }) => Promise<Response> | Response
+type PagesFunction<Env = Record<string, unknown>> = (context: {
+  request: Request
+  env: Env
+  waitUntil?: (p: Promise<unknown>) => void
+}) => Promise<Response> | Response
 
 interface Env {
   NEXT_PUBLIC_SUPABASE_URL: string
@@ -51,7 +56,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
 }
 
 // POST /api/meals
-export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
+export const onRequestPost: PagesFunction<Env> = async ({ env, request, waitUntil }) => {
   const cors = corsHeaders(request)
   const { NEXT_PUBLIC_SUPABASE_URL: sbUrl, SUPABASE_SERVICE_ROLE_KEY: sbKey } = env
   const body = await request.json() as {
@@ -114,6 +119,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
       const errText = typeof data === 'string' ? data : JSON.stringify(data)
       return new Response(JSON.stringify({ error: 'meal_records PATCH失敗', status: res.status, supabaseError: errText.slice(0, 500) }), { status: 500, headers: cors })
     }
+    // 管理者画面のフィード/統計キャッシュを無効化（反映遅延を防ぐ）
+    invalidateMealFeedCache(waitUntil)
+    invalidateStatsCache(waitUntil)
     return new Response(JSON.stringify(data), { status: 200, headers: cors })
   }
 
@@ -138,11 +146,15 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
     }),
   })
   const data = await res.json()
+  if (res.ok) {
+    invalidateMealFeedCache(waitUntil)
+    invalidateStatsCache(waitUntil)
+  }
   return new Response(JSON.stringify(data), { status: res.ok ? 200 : 500, headers: cors })
 }
 
 // DELETE /api/meals?id=xxx&userId=xxx
-export const onRequestDelete: PagesFunction<Env> = async ({ env, request }) => {
+export const onRequestDelete: PagesFunction<Env> = async ({ env, request, waitUntil }) => {
   const cors = corsHeaders(request)
   const url = new URL(request.url)
   const id = url.searchParams.get('id')
@@ -157,5 +169,9 @@ export const onRequestDelete: PagesFunction<Env> = async ({ env, request }) => {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${sbKey}`, apikey: sbKey },
   })
+  if (res.ok) {
+    invalidateMealFeedCache(waitUntil)
+    invalidateStatsCache(waitUntil)
+  }
   return new Response(JSON.stringify({ ok: res.ok }), { status: res.ok ? 200 : 500, headers: cors })
 }
