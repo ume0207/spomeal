@@ -155,6 +155,60 @@ export default function AdminDashboardPage() {
   const [pointsMessage, setPointsMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [showGachaModal, setShowGachaModal] = useState(false)
 
+  // 返金 + 即時削除（危険操作）
+  const [dangerEmail, setDangerEmail] = useState('')
+  const [dangerPassword, setDangerPassword] = useState('')
+  const [dangerRunning, setDangerRunning] = useState(false)
+  const [dangerResult, setDangerResult] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  const handleRefundAndDelete = async () => {
+    const email = dangerEmail.trim()
+    if (!email) {
+      setDangerResult({ type: 'error', text: 'メールアドレスを入力してください' })
+      return
+    }
+    if (!dangerPassword) {
+      setDangerResult({ type: 'error', text: '追加パスワードを入力してください' })
+      return
+    }
+    const confirmed = window.confirm(
+      `【警告】${email} のアカウントを以下の通り処理します。\n\n` +
+      '・Stripe: 最新の支払いを全額返金\n' +
+      '・Stripe: サブスクを即時キャンセル\n' +
+      '・Stripe: Customer を削除\n' +
+      '・Supabase: 食事 / 体組成 / 予約 / ポイント / 目標 / コメント / プロフィール / Auth を削除\n\n' +
+      'この操作は取り消せません。本当に実行しますか？'
+    )
+    if (!confirmed) return
+
+    setDangerRunning(true)
+    setDangerResult(null)
+    try {
+      const res = await apiFetch('/api/admin/refund-and-delete', {
+        method: 'POST',
+        body: JSON.stringify({ email, password: dangerPassword }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data?.success) {
+        const msg = data?.error || (data?.errors && data.errors.join(' / ')) || `HTTP ${res.status}`
+        setDangerResult({ type: 'error', text: `失敗: ${msg}` })
+      } else {
+        const amt = data?.steps?.refund?.amount ?? 0
+        const cnt = data?.steps?.refund?.count ?? 0
+        setDangerResult({
+          type: 'success',
+          text: `完了: 返金 ¥${amt.toLocaleString()} (${cnt}件) / サブスク解約=${data?.steps?.subscriptionCancelled ? 'OK' : '-'} / Customer削除=${data?.steps?.customerDeleted ? 'OK' : '-'} / Auth削除=${data?.steps?.authDeleted ? 'OK' : '-'}`,
+        })
+        setDangerEmail('')
+        setDangerPassword('')
+      }
+    } catch (e) {
+      setDangerResult({ type: 'error', text: `通信エラー: ${String(e)}` })
+    } finally {
+      setDangerRunning(false)
+    }
+  }
+
   useEffect(() => {
     apiFetch('/api/admin/stats')
       .then((r) => r.json())
@@ -1994,6 +2048,101 @@ export default function AdminDashboardPage() {
           </div>
         </div>
       )}
+
+      {/* ━━━━━━ 危険ゾーン：返金 + 即時削除 ━━━━━━ */}
+      <div style={{
+        maxWidth: '1200px', margin: '32px auto 24px', padding: '0 16px',
+      }}>
+        <div style={{
+          background: '#fff',
+          border: '2px solid #fecaca',
+          borderRadius: '16px',
+          padding: '20px',
+          boxShadow: '0 2px 8px rgba(239, 68, 68, 0.08)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <span style={{ fontSize: '20px' }}>⚠️</span>
+            <h2 style={{ fontSize: '16px', fontWeight: 800, color: '#b91c1c', margin: 0 }}>
+              危険ゾーン：返金 + 即時削除
+            </h2>
+          </div>
+          <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 16px', lineHeight: 1.6 }}>
+            指定会員の<strong>最新の支払いを全額返金</strong>し、<strong>サブスクを即時キャンセル</strong>、
+            <strong>Stripe Customer と Supabase のユーザーデータを完全削除</strong>します。<br />
+            この操作は<strong style={{ color: '#b91c1c' }}>取り消しできません</strong>。追加パスワードが必要です。
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '4px', fontWeight: 600 }}>
+                対象会員のメールアドレス
+              </label>
+              <input
+                type="email"
+                value={dangerEmail}
+                onChange={e => setDangerEmail(e.target.value)}
+                placeholder="user@example.com"
+                disabled={dangerRunning}
+                style={{
+                  width: '100%', padding: '10px 12px', fontSize: '13px',
+                  border: '1px solid #e5e7eb', borderRadius: '10px',
+                  fontFamily: 'inherit', background: dangerRunning ? '#f9fafb' : '#fff',
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '4px', fontWeight: 600 }}>
+                追加パスワード
+              </label>
+              <input
+                type="password"
+                value={dangerPassword}
+                onChange={e => setDangerPassword(e.target.value)}
+                placeholder="••••••"
+                disabled={dangerRunning}
+                autoComplete="new-password"
+                style={{
+                  width: '100%', padding: '10px 12px', fontSize: '13px',
+                  border: '1px solid #e5e7eb', borderRadius: '10px',
+                  fontFamily: 'inherit', background: dangerRunning ? '#f9fafb' : '#fff',
+                }}
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={handleRefundAndDelete}
+            disabled={dangerRunning || !dangerEmail.trim() || !dangerPassword}
+            style={{
+              width: '100%', padding: '12px',
+              background: dangerRunning || !dangerEmail.trim() || !dangerPassword
+                ? '#fca5a5'
+                : 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
+              color: 'white', fontWeight: 800, fontSize: '14px',
+              border: 'none', borderRadius: '12px',
+              cursor: dangerRunning || !dangerEmail.trim() || !dangerPassword ? 'not-allowed' : 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            {dangerRunning ? '処理中…' : '返金して即時削除する'}
+          </button>
+
+          {dangerResult && (
+            <div style={{
+              marginTop: '12px', padding: '12px',
+              background: dangerResult.type === 'success' ? '#ecfdf5' : '#fef2f2',
+              border: `1px solid ${dangerResult.type === 'success' ? '#a7f3d0' : '#fecaca'}`,
+              borderRadius: '10px',
+              fontSize: '12px',
+              color: dangerResult.type === 'success' ? '#065f46' : '#991b1b',
+              lineHeight: 1.6,
+              wordBreak: 'break-all',
+            }}>
+              {dangerResult.text}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
