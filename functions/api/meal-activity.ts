@@ -10,30 +10,33 @@ interface Env {
 
 /**
  * POST /api/meal-activity
- * ユーザーが食事を保存した時に呼ばれ、user_metadataに最新の食事情報を記録する
  *
- * Body: { userId, mealType, items, totalKcal, totalProtein, totalFat, totalCarbs }
+ * ★重要バグ修正★ この API は以前 auth.users.user_metadata.meal_activity 配列を
+ * 「GET → 変更 → PUT」で更新していたが、これは **read-modify-write レース** になっており、
+ * 短時間に複数の食事記録や他の activity API（goal-activity, body-activity）が
+ * 並行して走ると、同じ user_metadata の古いスナップショットに対して両者が書き戻し、
+ * **片方の更新が丸ごと消える** データ消失バグの原因になっていた。
+ *
+ * 食事の本体データは `meal_records` テーブル（/api/meals 経由）に正しく保存されている。
+ * 管理者画面 (/admin/members/detail 等) も `meal_records` を優先して読むように実装済み
+ * （functions/api/admin/member-data.ts GET, functions/api/admin/meal-feed.ts）。
+ * したがって user_metadata 側のキャッシュ配列はもはや不要。
+ *
+ * race を根絶するため、この API は **no-op（認証のみ通して 200 を返す）** に変更した。
+ * 既存のフロントエンドからは引き続き呼ばれても、データを破壊することはなくなる。
  */
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { env, request } = context
   const cors = corsHeaders(request)
 
   try {
-    const body = await request.json() as {
-      userId: string
-      mealType: string
-      items: { name: string; kcal: number; protein: number; fat: number; carbs: number }[]
-      totalKcal: number
-      totalProtein: number
-      totalFat: number
-      totalCarbs: number
-    }
+    const body = await request.json().catch(() => ({})) as { userId?: string }
 
     if (!body.userId) {
       return new Response(JSON.stringify({ error: 'userId is required' }), { status: 400, headers: cors })
     }
 
-    // 認証：管理者トークン優先、次に本人のSupabase JWT
+    // 認証だけは維持（他人を詐称した呼び出しを防ぐ）
     const admin = await verifyAdmin(request, env)
     if (!admin.ok) {
       const auth = await verifyUser(request, env)
@@ -43,73 +46,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     }
 
-    // 現在のユーザーメタデータを取得
-    const userRes = await fetch(
-      `${env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users/${body.userId}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-          'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
-        },
-      }
-    )
-
-    if (!userRes.ok) {
-      return new Response(JSON.stringify({ error: 'User not found' }), { status: 404, headers: cors })
-    }
-
-    const userData = await userRes.json() as { user_metadata?: Record<string, unknown> }
-    const existingMeta = userData.user_metadata || {}
-
-    // meal_activity 配列を更新（最新20件を保持）
-    const existingActivity = (existingMeta.meal_activity as Array<Record<string, unknown>>) || []
-
-    const now = new Date()
-    const jstStr = now.toLocaleString('sv-SE', { timeZone: 'Asia/Tokyo' })
-    const dateStr = jstStr.slice(0, 10)
-    const timeStr = jstStr.slice(11, 16)
-
-    const newEntry = {
-      mealType: body.mealType || '食事',
-      items: (body.items || []).map(i => ({ name: i.name, kcal: i.kcal, protein: i.protein, fat: i.fat, carbs: i.carbs })).slice(0, 10),
-      totalKcal: body.totalKcal || 0,
-      totalProtein: body.totalProtein || 0,
-      totalFat: body.totalFat || 0,
-      totalCarbs: body.totalCarbs || 0,
-      date: dateStr,
-      time: timeStr,
-      updatedAt: now.toISOString(),
-    }
-
-    // 最新を先頭に追加、20件まで保持
-    const updatedActivity = [newEntry, ...existingActivity].slice(0, 20)
-
-    // user_metadataを更新
-    const updateRes = await fetch(
-      `${env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users/${body.userId}`,
-      {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-          'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_metadata: {
-            ...existingMeta,
-            meal_activity: updatedActivity,
-            last_meal_at: now.toISOString(),
-          },
-        }),
-      }
-    )
-
-    if (!updateRes.ok) {
-      const errText = await updateRes.text()
-      return new Response(JSON.stringify({ error: 'Failed to update', detail: errText }), { status: 500, headers: cors })
-    }
-
-    return new Response(JSON.stringify({ success: true }), { status: 200, headers: cors })
+    // 意図的に何も書き込まない。meal_records テーブルが真実源。
+    return new Response(JSON.stringify({ success: true, noop: true }), { status: 200, headers: cors })
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: cors })
   }

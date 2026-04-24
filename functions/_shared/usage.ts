@@ -252,6 +252,17 @@ export async function canUseAiAnalysis(
 
 /**
  * AI解析回数をインクリメント
+ *
+ * ★重要バグ修正★
+ * 以前は POST + `resolution=merge-duplicates` で **total_points / lottery_count /
+ * records / lottery_history の全カラム** を上書き保存していた。そのため、
+ * AI 解析中に別タブで抽選が実行された場合、ここで「古いスナップショットの
+ * total_points/lottery_history」で **上書きされてポイントや抽選履歴が消える**
+ * 致命バグがあった（user-points.ts の旧 `save` action と同じクラスのバグ）。
+ *
+ * 対応：
+ * - 既存行があれば `records` カラムだけ PATCH する（他カラムには一切触らない）
+ * - 既存行がなければ INSERT する（この場合は total_points=0 等で新規作成OK）
  */
 export async function incrementAiAnalysisCount(
   userId: string,
@@ -268,18 +279,14 @@ export async function incrementAiAnalysisCount(
   if (!getRes.ok) return
 
   const existing = (await getRes.json()) as UserPointsRow[]
+  const hasExisting = Array.isArray(existing) && existing.length > 0
   const today = getJSTDateStr()
 
-  const current = existing[0] || {
-    user_id: userId,
-    total_points: 0,
-    lottery_count: 0,
-    records: [],
-    lottery_history: [],
-  }
+  const currentRecords: PointsRecord[] = hasExisting && Array.isArray(existing[0].records)
+    ? [...existing[0].records]
+    : []
 
-  const records = Array.isArray(current.records) ? [...current.records] : []
-  let record = records.find((r) => r.date === today)
+  let record = currentRecords.find((r) => r.date === today)
   if (!record) {
     record = {
       date: today,
@@ -291,25 +298,42 @@ export async function incrementAiAnalysisCount(
       body: false,
       aiAnalysis: 0,
     }
-    records.push(record)
+    currentRecords.push(record)
   }
   record.aiAnalysis = (record.aiAnalysis || 0) + 1
 
-  await fetch(`${sbUrl}/rest/v1/user_points`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${sbKey}`,
-      apikey: sbKey,
-      'Content-Type': 'application/json',
-      Prefer: 'resolution=merge-duplicates',
-    },
-    body: JSON.stringify({
-      user_id: userId,
-      total_points: current.total_points || 0,
-      lottery_count: current.lottery_count || 0,
-      records,
-      lottery_history: current.lottery_history || [],
-      updated_at: new Date().toISOString(),
-    }),
-  })
+  if (hasExisting) {
+    // ★records カラムだけ更新。total_points / lottery_count / lottery_history は
+    //   絶対に触らない（並行する抽選/ポイント加算と衝突しても破壊しない）。
+    await fetch(`${sbUrl}/rest/v1/user_points?user_id=eq.${encodeURIComponent(userId)}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${sbKey}`,
+        apikey: sbKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        records: currentRecords,
+        updated_at: new Date().toISOString(),
+      }),
+    })
+  } else {
+    // 新規行（この userId で初回の AI 解析）
+    await fetch(`${sbUrl}/rest/v1/user_points`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${sbKey}`,
+        apikey: sbKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        total_points: 0,
+        lottery_count: 0,
+        records: currentRecords,
+        lottery_history: [],
+        updated_at: new Date().toISOString(),
+      }),
+    })
+  }
 }

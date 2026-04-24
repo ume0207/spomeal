@@ -136,7 +136,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     // 4. サブスクが無い/既にキャンセル済み → 即時削除
-    const tables = ['meals', 'body_records', 'reservations']
+    // ★重要バグ修正★ 以前は `'meals'` という存在しないテーブル名を使っていたため、
+    // 食事データ（正しくは meal_records）が削除されずに残っていた。
+    // user_points / user_goals / nutritionist_comments も削除対象に追加。
+    // 退会ユーザーの個人情報が DB に残り続ける問題を解消する。
+    const tables = ['meal_records', 'body_records', 'reservations', 'user_points', 'user_goals', 'nutritionist_comments']
     for (const table of tables) {
       try {
         await fetch(

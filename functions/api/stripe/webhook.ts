@@ -212,7 +212,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             'Content-Type': 'application/json',
           }
           // 関連データ削除
-          const tables = ['meals', 'body_records', 'reservations']
+          // ★重要バグ修正★ `'meals'` は存在しない。正しくは meal_records。
+          // user_points / user_goals / nutritionist_comments も削除対象に追加。
+          const tables = ['meal_records', 'body_records', 'reservations', 'user_points', 'user_goals', 'nutritionist_comments']
           for (const table of tables) {
             try {
               await fetch(`${supabaseUrl}/rest/v1/${table}?user_id=eq.${userId}`, {

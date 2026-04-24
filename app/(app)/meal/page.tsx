@@ -393,8 +393,13 @@ export default function MealPage() {
           setRecords(records)
 
           // localStorageからの一回限り移行
+          // ★改善★ 2タブ同時に開いた時の二重マイグレーションを防ぐため、
+          // 移行開始時点で即座にフラグを立てる（先着1タブだけが処理し、
+          // 他のタブは migratedKey が立っているのでスキップする）。
           const migratedKey = `meals_migrated_v1_${uid}`
           if (data.length === 0 && !localStorage.getItem(migratedKey)) {
+            // 先に in_progress を立てる → 他タブはここをスキップ
+            localStorage.setItem(migratedKey, 'in_progress')
             const localKey = `mealRecords_v1_${uid}` in localStorage ? `mealRecords_v1_${uid}` : 'mealRecords_v1'
             const localRaw = localStorage.getItem(localKey)
             if (localRaw) {
@@ -428,12 +433,12 @@ export default function MealPage() {
                     } catch { /* ignore individual failures */ }
                   }
                   if (migrated.length > 0) setRecords(migrated)
-                  localStorage.setItem(migratedKey, '1')
                 }
               } catch { /* ignore */ }
-            } else {
-              localStorage.setItem(migratedKey, '1')
             }
+            // 成否に関わらず完了フラグを立てる（永続化）。失敗した localStorage
+                  // レコードは localStorage に残るので、ユーザーが手動で再試行可能。
+            localStorage.setItem(migratedKey, '1')
           }
         }
       } catch { /* ignore */ }

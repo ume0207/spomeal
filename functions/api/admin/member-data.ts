@@ -85,60 +85,39 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 }
 
+/**
+ * POST /api/admin/member-data
+ *
+ * ★重要バグ修正★ この POST は以前 user_metadata を read-modify-write していて、
+ * 他の activity API（meal-activity / body-activity / goal-activity）と衝突すると
+ * 他フィールドを巻き添えで破壊するリスクがあった。
+ *
+ * 食事・体組成・目標データの本体はそれぞれ専用テーブル（meal_records /
+ * body_records / user_goals）に保存されており、GET はこのテーブルを優先して
+ * 読む実装になっている。したがって user_metadata 側への書き込みは不要。
+ *
+ * race を根絶するため、この POST は **no-op（認証のみ通して 200 を返す）** に変更。
+ * 管理者画面から呼ばれても、本体データを破壊することはなくなる。
+ */
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { env, request } = context
 
-  // 管理者認証
+  // 管理者認証だけは維持
   const auth = await verifyAdmin(request, env)
   if (!auth.ok) return authErrorResponse(auth, request)
 
   const cors = corsHeaders(request)
 
   try {
-    const body = await request.json() as { userId?: string; type?: string; data?: unknown }
-    const { userId, type, data } = body
+    const body = await request.json().catch(() => ({})) as { userId?: string; type?: string }
+    const { userId, type } = body
     if (!userId || !type) return new Response(JSON.stringify({ error: 'userId and type required' }), { status: 400, headers: cors })
 
-    const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseKey = env.SUPABASE_SERVICE_ROLE_KEY
-
-    const userRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
-      headers: { Authorization: `Bearer ${supabaseKey}`, apikey: supabaseKey },
-    })
-    const userData = await userRes.json()
-    const meta = userData.user_metadata || {}
-
-    let updatedMeta = { ...meta }
-
-    if (type === 'goal') {
-      updatedMeta.goal_data = data
-    } else if (type === 'body') {
-      let bodyActivity = Array.isArray(meta.body_activity) ? [...meta.body_activity] : []
-      const existingIdx = bodyActivity.findIndex((e) => e.date === data.date)
-      if (existingIdx >= 0) {
-        bodyActivity[existingIdx] = { ...data, recordedAt: new Date().toISOString() }
-      } else {
-        bodyActivity.unshift({ ...data, recordedAt: new Date().toISOString() })
-      }
-      updatedMeta.body_activity = bodyActivity.slice(0, 30)
-    } else if (type === 'meal') {
-      let mealActivity = Array.isArray(meta.meal_activity) ? [...meta.meal_activity] : []
-      mealActivity.unshift({ ...data, recordedAt: new Date().toISOString() })
-      updatedMeta.meal_activity = mealActivity.slice(0, 90)
-    }
-
-    const updateRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
-      method: 'PUT',
-      headers: { Authorization: `Bearer ${supabaseKey}`, apikey: supabaseKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_metadata: updatedMeta }),
-    })
-    if (!updateRes.ok) {
-      const err = await updateRes.text()
-      return new Response(JSON.stringify({ error: err }), { status: 500, headers: cors })
-    }
-
-    return new Response(JSON.stringify({ ok: true }), { headers: cors })
-  } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: cors })
+    // 意図的に何も書き込まない。
+    // 本体テーブル（meal_records / body_records / user_goals）が真実源。
+    return new Response(JSON.stringify({ ok: true, noop: true }), { status: 200, headers: cors })
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : String(e)
+    return new Response(JSON.stringify({ error: message }), { status: 500, headers: cors })
   }
 }

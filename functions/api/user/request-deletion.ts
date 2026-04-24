@@ -176,7 +176,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     // サブスク無し → 即時削除
-    const tables = ['meals', 'body_records', 'reservations']
+    // ★重要バグ修正★ `'meals'` は存在しない。正しくは meal_records。
+    // user_points / user_goals / nutritionist_comments も削除対象に追加し、
+    // 退会ユーザーの個人情報が DB に残らないようにする。
+    const tables = ['meal_records', 'body_records', 'reservations', 'user_points', 'user_goals', 'nutritionist_comments']
     for (const table of tables) {
       try {
         await fetch(

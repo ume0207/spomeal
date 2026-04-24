@@ -52,8 +52,11 @@ export default function BodyPage() {
         setSavedRecords(records)
 
         // localStorageからの一回限り移行
+        // ★改善★ 2タブ同時に開いた時の二重マイグレーションを防ぐため、
+        // 開始時点で即フラグを立てて他タブをスキップさせる。
         const migratedKey = `body_migrated_v1_${uid}`
         if (data.length === 0 && !localStorage.getItem(migratedKey)) {
+          localStorage.setItem(migratedKey, 'in_progress')
           const localKey = `bodyRecords_v1_${uid}` in localStorage ? `bodyRecords_v1_${uid}` : 'bodyRecords_v1'
           const localRaw = localStorage.getItem(localKey)
           if (localRaw) {
@@ -70,12 +73,10 @@ export default function BodyPage() {
                   } catch { /* ignore */ }
                 }
                 setSavedRecords(localRecords)
-                localStorage.setItem(migratedKey, '1')
               }
             } catch { /* ignore */ }
-          } else {
-            localStorage.setItem(migratedKey, '1')
           }
+          localStorage.setItem(migratedKey, '1')
         }
       }
 
