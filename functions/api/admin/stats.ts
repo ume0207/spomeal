@@ -1,6 +1,10 @@
 import { verifyAdmin, corsHeaders, handleOptions, authErrorResponse } from '../../_shared/auth'
 
-type PagesFunction<Env = Record<string, unknown>> = (context: { request: Request; env: Env }) => Promise<Response> | Response
+type PagesFunction<Env = Record<string, unknown>> = (context: {
+  request: Request
+  env: Env
+  waitUntil?: (p: Promise<unknown>) => void
+}) => Promise<Response> | Response
 
 interface Env {
   NEXT_PUBLIC_SUPABASE_URL: string
@@ -16,14 +20,34 @@ async function stripeGet(path: string, secretKey: string) {
   return res.json()
 }
 
+// Cloudflare Edge Cache 用の固定キー。全管理者で共有できる global data のため
+// URL ベースのシンプルなキーで十分（TTL は Cache-Control ヘッダで制御）。
+const CACHE_KEY_URL = 'https://cache.internal/admin/stats/v2'
+const CACHE_TTL_SECONDS = 60
+
 export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const { env, request } = context
+  const { env, request, waitUntil } = context
 
   // 管理者認証
   const auth = await verifyAdmin(request, env)
   if (!auth.ok) return authErrorResponse(auth, request)
 
   const cors = corsHeaders(request)
+
+  // Cloudflare Edge Cache をチェック
+  const cache = (globalThis as unknown as { caches: { default: Cache } }).caches?.default
+  const cacheKey = new Request(CACHE_KEY_URL)
+  if (cache) {
+    try {
+      const cached = await cache.match(cacheKey)
+      if (cached) {
+        const body = await cached.text()
+        return new Response(body, { status: 200, headers: { ...cors, 'X-Cache': 'HIT' } })
+      }
+    } catch {
+      // キャッシュ読み出し失敗時は通常処理
+    }
+  }
 
   try {
     // Stripe: サブスクリプション一覧取得
@@ -73,7 +97,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const supaData = await supaRes.json() as { total?: number }
     const totalMembers = supaData.total || 0
 
-    return new Response(JSON.stringify({
+    const body = JSON.stringify({
       totalMembers,
       trialing: trialSubs.data?.length || 0,
       active: activeSubs.data?.length || 0,
@@ -83,7 +107,29 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       monthlyRevenue: Math.round(monthlyRevenue),
       churnRate,
       retentionRate,
-    }), { status: 200, headers: cors })
+    })
+
+    // Edge Cache に保存（60秒）
+    if (cache) {
+      try {
+        const cacheResp = new Response(body, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': `public, max-age=${CACHE_TTL_SECONDS}`,
+          },
+        })
+        const putPromise = cache.put(cacheKey, cacheResp)
+        if (waitUntil) {
+          waitUntil(putPromise)
+        } else {
+          putPromise.catch(() => {})
+        }
+      } catch {
+        // キャッシュ書き込み失敗は無視
+      }
+    }
+
+    return new Response(body, { status: 200, headers: { ...cors, 'X-Cache': 'MISS' } })
 
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: cors })
