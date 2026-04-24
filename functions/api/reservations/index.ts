@@ -210,6 +210,36 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       )
     }
 
+    // ★重要バグ修正★ ダブルブッキング防止チェック
+    // 以前はクライアント側の TimeSlot 表示でしか衝突回避していなかったため、
+    // レースコンディション / 複数タブ / 直接 POST で同じ (staff_id, date, time) に
+    // 予約が重複する可能性があった。同じ枠に既存予約（cancelled以外）がある場合は
+    // 409 を返して拒否する。
+    {
+      const supaHeaders = {
+        'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+        'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+      }
+      const staffId = body.staffId ? String(body.staffId) : ''
+      const date = String(body.date)
+      const time = String(body.time)
+      // staff_id が指定されていれば同じスタッフ×同じ日時、指定なしでも日時だけで衝突判定
+      const staffFilter = staffId ? `&staff_id=eq.${encodeURIComponent(staffId)}` : ''
+      const dupCheck = await fetch(
+        `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/reservations?date=eq.${encodeURIComponent(date)}&time=eq.${encodeURIComponent(time)}${staffFilter}&status=neq.cancelled&select=id`,
+        { headers: supaHeaders }
+      )
+      if (dupCheck.ok) {
+        const dupRows = await dupCheck.json() as Array<{ id?: string }>
+        if (Array.isArray(dupRows) && dupRows.length > 0) {
+          return new Response(
+            JSON.stringify({ error: 'この時間枠はすでに予約が入っています。別の時間を選択してください。' }),
+            { status: 409, headers: cors }
+          )
+        }
+      }
+    }
+
     // Google Meet リンクをサーバー側で自動生成
     const { meetLink, calendarEventId } = await createMeetLink(env, body)
     if (meetLink) {

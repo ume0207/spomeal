@@ -67,11 +67,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       { headers: { Authorization: `Bearer ${supabaseKey}`, apikey: supabaseKey } }
     )
     const goalData = goalRes.ok ? await goalRes.json() : []
+    // ★修正: user_metadata (meta.goal_data) へのフォールバックを廃止。
+    // user_goals テーブルが無いユーザーは単純に null を返す。
+    // 以前は user_metadata に残っていた古い目標データが表示され、
+    // 新データと混在して会員・管理者間で異なる数値が出る原因になっていた。
     const goal = goalData[0] ? {
       cal: goalData[0].cal, protein: goalData[0].protein, fat: goalData[0].fat, carbs: goalData[0].carbs,
       targetWeight: goalData[0].target_weight, height: goalData[0].height,
       activityLevel: goalData[0].activity_level, goalType: goalData[0].goal_type,
-    } : (meta.goal_data || null)
+    } : null
 
     // ★修正: user_metadata へのフォールバックを廃止。
     // meal_activity / body_activity / goal_activity API を no-op 化したため、

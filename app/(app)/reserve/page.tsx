@@ -74,12 +74,16 @@ function generateDefaultTimeSlots(): TimeSlot[] {
   return slots
 }
 
-// 指定時刻がシフトの時間帯に含まれるか判定（20分のミーティング枠として）
+// 指定時刻がシフトの時間帯に含まれるか判定（30分のミーティング枠として）
+// ※ サーバー側 (functions/api/reservations/index.ts) が Google Calendar に
+//    30分のイベントを作成するため、クライアント側のシフト内判定も 30分に合わせる。
+//    以前は 20分で判定していたため、シフト終了直前の枠を予約すると
+//    カレンダーイベントがシフト外に食み出す不整合が発生していた。
 function isTimeInShiftSlots(time: string, shift: Shift): boolean {
   const shiftSlots: ShiftTimeSlot[] = shift.slots || (shift.startTime && shift.endTime ? [{ startTime: shift.startTime, endTime: shift.endTime }] : [])
   const [th, tm] = time.split(':').map(Number)
   const timeMin = th * 60 + tm
-  const meetingEnd = timeMin + 20 // 20分枠
+  const meetingEnd = timeMin + 30 // 30分枠（サーバー側の Calendar イベント長と一致）
 
   return shiftSlots.some(slot => {
     const [sh, sm] = slot.startTime.split(':').map(Number)
