@@ -155,6 +155,22 @@ export default function AdminDashboardPage() {
   const [pointsMessage, setPointsMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [showGachaModal, setShowGachaModal] = useState(false)
 
+  // 課金中ユーザー一覧（Stripe）
+  interface BillingItem {
+    subscriptionId: string
+    status: string
+    cancelAtPeriodEnd: boolean
+    currentPeriodEnd: string | null
+    createdAt: string | null
+    amount: number
+    currency: string
+    interval: string
+    customer: { id: string; email: string; stripeName: string; appName: string; appUserId: string | null; appPlanId: string | null }
+  }
+  const [billing, setBilling] = useState<BillingItem[] | null>(null)
+  const [billingTotal, setBillingTotal] = useState(0)
+  const [billingError, setBillingError] = useState('')
+
   // 返金 + 即時削除（危険操作）
   const [dangerEmail, setDangerEmail] = useState('')
   const [dangerPassword, setDangerPassword] = useState('')
@@ -214,6 +230,15 @@ export default function AdminDashboardPage() {
       .then((r) => r.json())
       .then((data: Stats) => { setStats(data); setLoading(false) })
       .catch(() => setLoading(false))
+
+    // Stripe 課金中ユーザー
+    apiFetch('/api/admin/billing-list')
+      .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
+      .then((d: { list: BillingItem[]; totalMonthlyJpy: number }) => {
+        setBilling(d.list || [])
+        setBillingTotal(d.totalMonthlyJpy || 0)
+      })
+      .catch((e) => { setBilling([]); setBillingError(String(e)) })
 
     // 管理栄養士コメントを DB から取得（管理者は全件）
     apiFetch('/api/admin/comments')
@@ -2048,6 +2073,101 @@ export default function AdminDashboardPage() {
           </div>
         </div>
       )}
+
+      {/* ━━━━━━ Stripe 課金中ユーザー一覧 ━━━━━━ */}
+      <div style={{ maxWidth: '1200px', margin: '32px auto 0', padding: '0 16px' }}>
+        <div style={{
+          background: '#fff',
+          border: '1px solid #e5e7eb',
+          borderRadius: '16px',
+          padding: '20px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <span style={{ fontSize: '20px' }}>💳</span>
+            <h2 style={{ fontSize: '16px', fontWeight: 800, color: '#111827', margin: 0 }}>
+              課金中の会員（Stripe）
+            </h2>
+            {billing && (
+              <span style={{
+                marginLeft: 'auto', fontSize: '13px', fontWeight: 700, color: '#059669',
+                background: '#ecfdf5', padding: '4px 10px', borderRadius: '999px',
+              }}>
+                {billing.length}名 / 月額 ¥{billingTotal.toLocaleString()}
+              </span>
+            )}
+          </div>
+          <p style={{ fontSize: '11px', color: '#6b7280', margin: '0 0 16px' }}>
+            active / trialing / past_due のサブスクをStripeから直接取得
+          </p>
+
+          {billing === null && (
+            <div style={{ padding: '16px', textAlign: 'center', color: '#9ca3af', fontSize: '13px' }}>読み込み中…</div>
+          )}
+          {billing && billing.length === 0 && !billingError && (
+            <div style={{ padding: '16px', textAlign: 'center', color: '#9ca3af', fontSize: '13px' }}>課金中のユーザーはいません</div>
+          )}
+          {billingError && (
+            <div style={{ padding: '12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', fontSize: '12px', color: '#991b1b' }}>
+              取得失敗: {billingError}
+            </div>
+          )}
+
+          {billing && billing.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {billing.map(b => {
+                const statusColor =
+                  b.status === 'active' ? { bg: '#ecfdf5', fg: '#065f46', label: 'アクティブ' } :
+                  b.status === 'trialing' ? { bg: '#eff6ff', fg: '#1e40af', label: 'トライアル中' } :
+                  b.status === 'past_due' ? { bg: '#fef3c7', fg: '#92400e', label: '支払い遅延' } :
+                  { bg: '#f3f4f6', fg: '#6b7280', label: b.status }
+                const displayName = b.customer.appName || b.customer.stripeName || b.customer.email || '(不明)'
+                const periodEnd = b.currentPeriodEnd ? new Date(b.currentPeriodEnd).toLocaleDateString('ja-JP') : '-'
+                return (
+                  <div key={b.subscriptionId} style={{
+                    display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', alignItems: 'center',
+                    padding: '12px 14px', background: '#fafafa', borderRadius: '12px', border: '1px solid #f3f4f6',
+                  }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: '#111827' }}>{displayName}</span>
+                        <span style={{
+                          fontSize: '10px', fontWeight: 700,
+                          background: statusColor.bg, color: statusColor.fg,
+                          padding: '2px 8px', borderRadius: '999px',
+                        }}>{statusColor.label}</span>
+                        {b.cancelAtPeriodEnd && (
+                          <span style={{
+                            fontSize: '10px', fontWeight: 700,
+                            background: '#fef2f2', color: '#991b1b',
+                            padding: '2px 8px', borderRadius: '999px',
+                          }}>期間終了で解約予定</span>
+                        )}
+                        {b.customer.appPlanId && (
+                          <span style={{
+                            fontSize: '10px', fontWeight: 600,
+                            background: '#f3f4f6', color: '#374151',
+                            padding: '2px 8px', borderRadius: '999px',
+                          }}>{b.customer.appPlanId}</span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {b.customer.email} ・ 次回更新 {periodEnd}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '14px', fontWeight: 800, color: '#059669' }}>
+                        ¥{b.amount.toLocaleString()}
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#9ca3af' }}>/{b.interval === 'month' ? '月' : b.interval}</div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* ━━━━━━ 危険ゾーン：返金 + 即時削除 ━━━━━━ */}
       <div style={{
