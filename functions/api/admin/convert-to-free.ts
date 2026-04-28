@@ -96,66 +96,92 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   }
 
   // 1. profile を「無料化」に書き換える
-  //    まずは「絶対に存在する標準カラムだけ」で確実に成功させる。
-  //    その後に is_free_account / free_coupon_code 等を**個別に**試行（失敗しても無視）。
+  //    Postgrestのスキーマキャッシュが壊れている可能性があるので、最小カラムずつ
+  //    PATCH で試行する。1カラムずつ試すことで、どのカラムが認識されるかを動的に判定。
   let profileUpdated = false
   let isFreeAccountFlagSet = false
+  const triedFields: Record<string, boolean> = {}
 
-  // 1a. まず確実に通る標準カラムだけで upsert
-  try {
-    const baseRes = await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles`, {
-      method: 'POST',
-      headers: { ...supaHeaders, 'Prefer': 'resolution=merge-duplicates' },
-      body: JSON.stringify({
-        id: userId,
-        email: emailUsed || null,
-        subscription_status: 'active',
-        subscription_plan: grantedPlan,
-        updated_at: new Date().toISOString(),
-      }),
-    })
-    if (baseRes.ok) {
-      profileUpdated = true
-    } else {
-      const errTxt = await baseRes.text()
-      errors.push(`profile 基本更新失敗: ${errTxt}`)
-    }
-  } catch (e) { errors.push(`profile 基本更新で例外: ${String(e)}`) }
-
-  // 1b. is_free_account=true を試行（カラムが無ければ無視）
-  try {
-    const flagRes = await fetch(
-      `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
-      {
-        method: 'PATCH',
-        headers: supaHeaders,
-        body: JSON.stringify({
-          is_free_account: true,
-          free_coupon_code: 'ADMIN_CONVERT',
-          free_granted_at: new Date().toISOString(),
-        }),
-      }
-    )
-    isFreeAccountFlagSet = flagRes.ok
-  } catch { /* ignore */ }
-
-  // 1c. もし is_free_account が落ちたなら、個別カラムを1つずつ試す（カラム単位で存在判定）
-  if (!isFreeAccountFlagSet) {
+  // PATCH を1フィールドずつ試行するヘルパー
+  const tryPatch = async (field: string, value: unknown): Promise<boolean> => {
     try {
       const r = await fetch(
         `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
         {
           method: 'PATCH',
           headers: supaHeaders,
-          body: JSON.stringify({ is_free_account: true }),
+          body: JSON.stringify({ [field]: value }),
         }
       )
-      if (r.ok) isFreeAccountFlagSet = true
-    } catch { /* ignore */ }
+      triedFields[field] = r.ok
+      return r.ok
+    } catch {
+      triedFields[field] = false
+      return false
+    }
   }
+
+  // 1a. 最重要 2カラム（subscription_status, subscription_plan）を1つずつ更新
+  const statusOk = await tryPatch('subscription_status', 'active')
+  const planOk = await tryPatch('subscription_plan', grantedPlan)
+  profileUpdated = statusOk && planOk
+
+  // どちらかが落ちたら一括 PATCH で再試行
+  if (!profileUpdated) {
+    try {
+      const r = await fetch(
+        `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
+        {
+          method: 'PATCH',
+          headers: supaHeaders,
+          body: JSON.stringify({
+            subscription_status: 'active',
+            subscription_plan: grantedPlan,
+          }),
+        }
+      )
+      if (r.ok) profileUpdated = true
+      else errors.push(`profile PATCH 失敗: ${await r.text()}`)
+    } catch (e) { errors.push(`profile PATCH 例外: ${String(e)}`) }
+  }
+
+  // 1b. profile が存在しない（PATCH 0件更新）可能性 → upsert もしてみる
+  //     PATCH は 0件マッチでも成功扱いになるので、INSERT 必要かも判定
+  try {
+    const checkRes = await fetch(
+      `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=id,subscription_status`,
+      { headers: supaHeaders }
+    )
+    if (checkRes.ok) {
+      const rows = await checkRes.json() as Array<{ id?: string; subscription_status?: string }>
+      if (rows.length === 0) {
+        // 行が無いので INSERT
+        const ins = await fetch(
+          `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles`,
+          {
+            method: 'POST',
+            headers: supaHeaders,
+            body: JSON.stringify({
+              id: userId,
+              subscription_status: 'active',
+              subscription_plan: grantedPlan,
+            }),
+          }
+        )
+        if (ins.ok) profileUpdated = true
+        else errors.push(`profile INSERT 失敗: ${await ins.text()}`)
+      } else if (rows[0].subscription_status === 'active') {
+        profileUpdated = true
+      }
+    }
+  } catch { /* ignore */ }
+
+  // 1c. is_free_account=true を試行（カラムが無ければ無視）
+  isFreeAccountFlagSet = await tryPatch('is_free_account', true)
 
   steps.profileUpdated = profileUpdated
   steps.isFreeAccountFlagSet = isFreeAccountFlagSet
+  steps.triedFields = triedFields
 
   // 2. Stripe Customer + サブスク全件をキャンセル
   let stripeCustomerId: string | null = null
@@ -216,7 +242,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   steps.cancelledSubscriptions = cancelledSubscriptions
 
   // 3. 念のため profile を再 PATCH（webhook が降格を試みた可能性に備える）
-  //    標準カラムだけで確実に書き戻す
+  //    最重要2カラムだけで確実に書き戻す
   try {
     await fetch(
       `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
@@ -226,7 +252,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         body: JSON.stringify({
           subscription_status: 'active',
           subscription_plan: grantedPlan,
-          updated_at: new Date().toISOString(),
         }),
       }
     )
