@@ -247,10 +247,33 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           console.log(`Full deletion completed for user ${userId}`)
         } else {
           // 通常のサブスク終了
-          await updateSupabaseProfile(supabaseUrl, serviceKey, userId, {
-            subscription_plan: 'free',
-            subscription_status: 'cancelled',
-          })
+          // ★is_free_account=true（管理者が無料化したユーザー）はサブスク解約イベントが
+          //   来てもダウングレードしない。Stripe解約は意図的な操作で、profilesは
+          //   active/premium のまま維持する必要がある。
+          let isFreeAccount = false
+          try {
+            const supaHeaders = {
+              'Authorization': `Bearer ${serviceKey}`,
+              'apikey': serviceKey,
+            }
+            const r = await fetch(
+              `${supabaseUrl}/rest/v1/profiles?id=eq.${userId}&select=is_free_account`,
+              { headers: supaHeaders }
+            )
+            if (r.ok) {
+              const rows = await r.json() as Array<{ is_free_account?: boolean }>
+              isFreeAccount = !!rows[0]?.is_free_account
+            }
+          } catch { /* ignore */ }
+
+          if (isFreeAccount) {
+            console.log(`Skipping downgrade for free account user ${userId}`)
+          } else {
+            await updateSupabaseProfile(supabaseUrl, serviceKey, userId, {
+              subscription_plan: 'free',
+              subscription_status: 'cancelled',
+            })
+          }
         }
       }
 
