@@ -95,10 +95,15 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     )
   }
 
-  // 1. profile を先に「無料化」に書き換える（webhookが降格しに来ても is_free_account を見て降格しない）
+  // 1. profile を「無料化」に書き換える
+  //    まずは「絶対に存在する標準カラムだけ」で確実に成功させる。
+  //    その後に is_free_account / free_coupon_code 等を**個別に**試行（失敗しても無視）。
   let profileUpdated = false
+  let isFreeAccountFlagSet = false
+
+  // 1a. まず確実に通る標準カラムだけで upsert
   try {
-    const upsertRes = await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles`, {
+    const baseRes = await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles`, {
       method: 'POST',
       headers: { ...supaHeaders, 'Prefer': 'resolution=merge-duplicates' },
       body: JSON.stringify({
@@ -106,36 +111,51 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         email: emailUsed || null,
         subscription_status: 'active',
         subscription_plan: grantedPlan,
-        is_free_account: true,
-        free_coupon_code: 'ADMIN_CONVERT',
-        free_granted_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }),
     })
-    if (!upsertRes.ok) {
-      const errTxt = await upsertRes.text()
-      // is_free_account 等のカラムが無い場合のフォールバック
-      const fb = await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles`, {
-        method: 'POST',
-        headers: { ...supaHeaders, 'Prefer': 'resolution=merge-duplicates' },
-        body: JSON.stringify({
-          id: userId,
-          email: emailUsed || null,
-          subscription_status: 'active',
-          subscription_plan: grantedPlan,
-          updated_at: new Date().toISOString(),
-        }),
-      })
-      if (!fb.ok) {
-        errors.push(`profile 更新失敗: ${errTxt}`)
-      } else {
-        profileUpdated = true
-      }
-    } else {
+    if (baseRes.ok) {
       profileUpdated = true
+    } else {
+      const errTxt = await baseRes.text()
+      errors.push(`profile 基本更新失敗: ${errTxt}`)
     }
-  } catch (e) { errors.push(`profile 更新で例外: ${String(e)}`) }
+  } catch (e) { errors.push(`profile 基本更新で例外: ${String(e)}`) }
+
+  // 1b. is_free_account=true を試行（カラムが無ければ無視）
+  try {
+    const flagRes = await fetch(
+      `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
+      {
+        method: 'PATCH',
+        headers: supaHeaders,
+        body: JSON.stringify({
+          is_free_account: true,
+          free_coupon_code: 'ADMIN_CONVERT',
+          free_granted_at: new Date().toISOString(),
+        }),
+      }
+    )
+    isFreeAccountFlagSet = flagRes.ok
+  } catch { /* ignore */ }
+
+  // 1c. もし is_free_account が落ちたなら、個別カラムを1つずつ試す（カラム単位で存在判定）
+  if (!isFreeAccountFlagSet) {
+    try {
+      const r = await fetch(
+        `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
+        {
+          method: 'PATCH',
+          headers: supaHeaders,
+          body: JSON.stringify({ is_free_account: true }),
+        }
+      )
+      if (r.ok) isFreeAccountFlagSet = true
+    } catch { /* ignore */ }
+  }
+
   steps.profileUpdated = profileUpdated
+  steps.isFreeAccountFlagSet = isFreeAccountFlagSet
 
   // 2. Stripe Customer + サブスク全件をキャンセル
   let stripeCustomerId: string | null = null
@@ -195,19 +215,32 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   steps.stripeCustomerId = stripeCustomerId
   steps.cancelledSubscriptions = cancelledSubscriptions
 
-  // 3. 念のため profile を再upsert（webhook が降格を試みた可能性に備える）
+  // 3. 念のため profile を再 PATCH（webhook が降格を試みた可能性に備える）
+  //    標準カラムだけで確実に書き戻す
   try {
-    await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles`, {
-      method: 'POST',
-      headers: { ...supaHeaders, 'Prefer': 'resolution=merge-duplicates' },
-      body: JSON.stringify({
-        id: userId,
-        subscription_status: 'active',
-        subscription_plan: grantedPlan,
-        is_free_account: true,
-        updated_at: new Date().toISOString(),
-      }),
-    })
+    await fetch(
+      `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
+      {
+        method: 'PATCH',
+        headers: supaHeaders,
+        body: JSON.stringify({
+          subscription_status: 'active',
+          subscription_plan: grantedPlan,
+          updated_at: new Date().toISOString(),
+        }),
+      }
+    )
+  } catch { /* ignore */ }
+  // is_free_account も再度試行
+  try {
+    await fetch(
+      `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
+      {
+        method: 'PATCH',
+        headers: supaHeaders,
+        body: JSON.stringify({ is_free_account: true }),
+      }
+    )
   } catch { /* ignore */ }
 
   return new Response(
