@@ -30,9 +30,16 @@ function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
+  // 無料クーポン
+  const [couponCode, setCouponCode] = useState('')
+  const [couponApplied, setCouponApplied] = useState(false)
+  const [couponPlan, setCouponPlan] = useState<string | null>(null)
+  const [couponError, setCouponError] = useState('')
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setCouponError('')
 
     if (password.length < 6) {
       setError('パスワードは6文字以上で入力してください')
@@ -46,7 +53,7 @@ function RegisterForm() {
     setLoading(true)
 
     const supabase = createClient()
-    const { error: authError } = await supabase.auth.signUp({
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -68,6 +75,29 @@ function RegisterForm() {
       setError(authError.message)
       setLoading(false)
       return
+    }
+
+    // 無料クーポンが入力されていれば適用を試みる
+    const trimmedCoupon = couponCode.trim()
+    if (trimmedCoupon) {
+      const newUserId = authData.user?.id
+      try {
+        const couponRes = await fetch('/api/coupon/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: trimmedCoupon, userId: newUserId, email }),
+        })
+        const couponJson = await couponRes.json() as { ok: boolean; plan?: string; error?: string }
+        if (couponJson.ok) {
+          setCouponApplied(true)
+          setCouponPlan(couponJson.plan || null)
+        } else {
+          // クーポンが無効でも会員登録自体は成功扱い。プラン選択画面に進めるよう案内
+          setCouponError(couponJson.error || 'クーポンの適用に失敗しました')
+        }
+      } catch {
+        setCouponError('クーポンの適用に失敗しました（通信エラー）')
+      }
     }
 
     setSuccess(true)
@@ -316,6 +346,44 @@ function RegisterForm() {
               />
             </div>
 
+            {/* 無料クーポン（任意） */}
+            <div
+              style={{
+                fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)',
+                letterSpacing: '0.1em', textTransform: 'uppercase',
+                margin: '18px 0 10px', paddingBottom: '6px',
+                borderBottom: '1px solid rgba(255,255,255,0.08)',
+              }}
+            >
+              🎟 クーポンコード（任意）
+            </div>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={labelStyle}>無料クーポンコード（お持ちの方のみ）</label>
+              <input
+                className="reg-input"
+                type="text"
+                placeholder="例: YASERU"
+                value={couponCode}
+                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                autoCapitalize="characters"
+                style={{ ...inputStyle, letterSpacing: '0.05em' }}
+              />
+              <p
+                style={{
+                  fontSize: '10px',
+                  color: 'rgba(250,204,21,0.85)',
+                  marginTop: '6px',
+                  background: 'rgba(250,204,21,0.08)',
+                  borderRadius: '8px',
+                  padding: '6px 10px',
+                  lineHeight: 1.6,
+                }}
+              >
+                💡 有効なクーポンを入力すると、プラン選択・決済をスキップして無料で利用できます。<br />
+                クーポンをお持ちでない方は空欄のままで構いません。
+              </p>
+            </div>
+
             {/* ログイン情報 */}
             <div
               style={{
@@ -474,30 +542,95 @@ function RegisterForm() {
           }}
         >
           <div style={{ textAlign: 'center', padding: '32px 20px' }}>
-            <div style={{ fontSize: '64px', marginBottom: '16px' }}>✅</div>
-            <p style={{ fontSize: '22px', fontWeight: 900, color: '#4ade80', marginBottom: '8px' }}>
-              登録完了！
-            </p>
-            <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', marginBottom: '24px' }}>
-              会員登録が完了しました。<br />
-              続けてプランを選択・決済してください。
-            </p>
-            <Link
-              href="/login?redirect=/plans"
-              style={{
-                display: 'inline-block',
-                padding: '14px 32px',
-                background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-                color: 'white',
-                fontWeight: 800,
-                borderRadius: '12px',
-                fontSize: '15px',
-                textDecoration: 'none',
-                marginBottom: '12px',
-              }}
-            >
-              続けてプランを選択・決済する →
-            </Link>
+            {couponApplied ? (
+              <>
+                <div style={{ fontSize: '64px', marginBottom: '16px' }}>🎉</div>
+                <p style={{ fontSize: '22px', fontWeight: 900, color: '#fbbf24', marginBottom: '8px' }}>
+                  無料利用権が有効になりました！
+                </p>
+                <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.7)', marginBottom: '20px', lineHeight: 1.7 }}>
+                  会員登録とクーポン適用が完了しました。<br />
+                  {couponPlan
+                    ? `「${couponPlan}」プランが無料でご利用いただけます。`
+                    : '無料でご利用いただけます。'}
+                </p>
+                <div
+                  style={{
+                    fontSize: '12px',
+                    color: 'rgba(74,222,128,0.85)',
+                    background: 'rgba(34,197,94,0.1)',
+                    border: '1px solid rgba(34,197,94,0.3)',
+                    borderRadius: '10px',
+                    padding: '10px 14px',
+                    marginBottom: '20px',
+                    lineHeight: 1.6,
+                  }}
+                >
+                  ※ プラン選択・決済は不要です。<br />
+                  そのままログインしてご利用ください。
+                </div>
+                <Link
+                  href="/login"
+                  style={{
+                    display: 'inline-block',
+                    padding: '14px 32px',
+                    background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                    color: 'white',
+                    fontWeight: 800,
+                    borderRadius: '12px',
+                    fontSize: '15px',
+                    textDecoration: 'none',
+                    marginBottom: '12px',
+                  }}
+                >
+                  ログインする →
+                </Link>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: '64px', marginBottom: '16px' }}>✅</div>
+                <p style={{ fontSize: '22px', fontWeight: 900, color: '#4ade80', marginBottom: '8px' }}>
+                  登録完了！
+                </p>
+                <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', marginBottom: '24px' }}>
+                  会員登録が完了しました。<br />
+                  続けてプランを選択・決済してください。
+                </p>
+                {couponError && (
+                  <div
+                    style={{
+                      fontSize: '12px',
+                      color: '#fbbf24',
+                      background: 'rgba(250,204,21,0.1)',
+                      border: '1px solid rgba(250,204,21,0.3)',
+                      borderRadius: '10px',
+                      padding: '10px 14px',
+                      marginBottom: '20px',
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    ⚠️ クーポンの適用に失敗しました：{couponError}<br />
+                    通常のプラン選択画面に進みます。
+                  </div>
+                )}
+                <Link
+                  href="/login?redirect=/plans"
+                  style={{
+                    display: 'inline-block',
+                    padding: '14px 32px',
+                    background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                    color: 'white',
+                    fontWeight: 800,
+                    borderRadius: '12px',
+                    fontSize: '15px',
+                    textDecoration: 'none',
+                    marginBottom: '12px',
+                  }}
+                >
+                  続けてプランを選択・決済する →
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}
