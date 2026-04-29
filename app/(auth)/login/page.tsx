@@ -107,6 +107,7 @@ function LoginForm() {
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
+  const [isPreviewHost, setIsPreviewHost] = useState(false)
 
   // 保存済みのメールアドレスを読み込む
   useEffect(() => {
@@ -115,7 +116,60 @@ function LoginForm() {
       setEmail(savedEmail)
       setRememberMe(true)
     }
+    // プレビュー環境（*.pages.dev）判定
+    if (typeof window !== 'undefined' && window.location.hostname.endsWith('.pages.dev')) {
+      setIsPreviewHost(true)
+    }
   }, [])
+
+  // プレビュー専用：ワンクリックでテストアカウントへログイン
+  const handleTestLogin = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const supabase = createClient()
+      const TEST_EMAIL = 'pet-test@spomeal.jp'
+      const TEST_PASSWORD = 'PetTest2026!'
+
+      // プロキシ経由
+      let sessionData: { access_token: string; refresh_token: string } | null = null
+      try {
+        const proxyRes = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: TEST_EMAIL, password: TEST_PASSWORD }),
+        })
+        if (proxyRes.ok) {
+          const data = await proxyRes.json() as { success?: boolean; session?: { access_token: string; refresh_token: string } }
+          if (data.success && data.session?.access_token) {
+            sessionData = data.session
+          }
+        }
+      } catch { /* fallback to direct */ }
+
+      if (sessionData) {
+        await supabase.auth.setSession({
+          access_token: sessionData.access_token,
+          refresh_token: sessionData.refresh_token,
+        })
+      } else {
+        const { error: authError } = await supabase.auth.signInWithPassword({
+          email: TEST_EMAIL,
+          password: TEST_PASSWORD,
+        })
+        if (authError) {
+          setError('テストログイン失敗：' + authError.message)
+          setLoading(false)
+          return
+        }
+      }
+
+      window.location.href = '/dashboard'
+    } catch (err) {
+      setError('テストログイン中にエラー：' + String(err))
+      setLoading(false)
+    }
+  }
 
   // 決済完了後にリダイレクトされてきた場合、すでにセッションがあればそのままダッシュボードへ
   useEffect(() => {
@@ -331,6 +385,50 @@ function LoginForm() {
         >
           <span style={{ color: '#16a34a', fontWeight: 800 }}>勝つ体</span>は、食事から。
         </div>
+
+        {/* プレビュー専用：ワンクリックテストログイン */}
+        {isPreviewHost && (
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '380px',
+              marginBottom: '20px',
+              padding: '18px 18px 16px',
+              background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+              border: '2px dashed #f59e0b',
+              borderRadius: '14px',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ fontSize: '12px', fontWeight: 700, color: '#92400e', marginBottom: '4px' }}>
+              🧪 プレビュー専用テスト環境
+            </div>
+            <div style={{ fontSize: '11px', color: '#a16207', marginBottom: '12px', lineHeight: 1.5 }}>
+              ログイン情報なしで、テスト用アカウントでそのまま入れます
+            </div>
+            <button
+              type="button"
+              onClick={handleTestLogin}
+              disabled={loading}
+              style={{
+                width: '100%',
+                padding: '13px',
+                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                fontWeight: 800,
+                fontSize: '14px',
+                letterSpacing: '0.05em',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.5 : 1,
+                boxShadow: '0 4px 14px rgba(245,158,11,0.35)',
+              }}
+            >
+              {loading ? '入室中...' : '🍙 ワンクリックでテストログイン'}
+            </button>
+          </div>
+        )}
 
         {/* ログインカード */}
         <div
