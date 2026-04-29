@@ -62,22 +62,31 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       }
 
       // サブスクリプション状態チェック
-      try {
-        const email = user.email
-        const userId = user.id
-        const res = await apiFetch(`/api/check-subscription?email=${encodeURIComponent(email || '')}&userId=${userId}`)
-        if (res.ok) {
-          const subData = await res.json() as { active: boolean; reason?: string }
-          if (!subData.active) {
+      // ★プレビュー環境（*.pages.dev）では Service Role Key が
+      //   伝播していないため check-subscription が失敗する。
+      //   テスト用途として、プレビュー時はチェックをスキップして無条件解錠する。
+      const isPreviewHost = typeof window !== 'undefined'
+        && window.location.hostname.endsWith('.pages.dev')
+      if (isPreviewHost) {
+        setSubscriptionLocked(false)
+      } else {
+        try {
+          const email = user.email
+          const userId = user.id
+          const res = await apiFetch(`/api/check-subscription?email=${encodeURIComponent(email || '')}&userId=${userId}`)
+          if (res.ok) {
+            const subData = await res.json() as { active: boolean; reason?: string }
+            if (!subData.active) {
+              setSubscriptionLocked(true)
+            }
+          } else {
+            // APIエラー（5xx等）→ 安全のためロック
             setSubscriptionLocked(true)
           }
-        } else {
-          // APIエラー（5xx等）→ 安全のためロック
+        } catch {
+          // ネットワークエラー → 安全のためロック
           setSubscriptionLocked(true)
         }
-      } catch {
-        // ネットワークエラー → 安全のためロック
-        setSubscriptionLocked(true)
       }
       setSubscriptionChecked(true)
     })
