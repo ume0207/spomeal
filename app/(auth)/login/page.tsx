@@ -116,9 +116,48 @@ function LoginForm() {
       setEmail(savedEmail)
       setRememberMe(true)
     }
-    // プレビュー環境（*.pages.dev）判定
+    // プレビュー環境（*.pages.dev）：ページ表示後すぐ自動ログイン → /pet へ直行
     if (typeof window !== 'undefined' && window.location.hostname.endsWith('.pages.dev')) {
       setIsPreviewHost(true)
+      // 既にセッションがあるかチェック → あれば即 /pet へ
+      const supabase = createClient()
+      supabase.auth.getSession().then(async ({ data: { session } }) => {
+        if (session) {
+          window.location.href = '/pet'
+          return
+        }
+        // セッション無ければ自動でテストログイン → /pet
+        setLoading(true)
+        try {
+          const r = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: 'pet-test@spomeal.jp', password: 'PetTest2026!' }),
+          })
+          if (r.ok) {
+            const data = await r.json() as { success?: boolean; session?: { access_token: string; refresh_token: string } }
+            if (data.success && data.session?.access_token) {
+              await supabase.auth.setSession({
+                access_token: data.session.access_token,
+                refresh_token: data.session.refresh_token,
+              })
+              window.location.href = '/pet'
+              return
+            }
+          }
+          // プロキシ失敗 → 直接ログインフォールバック
+          const { error: signErr } = await supabase.auth.signInWithPassword({
+            email: 'pet-test@spomeal.jp', password: 'PetTest2026!',
+          })
+          if (!signErr) {
+            window.location.href = '/pet'
+            return
+          }
+          setLoading(false)
+        } catch {
+          setLoading(false)
+        }
+      })
     }
   }, [])
 
