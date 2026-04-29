@@ -170,10 +170,18 @@ export async function verifyUser(
   }
 
   try {
-    const res = await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/user`, {
+    // Preview環境向けフォールバック（NEXT_PUBLIC_*はブラウザに公開済みの公開値）
+    const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL
+      || 'https://bcnqszocmyonmkjjtvuu.supabase.co'
+    // /auth/v1/user 検証は anon key でも可能（apikey は ANON_KEY か SERVICE_ROLE_KEY のどちらでも通る）
+    const apiKey = env.SUPABASE_SERVICE_ROLE_KEY
+      || (env as { NEXT_PUBLIC_SUPABASE_ANON_KEY?: string }).NEXT_PUBLIC_SUPABASE_ANON_KEY
+      || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjbnFzem9jbXlvbm1ramp0dnV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0MDIzNDYsImV4cCI6MjA4OTk3ODM0Nn0.Ha6qIC_GDrMWJfzWXcBF5SeMLav_TiXrLybbLvLETWc'
+
+    const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
       headers: {
         Authorization: `Bearer ${token}`,
-        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+        apikey: apiKey,
       },
     })
 
