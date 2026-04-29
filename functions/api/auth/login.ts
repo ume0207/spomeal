@@ -2,6 +2,8 @@
 // iOSブラウザからsupabase.coへの直接接続が失敗する場合のサーバーサイドプロキシ
 // ブラウザ → pages.dev/api/auth/login → Supabase（サーバーサイド）
 
+import { getSupabaseUrl, getSupabaseAnonKey } from '../../_shared/env-fallback'
+
 type PagesFunction<Env = Record<string, unknown>> = (context: {
   request: Request
   env: Env
@@ -32,15 +34,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       })
     }
 
-    const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL
-    const anonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-    if (!supabaseUrl || !anonKey) {
-      return new Response(JSON.stringify({ error: 'server configuration error' }), {
-        status: 500,
-        headers: { ...cors, 'Content-Type': 'application/json' },
-      })
-    }
+    // 本番では Cloudflare Pages の env vars から読む。
+    // Preview/フィーチャーブランチで env vars が未設定の場合は
+    // 公開済みの値（NEXT_PUBLIC_* なので元々ブラウザに送信されている）に
+    // フォールバックする。これは秘密情報ではない。
+    const supabaseUrl = getSupabaseUrl(env as unknown as Record<string, unknown>)
+    const anonKey = getSupabaseAnonKey(env as unknown as Record<string, unknown>)
 
     // サーバーサイドでSupabaseに認証リクエスト
     const authRes = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
