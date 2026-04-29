@@ -8,6 +8,7 @@ import { getRarityColor, getRarityLabel } from '@/lib/points'
 import { toJSTDateStr } from '@/lib/date-utils'
 import type { LotteryResult } from '@/lib/points'
 import { SpotlightTutorial, UsageGuide } from '@/components/Tutorial'
+import { PetWidget } from '@/components/pet/PetWidget'
 
 // 食事記録の型定義
 interface MealRecord {
@@ -344,6 +345,9 @@ export default function DashboardPage() {
       }}
     >
       <div style={{ maxWidth: '640px', margin: '0 auto', padding: '16px 12px 40px', overflowX: 'hidden' }}>
+
+        {/* ===== 🍙 ペットウィジェット（たまごっち式） ===== */}
+        <PetWidget />
 
         {/* ===== 管理栄養士からのコメント ===== */}
         {nutritionistComments.length > 0 && (() => {

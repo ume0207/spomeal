@@ -1,5 +1,6 @@
 import { verifyUser, verifyAdmin, corsHeaders, handleOptions, authErrorResponse } from '../_shared/auth'
 import { invalidateMealFeedCache, invalidateStatsCache } from '../_shared/admin-cache'
+import { feedPetOnMealCreated } from '../_shared/pet-hook'
 
 type PagesFunction<Env = Record<string, unknown>> = (context: {
   request: Request
@@ -149,6 +150,14 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request, waitUnti
   if (res.ok) {
     invalidateMealFeedCache(waitUntil)
     invalidateStatsCache(waitUntil)
+    // ★たまごっち式ペット機能：新規食事記録時にHP回復・進化判定
+    //   失敗しても食事記録自体には影響させない（best-effort）
+    if (waitUntil) {
+      waitUntil(feedPetOnMealCreated(sbUrl, sbKey, userId))
+    } else {
+      // waitUntil が無い実行環境ではfire-and-forget
+      feedPetOnMealCreated(sbUrl, sbKey, userId).catch(() => {})
+    }
   }
   return new Response(JSON.stringify(data), { status: res.ok ? 200 : 500, headers: cors })
 }

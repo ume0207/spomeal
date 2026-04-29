@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 const navItems = [
   { href: '/dashboard', icon: '🏠', label: 'ホーム', tutorialId: 'nav-home' },
   { href: '/meal', icon: '🍽', label: '食事', tutorialId: 'nav-meal' },
+  { href: '/pet', icon: '🍙', label: 'ペット', tutorialId: 'nav-pet' },
   { href: '/body', icon: '📊', label: '体組成', tutorialId: 'nav-body' },
   { href: '/reserve', icon: '📅', label: '予約', tutorialId: 'nav-reserve' },
 ]
