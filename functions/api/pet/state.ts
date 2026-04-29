@@ -1,13 +1,16 @@
 /**
  * GET /api/pet/state?userId=xxx
  *   現在のペット状態を返す。HPは時間経過減算を反映した最新値を計算して返す。
- *   profile に pet_* カラムが未初期化なら、卵の初期状態を返す（DBへの書き込みはしない）。
  *
  * POST /api/pet/state
- *   body: { userId, action: 'reset' | 'rename' | 'use_skip_pass' | 'enable' | 'disable', name? }
+ *   body: { userId, action: 'reset' | 'rename' | 'enable' | 'disable', name? }
+ *
+ * ★Preview環境対応：SUPABASE_SERVICE_ROLE_KEY を使わず、ユーザーJWT + anon key
+ *   で動作する。RLS により自分の profile / pet_history のみ読み書きできる。
  */
 
 import { verifyUser, corsHeaders, handleOptions, authErrorResponse } from '../../_shared/auth'
+import { getSupabaseUrl, getSupabaseAnonKey } from '../../_shared/env-fallback'
 
 type PagesFunction<Env = Record<string, unknown>> = (context: {
   request: Request
@@ -17,6 +20,7 @@ type PagesFunction<Env = Record<string, unknown>> = (context: {
 interface Env {
   NEXT_PUBLIC_SUPABASE_URL: string
   SUPABASE_SERVICE_ROLE_KEY: string
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: string
 }
 
 const HP_DECAY_PER_DAY = 50
@@ -56,7 +60,7 @@ function profileToPetState(p: ProfileRow): Record<string, unknown> {
   const stage = p.pet_stage || 'egg'
   const baseHP = p.pet_hp == null ? HP_MAX : p.pet_hp
   const currentHP = stage === 'egg' && !p.pet_last_fed_at
-    ? HP_MAX  // 卵で1度も食べてないなら満タン表示
+    ? HP_MAX
     : calculateCurrentHP(baseHP, p.pet_last_fed_at || null, now)
 
   return {
@@ -76,6 +80,15 @@ function profileToPetState(p: ProfileRow): Record<string, unknown> {
   }
 }
 
+/**
+ * Authorization から JWT を取り出す
+ */
+function extractJWT(request: Request): string | null {
+  const authHeader = request.headers.get('Authorization') || ''
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim()
+  return token || null
+}
+
 export const onRequestOptions: PagesFunction = async ({ request }) => handleOptions(request)
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
@@ -90,22 +103,27 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     return new Response(JSON.stringify({ error: '他のユーザーのペットは閲覧できません' }), { status: 403, headers: cors })
   }
 
-  const supaHeaders = {
-    Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-    apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-  }
+  // ★ユーザーJWTでクエリ（RLSで自分の行だけ読める）
+  const supabaseUrl = getSupabaseUrl(env as unknown as Record<string, unknown>)
+  const anonKey = getSupabaseAnonKey(env as unknown as Record<string, unknown>)
+  const jwt = extractJWT(request) || anonKey
 
-  // profile を取得
   const r = await fetch(
-    `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=*`,
-    { headers: supaHeaders }
+    `${supabaseUrl}/rest/v1/profiles?id=eq.${userId}&select=*`,
+    {
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${jwt}`,
+      },
+    }
   )
   if (!r.ok) {
-    return new Response(JSON.stringify({ error: 'profile取得失敗' }), { status: 500, headers: cors })
+    return new Response(JSON.stringify({ error: 'profile取得失敗', detail: await r.text() }), { status: 500, headers: cors })
   }
   const rows = await r.json() as ProfileRow[]
   if (rows.length === 0) {
-    return new Response(JSON.stringify({ error: 'profileが見つかりません' }), { status: 404, headers: cors })
+    // profile行が無い場合は卵の初期状態を返す
+    return new Response(JSON.stringify({ ok: true, state: profileToPetState({ id: userId }) }), { headers: cors })
   }
 
   const state = profileToPetState(rows[0])
@@ -128,41 +146,48 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return new Response(JSON.stringify({ error: '不正なuserId' }), { status: 403, headers: cors })
   }
 
+  const supabaseUrl = getSupabaseUrl(env as unknown as Record<string, unknown>)
+  const anonKey = getSupabaseAnonKey(env as unknown as Record<string, unknown>)
+  const jwt = extractJWT(request) || anonKey
+
   const supaHeaders = {
-    Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-    apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+    apikey: anonKey,
+    Authorization: `Bearer ${jwt}`,
     'Content-Type': 'application/json',
   }
 
   const patch: Record<string, unknown> = {}
 
   if (body.action === 'reset') {
-    // 現在のペットを「manual」リセットで履歴に保存して新しい卵を生成
-    // まず現状取得
-    const r = await fetch(
-      `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?id=eq.${body.userId}&select=*`,
-      { headers: supaHeaders }
-    )
-    if (r.ok) {
-      const rows = await r.json() as ProfileRow[]
-      const cur = rows[0]
-      if (cur && cur.pet_form) {
-        // 大人になっていたなら履歴保存
-        await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/pet_history`, {
-          method: 'POST',
-          headers: supaHeaders,
-          body: JSON.stringify({
-            user_id: body.userId,
-            pet_name: cur.pet_name || 'おにぎり君',
-            final_form: cur.pet_form,
-            started_at: cur.pet_started_at,
-            meals_count: cur.pet_meals_count || 0,
-            streak_max_days: cur.pet_streak_days || 0,
-            reason: 'manual',
-          }),
-        }).catch(() => {})
+    // 現状の form を取得してから履歴に追加
+    try {
+      const r = await fetch(
+        `${supabaseUrl}/rest/v1/profiles?id=eq.${body.userId}&select=pet_form,pet_name,pet_started_at,pet_meals_count,pet_streak_days`,
+        { headers: supaHeaders }
+      )
+      if (r.ok) {
+        const rows = await r.json() as Array<{
+          pet_form?: string; pet_name?: string; pet_started_at?: string;
+          pet_meals_count?: number; pet_streak_days?: number;
+        }>
+        const cur = rows[0]
+        if (cur && cur.pet_form) {
+          await fetch(`${supabaseUrl}/rest/v1/pet_history`, {
+            method: 'POST',
+            headers: supaHeaders,
+            body: JSON.stringify({
+              user_id: body.userId,
+              pet_name: cur.pet_name || 'おにぎり君',
+              final_form: cur.pet_form,
+              started_at: cur.pet_started_at,
+              meals_count: cur.pet_meals_count || 0,
+              streak_max_days: cur.pet_streak_days || 0,
+              reason: 'manual',
+            }),
+          }).catch(() => {})
+        }
       }
-    }
+    } catch { /* ignore */ }
 
     Object.assign(patch, {
       pet_stage: 'egg',
@@ -181,7 +206,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     patch.pet_name = body.name
   } else if (body.action === 'enable') {
     patch.pet_enabled = true
-    // 初回ON時にstarted_atを今に
     patch.pet_started_at = new Date().toISOString()
     patch.pet_stage = 'egg'
     patch.pet_hp = 100
@@ -191,11 +215,31 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return new Response(JSON.stringify({ error: '不明なaction' }), { status: 400, headers: cors })
   }
 
+  // PATCH 先に profile が無い場合は INSERT も試行
   const updateRes = await fetch(
-    `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?id=eq.${body.userId}`,
+    `${supabaseUrl}/rest/v1/profiles?id=eq.${body.userId}`,
     { method: 'PATCH', headers: supaHeaders, body: JSON.stringify(patch) }
   )
-  if (!updateRes.ok) {
+
+  // 行が存在しない場合は upsert
+  if (updateRes.ok) {
+    // PATCH OK だが行が存在しない可能性 → 確認
+    const checkRes = await fetch(
+      `${supabaseUrl}/rest/v1/profiles?id=eq.${body.userId}&select=id`,
+      { headers: supaHeaders }
+    )
+    if (checkRes.ok) {
+      const rows = await checkRes.json() as Array<{ id?: string }>
+      if (rows.length === 0) {
+        // INSERT
+        await fetch(`${supabaseUrl}/rest/v1/profiles`, {
+          method: 'POST',
+          headers: supaHeaders,
+          body: JSON.stringify({ id: body.userId, ...patch }),
+        })
+      }
+    }
+  } else {
     return new Response(JSON.stringify({ error: 'profile更新失敗', detail: await updateRes.text() }), { status: 500, headers: cors })
   }
 

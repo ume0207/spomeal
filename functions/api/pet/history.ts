@@ -4,6 +4,7 @@
  */
 
 import { verifyUser, corsHeaders, handleOptions, authErrorResponse } from '../../_shared/auth'
+import { getSupabaseUrl, getSupabaseAnonKey } from '../../_shared/env-fallback'
 
 type PagesFunction<Env = Record<string, unknown>> = (context: {
   request: Request
@@ -13,6 +14,7 @@ type PagesFunction<Env = Record<string, unknown>> = (context: {
 interface Env {
   NEXT_PUBLIC_SUPABASE_URL: string
   SUPABASE_SERVICE_ROLE_KEY: string
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: string
 }
 
 export const onRequestOptions: PagesFunction = async ({ request }) => handleOptions(request)
@@ -29,12 +31,18 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     return new Response(JSON.stringify({ error: '他のユーザーは閲覧できません' }), { status: 403, headers: cors })
   }
 
+  // ★ユーザーJWT + anon key で RLS 経由で読む
+  const supabaseUrl = getSupabaseUrl(env as unknown as Record<string, unknown>)
+  const anonKey = getSupabaseAnonKey(env as unknown as Record<string, unknown>)
+  const authHeader = request.headers.get('Authorization') || ''
+  const jwt = authHeader.replace(/^Bearer\s+/i, '').trim() || anonKey
+
   const r = await fetch(
-    `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/pet_history?user_id=eq.${userId}&order=graduated_at.desc&limit=100`,
+    `${supabaseUrl}/rest/v1/pet_history?user_id=eq.${userId}&order=graduated_at.desc&limit=100`,
     {
       headers: {
-        Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+        apikey: anonKey,
+        Authorization: `Bearer ${jwt}`,
       },
     }
   )
