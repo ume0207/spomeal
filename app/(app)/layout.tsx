@@ -479,16 +479,26 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               fontSize: '20px', fontWeight: 800, color: '#111827',
               margin: '0 0 8px', lineHeight: 1.3,
             }}>
-              サブスクリプションが無効です
+              💳 カード登録が必要です
             </h2>
 
             <p style={{
-              fontSize: '14px', color: '#6b7280', lineHeight: 1.7,
-              margin: '0 0 28px',
+              fontSize: '13px', color: '#6b7280', lineHeight: 1.7,
+              margin: '0 0 16px',
             }}>
-              アプリを引き続きご利用いただくには、
-              プランへのお申し込みが必要です。
+              無料トライアルを継続するには、<strong style={{ color: '#16a34a' }}>お支払い方法（カード）の登録</strong>が必要です。
             </p>
+
+            <div style={{
+              background: '#FEF9C3', borderRadius: '10px', padding: '12px 14px',
+              fontSize: '12px', color: '#854D0E', lineHeight: 1.6,
+              marginBottom: '20px', textAlign: 'left',
+            }}>
+              <strong>📅 トライアルの仕組み</strong><br />
+              ・ご登録日から<strong>14日間は無料</strong>でご利用いただけます<br />
+              ・14日後に自動でカードに課金されます<br />
+              ・トライアル中はいつでも解約OK・課金されません
+            </div>
 
             <a
               href="/plans"
@@ -505,7 +515,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 marginBottom: '12px',
               }}
             >
-              プランを選択する
+              💳 カードを登録する
             </a>
 
             <button
