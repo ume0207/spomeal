@@ -80,18 +80,65 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       created: new Date(i.created * 1000).toISOString(),
     }))
 
-    // PaymentIntents
+    // PaymentIntents（last_payment_error と latest_charge.outcome / failure_* を取得）
     const piRes = await fetch(
-      `https://api.stripe.com/v1/payment_intents?customer=${c.id}&limit=20`,
+      `https://api.stripe.com/v1/payment_intents?customer=${c.id}&limit=20&expand[]=data.latest_charge`,
       { headers: stripeAuth }
     )
-    const piJson = await piRes.json() as {
-      data: Array<{ id: string; status: string; amount: number; created: number; latest_charge?: string }>
+    type StripeChargeExpanded = {
+      id: string
+      status?: string
+      failure_code?: string | null
+      failure_message?: string | null
+      outcome?: {
+        network_status?: string
+        reason?: string
+        risk_level?: string
+        seller_message?: string
+        type?: string
+      } | null
     }
-    customerInfo.payment_intents = (piJson.data || []).map(p => ({
-      id: p.id, status: p.status, amount: p.amount, latest_charge: p.latest_charge,
-      created: new Date(p.created * 1000).toISOString(),
-    }))
+    type StripePI = {
+      id: string
+      status: string
+      amount: number
+      created: number
+      latest_charge?: string | StripeChargeExpanded | null
+      last_payment_error?: {
+        code?: string
+        decline_code?: string
+        message?: string
+        type?: string
+      } | null
+    }
+    const piJson = await piRes.json() as { data: StripePI[] }
+    customerInfo.payment_intents = (piJson.data || []).map(p => {
+      const charge: StripeChargeExpanded | null =
+        p.latest_charge && typeof p.latest_charge === 'object' ? p.latest_charge : null
+      return {
+        id: p.id,
+        status: p.status,
+        amount: p.amount,
+        created: new Date(p.created * 1000).toISOString(),
+        last_payment_error: p.last_payment_error
+          ? {
+              code: p.last_payment_error.code || null,
+              decline_code: p.last_payment_error.decline_code || null,
+              message: p.last_payment_error.message || null,
+              type: p.last_payment_error.type || null,
+            }
+          : null,
+        charge: charge
+          ? {
+              id: charge.id,
+              status: charge.status || null,
+              failure_code: charge.failure_code || null,
+              failure_message: charge.failure_message || null,
+              outcome: charge.outcome || null,
+            }
+          : (typeof p.latest_charge === 'string' ? { id: p.latest_charge } : null),
+      }
+    })
 
     // Subscriptions
     const sRes = await fetch(
