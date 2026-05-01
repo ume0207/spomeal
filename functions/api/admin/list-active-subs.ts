@@ -78,10 +78,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     startingAfter = j.data[j.data.length - 1].id
   }
 
-  // active / trialing / past_due だけ抽出
-  const billing = allSubs.filter(s => ['active', 'trialing', 'past_due'].includes(s.status))
-
-  const list = billing.map(s => {
+  // 全ステータスをマップして表示（カード登録途中のincompleteも含めて把握できるように）
+  const list = allSubs.map(s => {
     const cust = typeof s.customer === 'string' ? { id: s.customer } : s.customer
     const item = s.items?.data?.[0]
     const amount = item?.price?.unit_amount ?? item?.plan?.amount ?? 0
@@ -101,12 +99,18 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // 開始日新しい順
   list.sort((a, b) => (b.created || '').localeCompare(a.created || ''))
 
+  const billing = list.filter(s => ['active', 'trialing', 'past_due'].includes(s.status))
   const summary = {
-    total: list.length,
+    total_all: list.length,
+    billing: billing.length,
     trialing: list.filter(s => s.status === 'trialing').length,
     active: list.filter(s => s.status === 'active').length,
     past_due: list.filter(s => s.status === 'past_due').length,
-    totalMonthly: list.reduce((sum, s) => sum + (s.amount || 0), 0),
+    incomplete: list.filter(s => s.status === 'incomplete').length,
+    incomplete_expired: list.filter(s => s.status === 'incomplete_expired').length,
+    canceled: list.filter(s => s.status === 'canceled').length,
+    unpaid: list.filter(s => s.status === 'unpaid').length,
+    totalMonthly: billing.reduce((sum, s) => sum + (s.amount || 0), 0),
   }
 
   return new Response(JSON.stringify({ ok: true, summary, list }, null, 2), { status: 200, headers: cors })
