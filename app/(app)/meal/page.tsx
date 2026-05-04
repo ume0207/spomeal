@@ -268,6 +268,8 @@ export default function MealPage() {
   const [aiResult, setAiResult] = useState<{calories: number; protein: number; fat: number; carbs: number; comment: string; items?: ({name: string; amount: string; grams: number; kcal: number; protein: number; fat: number; carbs: number; baseGrams?: number; baseKcal?: number; baseProtein?: number; baseFat?: number; baseCarbs?: number} & Micronutrients)[]} | null>(null)
   // 微量栄養素アコーディオン開閉状態（AI結果のアイテム単位）
   const [openMicroIdx, setOpenMicroIdx] = useState<Record<number, boolean>>({})
+  // 栄養サマリーで全17項目を表示するかどうか
+  const [showAllMicros, setShowAllMicros] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [mealDate, setMealDate] = useState('')
 
@@ -544,6 +546,27 @@ export default function MealPage() {
     }),
     { calories: 0, protein: 0, fat: 0, carbs: 0 }
   )
+
+  // 微量栄養素の1日合計（itemsの中に保存された値を全レコード横断で合算）
+  const microTotals: Record<MicronutrientKey, number> = MICRONUTRIENT_KEYS.reduce((acc, k) => {
+    let sum = 0
+    for (const r of todayRecords) {
+      for (const it of (r.items || [])) {
+        const v = (it as Micronutrients)[k]
+        if (typeof v === 'number') sum += v
+      }
+    }
+    acc[k] = Math.round(sum * 100) / 100
+    return acc
+  }, {} as Record<MicronutrientKey, number>)
+
+  // 厚労省「日本人の食事摂取基準2025」推奨量（成人男性30-49歳ベース）
+  const MICRO_RDA: Record<MicronutrientKey, number> = {
+    vitaminA_ug: 900, vitaminD_ug: 8.5, vitaminE_mg: 6.0, vitaminK_ug: 150,
+    vitaminB1_mg: 1.4, vitaminB2_mg: 1.6, vitaminB6_mg: 1.4, vitaminB12_ug: 2.4,
+    vitaminC_mg: 100, niacin_mg: 15, folate_ug: 240,
+    calcium_mg: 750, iron_mg: 7.5, magnesium_mg: 370, potassium_mg: 3000, sodium_mg: 2900, zinc_mg: 11,
+  }
 
   const calGoal = goal.cal
   const calPct = Math.min((totals.calories / calGoal) * 100, 100)
@@ -1187,35 +1210,56 @@ export default function MealPage() {
             ))}
           </div>
 
-          {/* ビタミン・ミネラルセクション */}
+          {/* ビタミン・ミネラルセクション（17項目・実データ連動） */}
           <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #f3f4f6' }}>
-            <p style={{ fontSize: '12px', fontWeight: 700, color: '#6b7280', marginBottom: '8px' }}>
-              ビタミン・ミネラル
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <p style={{ fontSize: '12px', fontWeight: 700, color: '#6b7280', margin: 0 }}>
+                ビタミン・ミネラル（1日合計）
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowAllMicros(s => !s)}
+                style={{
+                  fontSize: '11px', fontWeight: 700, color: '#7C3AED',
+                  background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 4px',
+                }}
+              >
+                {showAllMicros ? '主要だけ表示 ▲' : '全17項目を見る ▼'}
+              </button>
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-              {[
-                { label: '食物繊維', value: '0', unit: 'g', goal: '目標 21g', color: '#22C55E', pct: 0 },
-                { label: '塩分', value: '0', unit: 'g', goal: '目標 7.5g', color: '#F59E0B', pct: 0 },
-                { label: 'VitC', value: '0', unit: 'mg', goal: '目標 100mg', color: '#6366F1', pct: 0 },
-                { label: 'カルシウム', value: '0', unit: 'mg', goal: '目標 650mg', color: '#EC4899', pct: 0 },
-                { label: '鉄', value: '0', unit: 'mg', goal: '目標 7mg', color: '#EF4444', pct: 0 },
-                { label: 'VitD', value: '0', unit: 'μg', goal: '目標 15μg', color: '#8B5CF6', pct: 0 },
-              ].map((vit) => (
-                <div
-                  key={vit.label}
-                  style={{ background: '#f9fafb', borderRadius: '8px', padding: '8px' }}
-                >
-                  <p style={{ fontSize: '10px', color: '#9ca3af', marginBottom: '2px' }}>{vit.label}</p>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151' }}>{vit.value}</span>
-                    <span style={{ fontSize: '10px', color: '#9ca3af' }}>{vit.unit}</span>
+              {(showAllMicros
+                ? MICRONUTRIENT_KEYS
+                : (['vitaminC_mg', 'calcium_mg', 'iron_mg', 'vitaminD_ug', 'vitaminB12_ug', 'sodium_mg'] as MicronutrientKey[])
+              ).map((k) => {
+                const meta = MICRONUTRIENT_LABELS[k]
+                const value = microTotals[k] || 0
+                const target = MICRO_RDA[k] || 1
+                const pct = Math.min((value / target) * 100, 100)
+                const color =
+                  k === 'sodium_mg' ? '#F59E0B' :  // ナトリウムは抑制目標なので警戒色
+                  k.startsWith('vitamin') ? '#6366F1' :
+                  k === 'calcium_mg' ? '#EC4899' :
+                  k === 'iron_mg' ? '#EF4444' :
+                  '#22C55E'
+                const display = value < 10 ? value.toFixed(1) : Math.round(value).toString()
+                return (
+                  <div
+                    key={k}
+                    style={{ background: '#f9fafb', borderRadius: '8px', padding: '8px' }}
+                  >
+                    <p style={{ fontSize: '10px', color: '#9ca3af', marginBottom: '2px' }}>{meta.name}</p>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151' }}>{display}</span>
+                      <span style={{ fontSize: '10px', color: '#9ca3af' }}>{meta.unit}</span>
+                    </div>
+                    <div style={{ width: '100%', height: '4px', background: '#e5e7eb', borderRadius: '4px', marginTop: '4px', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', borderRadius: '4px', width: `${pct}%`, background: color, transition: 'width 0.5s' }} />
+                    </div>
+                    <p style={{ fontSize: '10px', color: '#9ca3af', marginTop: '2px' }}>目標 {target}{meta.unit}</p>
                   </div>
-                  <div style={{ width: '100%', height: '4px', background: '#e5e7eb', borderRadius: '4px', marginTop: '4px', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', borderRadius: '4px', width: `${vit.pct}%`, background: vit.color, transition: 'width 0.5s' }} />
-                  </div>
-                  <p style={{ fontSize: '10px', color: '#9ca3af', marginTop: '2px' }}>{vit.goal}</p>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         </div>
