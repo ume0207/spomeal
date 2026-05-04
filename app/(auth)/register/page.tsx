@@ -242,9 +242,20 @@ function RegisterForm() {
                   className="reg-select"
                   value={gender}
                   onChange={(e) => setGender(e.target.value)}
-                  style={{ ...inputStyle, cursor: 'pointer' }}
+                  style={{
+                    ...inputStyle,
+                    cursor: 'pointer',
+                    paddingRight: '32px',  // ドロップダウン矢印と文字が被らないよう余白確保
+                    appearance: 'none',
+                    WebkitAppearance: 'none',
+                    MozAppearance: 'none',
+                    backgroundImage: 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'rgba(255,255,255,0.6)\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><polyline points=\'6 9 12 15 18 9\'/></svg>")',
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'right 12px center',
+                    backgroundSize: '12px',
+                  }}
                 >
-                  <option value="">選択してください</option>
+                  <option value="">未選択</option>
                   <option value="男性">男性</option>
                   <option value="女性">女性</option>
                   <option value="その他">その他</option>
@@ -377,7 +388,7 @@ function RegisterForm() {
               <input
                 className="reg-input"
                 type="text"
-                placeholder="例: YASERU"
+                placeholder=""
                 value={couponCode}
                 onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                 autoCapitalize="characters"
