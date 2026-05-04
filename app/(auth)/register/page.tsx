@@ -79,6 +79,7 @@ function RegisterForm() {
 
     // 無料クーポンが入力されていれば適用を試みる
     const trimmedCoupon = couponCode.trim()
+    let couponSucceeded = false
     if (trimmedCoupon) {
       const newUserId = authData.user?.id
       try {
@@ -89,6 +90,7 @@ function RegisterForm() {
         })
         const couponJson = await couponRes.json() as { ok: boolean; plan?: string; error?: string }
         if (couponJson.ok) {
+          couponSucceeded = true
           setCouponApplied(true)
           setCouponPlan(couponJson.plan || null)
         } else {
@@ -102,6 +104,19 @@ function RegisterForm() {
 
     setSuccess(true)
     setLoading(false)
+
+    // ★ 登録完了後、signUp が即座にセッションを返している場合は
+    // ログイン画面を経由せず自動的に /plans へ遷移させる。
+    // （Supabase でメール確認が無効な現状はここに入るので、
+    //   ユーザーは「登録完了→そのまま課金画面」のスムーズ動線になる）
+    if (authData?.session?.access_token) {
+      // クーポン適用済みの場合はマイページへ、未課金なら /plans へ
+      const dest = couponSucceeded ? '/dashboard' : '/plans'
+      // 「登録完了！」を 1.5 秒だけ見せてから遷移
+      setTimeout(() => {
+        window.location.href = dest
+      }, 1500)
+    }
   }
 
   const inputStyle: React.CSSProperties = {
