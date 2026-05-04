@@ -4239,6 +4239,11 @@ export const FOOD_DB: Record<string, {
 
 
   'ご飯': { kcal: 168, p: 2.6, f: 0.3, c: 37.1, g: 150, vitaminA_ug: 0, vitaminD_ug: 0, vitaminE_mg: 0.1, vitaminK_ug: 0, vitaminB1_mg: 0.03, vitaminB2_mg: 0.02, vitaminB6_mg: 0.03, vitaminB12_ug: 0, vitaminC_mg: 0, niacin_mg: 0.3, folate_ug: 5, calcium_mg: 4, iron_mg: 0.2, magnesium_mg: 10, potassium_mg: 42, sodium_mg: 1, zinc_mg: 0.9 },
+  '白ご飯': { kcal: 168, p: 2.6, f: 0.3, c: 37.1, g: 150, vitaminA_ug: 0, vitaminD_ug: 0, vitaminE_mg: 0.1, vitaminK_ug: 0, vitaminB1_mg: 0.03, vitaminB2_mg: 0.02, vitaminB6_mg: 0.03, vitaminB12_ug: 0, vitaminC_mg: 0, niacin_mg: 0.3, folate_ug: 5, calcium_mg: 4, iron_mg: 0.2, magnesium_mg: 10, potassium_mg: 42, sodium_mg: 1, zinc_mg: 0.9 },
+  'ごはん': { kcal: 168, p: 2.6, f: 0.3, c: 37.1, g: 150, vitaminA_ug: 0, vitaminD_ug: 0, vitaminE_mg: 0.1, vitaminK_ug: 0, vitaminB1_mg: 0.03, vitaminB2_mg: 0.02, vitaminB6_mg: 0.03, vitaminB12_ug: 0, vitaminC_mg: 0, niacin_mg: 0.3, folate_ug: 5, calcium_mg: 4, iron_mg: 0.2, magnesium_mg: 10, potassium_mg: 42, sodium_mg: 1, zinc_mg: 0.9 },
+  '白いごはん': { kcal: 168, p: 2.6, f: 0.3, c: 37.1, g: 150, vitaminA_ug: 0, vitaminD_ug: 0, vitaminE_mg: 0.1, vitaminK_ug: 0, vitaminB1_mg: 0.03, vitaminB2_mg: 0.02, vitaminB6_mg: 0.03, vitaminB12_ug: 0, vitaminC_mg: 0, niacin_mg: 0.3, folate_ug: 5, calcium_mg: 4, iron_mg: 0.2, magnesium_mg: 10, potassium_mg: 42, sodium_mg: 1, zinc_mg: 0.9 },
+  'ライス': { kcal: 168, p: 2.6, f: 0.3, c: 37.1, g: 150, vitaminA_ug: 0, vitaminD_ug: 0, vitaminE_mg: 0.1, vitaminK_ug: 0, vitaminB1_mg: 0.03, vitaminB2_mg: 0.02, vitaminB6_mg: 0.03, vitaminB12_ug: 0, vitaminC_mg: 0, niacin_mg: 0.3, folate_ug: 5, calcium_mg: 4, iron_mg: 0.2, magnesium_mg: 10, potassium_mg: 42, sodium_mg: 1, zinc_mg: 0.9 },
+  '白めし': { kcal: 168, p: 2.6, f: 0.3, c: 37.1, g: 150, vitaminA_ug: 0, vitaminD_ug: 0, vitaminE_mg: 0.1, vitaminK_ug: 0, vitaminB1_mg: 0.03, vitaminB2_mg: 0.02, vitaminB6_mg: 0.03, vitaminB12_ug: 0, vitaminC_mg: 0, niacin_mg: 0.3, folate_ug: 5, calcium_mg: 4, iron_mg: 0.2, magnesium_mg: 10, potassium_mg: 42, sodium_mg: 1, zinc_mg: 0.9 },
 
 
 

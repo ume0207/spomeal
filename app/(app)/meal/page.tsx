@@ -319,25 +319,55 @@ export default function MealPage() {
     })
   }, [])
   // 検索で選択した食品リスト（複数選択・PFC合計計算用）
-  const [selectedSearchFoods, setSelectedSearchFoods] = useState<FoodDbEntry[]>([])
+  // currentG: ユーザーが編集中のグラム数（未編集なら f.g を初期値とする）
+  type SelectedFood = FoodDbEntry & { currentG: number }
+  const [selectedSearchFoods, setSelectedSearchFoods] = useState<SelectedFood[]>([])
+
+  // currentG / f.g の比で各栄養素を計算するヘルパー
+  const scaleByGrams = (f: SelectedFood) => {
+    const baseG = f.g || 100
+    const ratio = baseG > 0 ? f.currentG / baseG : 1
+    return {
+      kcal: Math.round(f.kcal * ratio),
+      p: Math.round(f.p * ratio * 10) / 10,
+      f: Math.round(f.f * ratio * 10) / 10,
+      c: Math.round(f.c * ratio * 10) / 10,
+      ratio,
+    }
+  }
+
+  // selectedSearchFoods の合計を計算 (現在の currentG を反映)
+  const recalcSearchTotals = (foods: SelectedFood[]) => {
+    const totalKcal = foods.reduce((s, x) => s + scaleByGrams(x).kcal, 0)
+    const totalP = foods.reduce((s, x) => s + scaleByGrams(x).p, 0)
+    const totalF = foods.reduce((s, x) => s + scaleByGrams(x).f, 0)
+    const totalC = foods.reduce((s, x) => s + scaleByGrams(x).c, 0)
+    setManualKcal(String(Math.round(totalKcal)))
+    setManualProtein(totalP.toFixed(1))
+    setManualFat(totalF.toFixed(1))
+    setManualCarbs(totalC.toFixed(1))
+  }
 
   // 検索から食品を追加し、手動入力欄の合計を更新するヘルパー
   const addSearchFood = (item: FoodDbEntry) => {
     setSelectedSearchFoods(prev => {
-      const next = [...prev, item]
-      const totalKcal = next.reduce((s, x) => s + x.kcal, 0)
-      const totalP = next.reduce((s, x) => s + x.p, 0)
-      const totalF = next.reduce((s, x) => s + x.f, 0)
-      const totalC = next.reduce((s, x) => s + x.c, 0)
-      setManualKcal(String(Math.round(totalKcal)))
-      setManualProtein(totalP.toFixed(1))
-      setManualFat(totalF.toFixed(1))
-      setManualCarbs(totalC.toFixed(1))
+      const next: SelectedFood[] = [...prev, { ...item, currentG: item.g || 100 }]
+      recalcSearchTotals(next)
       setAiText(next.map(x => x.name).join('、'))
       setAiResult(null)
       return next
     })
     setSearchQuery('')
+  }
+
+  // 検索選択食品のグラム数を更新（PFC・ビタミンが比例計算される）
+  const updateSearchFoodGrams = (idx: number, newGrams: number) => {
+    setSelectedSearchFoods(prev => {
+      const next = [...prev]
+      next[idx] = { ...next[idx], currentG: Math.max(0, newGrams) }
+      recalcSearchTotals(next)
+      return next
+    })
   }
 
   const removeSearchFood = (idx: number) => {
@@ -346,10 +376,7 @@ export default function MealPage() {
       if (next.length === 0) {
         setManualKcal(''); setManualProtein(''); setManualFat(''); setManualCarbs(''); setAiText('')
       } else {
-        setManualKcal(String(Math.round(next.reduce((s, x) => s + x.kcal, 0))))
-        setManualProtein(next.reduce((s, x) => s + x.p, 0).toFixed(1))
-        setManualFat(next.reduce((s, x) => s + x.f, 0).toFixed(1))
-        setManualCarbs(next.reduce((s, x) => s + x.c, 0).toFixed(1))
+        recalcSearchTotals(next)
         setAiText(next.map(x => x.name).join('、'))
       }
       return next
@@ -889,15 +916,27 @@ export default function MealPage() {
           ...extractMicros(it),
         }))
       : selectedSearchFoods.length > 0
-      ? selectedSearchFoods.map(f => ({
-          foodName: f.name,
-          grams: f.g || undefined,
-          caloriesKcal: f.kcal,
-          proteinG: f.p,
-          fatG: f.f,
-          carbsG: f.c,
-          ...extractMicros(f),  // food-db.ts に格納された17項目
-        }))
+      ? selectedSearchFoods.map(f => {
+          const baseG = f.g || 100
+          const ratio = baseG > 0 ? f.currentG / baseG : 1
+          // 微量栄養素もgramsの比で再計算
+          const scaledMicros: Partial<Record<MicronutrientKey, number>> = {}
+          for (const k of MICRONUTRIENT_KEYS) {
+            const v = (f as Micronutrients)[k]
+            if (typeof v === 'number') {
+              scaledMicros[k] = Math.round(v * ratio * 100) / 100
+            }
+          }
+          return {
+            foodName: f.name,
+            grams: f.currentG || undefined,
+            caloriesKcal: Math.round(f.kcal * ratio),
+            proteinG: Math.round(f.p * ratio * 10) / 10,
+            fatG: Math.round(f.f * ratio * 10) / 10,
+            carbsG: Math.round(f.c * ratio * 10) / 10,
+            ...scaledMicros,
+          }
+        })
       : [{
           foodName: foodName,
           caloriesKcal: kcal,
@@ -2393,25 +2432,65 @@ export default function MealPage() {
                       {selectedSearchFoods.length > 0 && (
                         <div style={{ marginBottom: '10px', background: '#f0fdf4', borderRadius: '12px', padding: '10px 12px' }}>
                           <p style={{ fontSize: '12px', fontWeight: 700, color: '#16a34a', marginBottom: '8px' }}>✅ 選択中の食品</p>
-                          {selectedSearchFoods.map((food, idx) => (
-                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: idx < selectedSearchFoods.length - 1 ? '1px solid #dcfce7' : 'none' }}>
-                              <div>
-                                <span style={{ fontSize: '14px', fontWeight: 600, color: '#111827' }}>{food.name}</span>
-                                <span style={{ fontSize: '12px', color: '#6b7280', marginLeft: '8px' }}>{food.kcal}kcal</span>
-                                <span style={{ fontSize: '11px', color: '#9ca3af', marginLeft: '6px' }}>P{food.p}g F{food.f}g C{food.c}g</span>
+                          {selectedSearchFoods.map((food, idx) => {
+                            const scaled = scaleByGrams(food)
+                            return (
+                            <div key={idx} style={{ padding: '8px 0', borderBottom: idx < selectedSearchFoods.length - 1 ? '1px solid #dcfce7' : 'none' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                <span style={{ fontSize: '14px', fontWeight: 600, color: '#111827', flex: 1 }}>{food.name}</span>
+                                <button onClick={() => removeSearchFood(idx)} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '16px', cursor: 'pointer', padding: '0 4px', fontFamily: 'inherit' }}>✕</button>
                               </div>
-                              <button onClick={() => removeSearchFood(idx)} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '16px', cursor: 'pointer', padding: '0 4px', fontFamily: 'inherit' }}>✕</button>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    pattern="[0-9]*\.?[0-9]*"
+                                    key={`sg-${idx}-${food.name}`}
+                                    defaultValue={String(food.currentG)}
+                                    onChange={(e) => {
+                                      const cleaned = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1')
+                                      if (cleaned !== e.target.value) e.target.value = cleaned
+                                    }}
+                                    onBlur={(e) => {
+                                      const v = parseFloat(e.target.value.trim()) || 0
+                                      updateSearchFoodGrams(idx, v)
+                                    }}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                                    style={{
+                                      width: '60px', fontSize: '14px', fontWeight: 700, color: '#7C3AED',
+                                      border: '1.5px solid #c4b5fd', borderRadius: '6px', padding: '4px 6px',
+                                      background: '#faf5ff', outline: 'none', textAlign: 'center',
+                                      WebkitAppearance: 'none', MozAppearance: 'textfield', fontFamily: 'inherit',
+                                    }}
+                                  />
+                                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#7C3AED' }}>g</span>
+                                </div>
+                                <div style={{ flex: 1, fontSize: '12px', color: '#374151', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                  <span style={{ fontWeight: 700, color: '#16a34a' }}>{scaled.kcal}kcal</span>
+                                  <span style={{ color: '#6b7280' }}>P{scaled.p.toFixed(1)} F{scaled.f.toFixed(1)} C{scaled.c.toFixed(1)}</span>
+                                </div>
+                              </div>
                             </div>
-                          ))}
-                          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #bbf7d0', display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 700, color: '#16a34a' }}>
-                            <span>合計</span>
-                            <span>
-                              {Math.round(selectedSearchFoods.reduce((s, x) => s + x.kcal, 0))}kcal &nbsp;
-                              P{selectedSearchFoods.reduce((s, x) => s + x.p, 0).toFixed(1)}g &nbsp;
-                              F{selectedSearchFoods.reduce((s, x) => s + x.f, 0).toFixed(1)}g &nbsp;
-                              C{selectedSearchFoods.reduce((s, x) => s + x.c, 0).toFixed(1)}g
-                            </span>
-                          </div>
+                            )
+                          })}
+                          {(() => {
+                            const tots = selectedSearchFoods.reduce((acc, f) => {
+                              const s = scaleByGrams(f)
+                              return { kcal: acc.kcal + s.kcal, p: acc.p + s.p, f: acc.f + s.f, c: acc.c + s.c }
+                            }, { kcal: 0, p: 0, f: 0, c: 0 })
+                            return (
+                              <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #bbf7d0', display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 700, color: '#16a34a' }}>
+                                <span>合計</span>
+                                <span>
+                                  {Math.round(tots.kcal)}kcal &nbsp;
+                                  P{tots.p.toFixed(1)}g &nbsp;
+                                  F{tots.f.toFixed(1)}g &nbsp;
+                                  C{tots.c.toFixed(1)}g
+                                </span>
+                              </div>
+                            )
+                          })()}
                         </div>
                       )}
 
