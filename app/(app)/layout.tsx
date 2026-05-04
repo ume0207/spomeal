@@ -61,22 +61,29 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       }
 
       // サブスクリプション状態チェック
+      // ★仕様★ 決済が無いユーザーは即座にカード登録画面（/plans）へ強制遷移する
+      //   - trial終了後にカード決済できなかった人（past_due, unpaid）も同様
+      //   - subscription_status が active/trialing 以外は全部ここでブロック
       try {
         const email = user.email
         const userId = user.id
         const res = await apiFetch(`/api/check-subscription?email=${encodeURIComponent(email || '')}&userId=${userId}`)
+        let isInactive = true
         if (res.ok) {
           const subData = await res.json() as { active: boolean; reason?: string }
-          if (!subData.active) {
-            setSubscriptionLocked(true)
-          }
-        } else {
-          // APIエラー（5xx等）→ 安全のためロック
+          isInactive = !subData.active
+        }
+        if (isInactive) {
+          // ロック画面を一瞬表示してから /plans へ自動リダイレクト
           setSubscriptionLocked(true)
+          window.location.href = '/plans'
+          return
         }
       } catch {
-        // ネットワークエラー → 安全のためロック
+        // ネットワークエラー → 安全のためロック → /plans へ
         setSubscriptionLocked(true)
+        window.location.href = '/plans'
+        return
       }
       setSubscriptionChecked(true)
     })
@@ -119,6 +126,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     // 共有端末で前のユーザーのメールが自動入力されるプライバシー問題を防ぐ。
     try {
       localStorage.removeItem('spomeal_saved_email')
+      // ダッシュボード等の SWR キャッシュも削除（共有デバイス対策）
+      const keysToRemove: string[] = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i)
+        if (k && (k.startsWith('dash_') || k.startsWith('mealRecords_v1') || k.startsWith('goals_v1'))) {
+          keysToRemove.push(k)
+        }
+      }
+      keysToRemove.forEach(k => localStorage.removeItem(k))
     } catch { /* ignore */ }
     router.push('/login')
   }

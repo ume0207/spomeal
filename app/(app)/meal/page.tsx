@@ -640,6 +640,11 @@ export default function MealPage() {
     if (confirm('この記録を削除しますか？')) {
       if (userId) {
         apiFetch(`/api/meals?id=${id}&userId=${userId}`, { method: 'DELETE' }).catch(() => {})
+        // ダッシュボード SWR キャッシュをbust（今日分の全期間に当てはめて削除）
+        try {
+          const today = toJSTDateStr()
+          localStorage.removeItem(`dash_meals_${userId}_${today}`)
+        } catch { /* ignore */ }
       }
       saveRecords(records.filter(r => r.id !== id))
     }
@@ -936,6 +941,10 @@ export default function MealPage() {
             newRecord.id = data[0].id
           }
         }
+        // ★ ダッシュボード等のSWRキャッシュをbust（保存直後の古い表示を防ぐ）
+        try {
+          localStorage.removeItem(`dash_meals_${userId}_${mealDateStr}`)
+        } catch { /* ignore */ }
       } catch { /* ignore */ }
 
       // 管理者フィード用にも同期
