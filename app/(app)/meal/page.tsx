@@ -135,7 +135,40 @@ const FOOD_DB_COMPAT: Record<string, { kcal: number; p: number; f: number; c: nu
 }
 
 // ===== 型定義 =====
-interface MealItem {
+
+// 微量栄養素（17項目・厚労省「食事摂取基準」準拠）
+// 単位: vitaminA/D/K/B12/folate=μg, それ以外=mg
+export const MICRONUTRIENT_KEYS = [
+  'vitaminA_ug', 'vitaminD_ug', 'vitaminE_mg', 'vitaminK_ug',
+  'vitaminB1_mg', 'vitaminB2_mg', 'vitaminB6_mg', 'vitaminB12_ug',
+  'vitaminC_mg', 'niacin_mg', 'folate_ug',
+  'calcium_mg', 'iron_mg', 'magnesium_mg', 'potassium_mg', 'sodium_mg', 'zinc_mg',
+] as const
+export type MicronutrientKey = typeof MICRONUTRIENT_KEYS[number]
+export type Micronutrients = Partial<Record<MicronutrientKey, number>>
+
+// 表示用ラベル（日本語名 + 単位）
+export const MICRONUTRIENT_LABELS: Record<MicronutrientKey, { name: string; unit: string }> = {
+  vitaminA_ug:   { name: 'ビタミンA', unit: 'μg' },
+  vitaminD_ug:   { name: 'ビタミンD', unit: 'μg' },
+  vitaminE_mg:   { name: 'ビタミンE', unit: 'mg' },
+  vitaminK_ug:   { name: 'ビタミンK', unit: 'μg' },
+  vitaminB1_mg:  { name: 'ビタミンB1', unit: 'mg' },
+  vitaminB2_mg:  { name: 'ビタミンB2', unit: 'mg' },
+  vitaminB6_mg:  { name: 'ビタミンB6', unit: 'mg' },
+  vitaminB12_ug: { name: 'ビタミンB12', unit: 'μg' },
+  vitaminC_mg:   { name: 'ビタミンC', unit: 'mg' },
+  niacin_mg:     { name: 'ナイアシン', unit: 'mg' },
+  folate_ug:     { name: '葉酸', unit: 'μg' },
+  calcium_mg:    { name: 'カルシウム', unit: 'mg' },
+  iron_mg:       { name: '鉄', unit: 'mg' },
+  magnesium_mg:  { name: 'マグネシウム', unit: 'mg' },
+  potassium_mg:  { name: 'カリウム', unit: 'mg' },
+  sodium_mg:     { name: 'ナトリウム', unit: 'mg' },
+  zinc_mg:       { name: '亜鉛', unit: 'mg' },
+}
+
+interface MealItem extends Micronutrients {
   foodName: string
   grams?: number
   caloriesKcal: number
@@ -232,7 +265,9 @@ export default function MealPage() {
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState('')
   const [photos, setPhotos] = useState<{file: File; preview: string}[]>([])
-  const [aiResult, setAiResult] = useState<{calories: number; protein: number; fat: number; carbs: number; comment: string; items?: {name: string; amount: string; grams: number; kcal: number; protein: number; fat: number; carbs: number; baseGrams?: number; baseKcal?: number; baseProtein?: number; baseFat?: number; baseCarbs?: number}[]} | null>(null)
+  const [aiResult, setAiResult] = useState<{calories: number; protein: number; fat: number; carbs: number; comment: string; items?: ({name: string; amount: string; grams: number; kcal: number; protein: number; fat: number; carbs: number; baseGrams?: number; baseKcal?: number; baseProtein?: number; baseFat?: number; baseCarbs?: number} & Micronutrients)[]} | null>(null)
+  // 微量栄養素アコーディオン開閉状態（AI結果のアイテム単位）
+  const [openMicroIdx, setOpenMicroIdx] = useState<Record<number, boolean>>({})
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [mealDate, setMealDate] = useState('')
 
@@ -782,7 +817,15 @@ export default function MealPage() {
       } catch { /* ignore */ }
     }
 
-    // AI分析結果のアイテムがあればそれを使う
+    // AI分析結果のアイテムがあればそれを使う（微量栄養素も保持）
+    const extractMicros = (src: any): Partial<Record<MicronutrientKey, number>> => {
+      const out: Partial<Record<MicronutrientKey, number>> = {}
+      for (const k of MICRONUTRIENT_KEYS) {
+        const v = src?.[k]
+        if (typeof v === 'number') out[k] = v
+      }
+      return out
+    }
     const recordItems: MealItem[] = (aiResult && aiResult.items && aiResult.items.length > 0)
       ? aiResult.items.map((it: any) => ({
           foodName: it.name || foodName,
@@ -791,6 +834,7 @@ export default function MealPage() {
           proteinG: it.protein || 0,
           fatG: it.fat || 0,
           carbsG: it.carbs || 0,
+          ...extractMicros(it),
         }))
       : [{
           foodName: foodName,
@@ -1273,11 +1317,25 @@ export default function MealPage() {
                                     style={{ flex: 1, minWidth: '100px', fontSize: '12px', fontWeight: 600, border: '1px solid #d1d5db', borderRadius: '6px', padding: '4px 6px', fontFamily: 'inherit' }}
                                   />
                                   <input
-                                    type="number"
-                                    value={item.grams ?? ''}
+                                    type="text"
+                                    inputMode="decimal"
+                                    pattern="[0-9]*\.?[0-9]*"
+                                    key={`ie-g-${idx}`}
+                                    defaultValue={item.grams != null ? String(item.grams) : ''}
                                     placeholder="g"
-                                    onChange={(e) => { const nw = [...inlineEditItems]; nw[idx] = { ...nw[idx], grams: Number(e.target.value) || undefined }; setInlineEditItems(nw) }}
-                                    style={{ width: '50px', fontSize: '11px', border: '1px solid #d1d5db', borderRadius: '6px', padding: '4px', textAlign: 'right', fontFamily: 'inherit' }}
+                                    onChange={(e) => {
+                                      const cleaned = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1')
+                                      if (cleaned !== e.target.value) e.target.value = cleaned
+                                    }}
+                                    onBlur={(e) => {
+                                      const raw = e.target.value.trim()
+                                      const v = raw === '' ? undefined : (Number(raw) || undefined)
+                                      const nw = [...inlineEditItems]; nw[idx] = { ...nw[idx], grams: v }; setInlineEditItems(nw)
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                                    }}
+                                    style={{ width: '64px', fontSize: '13px', border: '1px solid #d1d5db', borderRadius: '6px', padding: '6px 8px', textAlign: 'right', fontFamily: 'inherit', minHeight: '34px' }}
                                   />
                                   <span style={{ fontSize: '10px', color: '#9ca3af' }}>g</span>
                                   <div style={{ display: 'flex', gap: '4px', width: '100%', marginTop: '4px' }}>
@@ -1768,16 +1826,35 @@ export default function MealPage() {
                             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '3px', flexShrink: 0 }}>
                                 <input
-                                  type="number"
-                                  inputMode="numeric"
-                                  value={item.grams || ''}
+                                  type="text"
+                                  inputMode="decimal"
+                                  pattern="[0-9]*\.?[0-9]*"
+                                  key={`g-${i}-${item.baseGrams ?? ''}`}
+                                  defaultValue={item.grams != null ? String(item.grams) : ''}
                                   onChange={(e) => {
-                                    const newGrams = parseFloat(e.target.value) || 0
+                                    // 入力中は数字以外を弾く（小数点1個まで許可）
+                                    const cleaned = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1')
+                                    if (cleaned !== e.target.value) e.target.value = cleaned
+                                  }}
+                                  onBlur={(e) => {
+                                    const raw = e.target.value.trim()
+                                    const newGrams = raw === '' ? 0 : (parseFloat(raw) || 0)
                                     const baseG = item.baseGrams || item.grams || 100
                                     const ratio = baseG > 0 ? newGrams / baseG : 1
                                     const newItems = [...(aiResult.items || [])]
+                                    // 微量栄養素もグラム数に応じて比例計算（baseから計算して複利防止）
+                                    const scaledMicros: Partial<Record<MicronutrientKey, number>> = {}
+                                    for (const k of MICRONUTRIENT_KEYS) {
+                                      const baseV = (item as any)[`base_${k}`]
+                                      const curV = (item as Micronutrients)[k]
+                                      const useV = typeof baseV === 'number' ? baseV : (typeof curV === 'number' ? curV : undefined)
+                                      if (typeof useV === 'number') {
+                                        scaledMicros[k] = Math.round(useV * ratio * 100) / 100
+                                      }
+                                    }
                                     newItems[i] = {
                                       ...newItems[i],
+                                      ...scaledMicros,
                                       grams: newGrams,
                                       kcal: Math.round((item.baseKcal || item.kcal) * ratio),
                                       protein: Math.round((item.baseProtein || item.protein) * ratio * 10) / 10,
@@ -1786,11 +1863,15 @@ export default function MealPage() {
                                     }
                                     recalcTotals(newItems)
                                   }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                                  }}
                                   style={{
-                                    width: '60px', fontSize: '15px', fontWeight: 800, color: '#7C3AED',
-                                    border: '2px solid #c4b5fd', borderRadius: '8px', padding: '4px 6px',
+                                    width: '70px', fontSize: '15px', fontWeight: 800, color: '#7C3AED',
+                                    border: '2px solid #c4b5fd', borderRadius: '8px', padding: '6px 8px',
                                     background: '#faf5ff', outline: 'none', textAlign: 'center',
                                     WebkitAppearance: 'none', MozAppearance: 'textfield',
+                                    minHeight: '36px',
                                   }}
                                 />
                                 <span style={{ fontSize: '12px', fontWeight: 700, color: '#7C3AED' }}>g</span>
@@ -1826,6 +1907,51 @@ export default function MealPage() {
                                 ))}
                               </div>
                             </div>
+                            {/* 微量栄養素アコーディオン（17項目） */}
+                            {(() => {
+                              const microsPresent = MICRONUTRIENT_KEYS.some(k => typeof (item as any)[k] === 'number')
+                              if (!microsPresent) return null
+                              const isOpen = !!openMicroIdx[i]
+                              return (
+                                <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px dashed #e5e7eb' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setOpenMicroIdx({ ...openMicroIdx, [i]: !isOpen })}
+                                    style={{
+                                      fontSize: '11px', color: '#6b7280', background: 'transparent', border: 'none',
+                                      cursor: 'pointer', padding: '2px 0', fontWeight: 600, display: 'flex',
+                                      alignItems: 'center', gap: '4px',
+                                    }}
+                                  >
+                                    <span>{isOpen ? '▼' : '▶'}</span>
+                                    <span>ビタミン・ミネラル</span>
+                                  </button>
+                                  {isOpen && (
+                                    <div style={{
+                                      marginTop: '6px', display: 'grid',
+                                      gridTemplateColumns: 'repeat(auto-fill, minmax(105px, 1fr))', gap: '4px',
+                                    }}>
+                                      {MICRONUTRIENT_KEYS.map((k) => {
+                                        const v = (item as Micronutrients)[k]
+                                        if (typeof v !== 'number') return null
+                                        const meta = MICRONUTRIENT_LABELS[k]
+                                        return (
+                                          <div key={k} style={{
+                                            display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+                                            background: '#f9fafb', borderRadius: '6px', padding: '3px 6px',
+                                          }}>
+                                            <span style={{ fontSize: '10px', color: '#4b5563' }}>{meta.name}</span>
+                                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#111827' }}>
+                                              {v % 1 === 0 ? v : v.toFixed(2)}<span style={{ fontSize: '9px', color: '#9ca3af', marginLeft: '2px' }}>{meta.unit}</span>
+                                            </span>
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })()}
                           </div>
                           )
                         })}
@@ -1969,8 +2095,15 @@ export default function MealPage() {
                           }
                         }
 
+                        // 微量栄養素のベース値も保存（連続編集での複利スケーリング防止）
+                        const baseMicros: Record<string, number> = {}
+                        for (const k of MICRONUTRIENT_KEYS) {
+                          const v = (item as any)[k]
+                          if (typeof v === 'number') baseMicros[`base_${k}`] = v
+                        }
                         return {
                           ...item,
+                          ...baseMicros,
                           name: item.name,  // AIの丁寧な料理名をそのまま使用
                           kcal, protein, fat, carbs, grams,
                           baseGrams: grams,

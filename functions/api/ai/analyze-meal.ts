@@ -85,7 +85,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     if (isTextOnly) {
       // ===== テキスト入力専用プロンプト =====
-      // ルール: ユーザーが入力した料理名をそのまま使う・分解しない・PFC値も返す
+      // ルール: ユーザーが入力した料理名をそのまま使う・分解しない・PFC + 微量栄養素17項目を返す
       content.push({
         type: 'text',
         text: `以下の食事内容の栄養情報をJSON形式で返してください。
@@ -98,10 +98,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 - 例: 「唐揚げ定食」→「唐揚げ定食」1品（唐揚げ・ごはん・味噌汁に分けない）
 - ユーザーが複数品を入力した場合はその品数分だけ返す
 - 量が未指定の場合は一般的な1人前のグラム数を推定する
-- kcal・protein・fat・carbsは日本食品標準成分表に基づいた正確な値を入れること
+- kcal・protein・fat・carbs および 微量栄養素17項目は日本食品標準成分表（八訂）に基づいた値を返す
+- 微量栄養素の単位は固定: vitaminA_ug, vitaminD_ug, vitaminE_mg, vitaminK_ug, vitaminB1_mg, vitaminB2_mg, vitaminB6_mg, vitaminB12_ug, vitaminC_mg, niacin_mg, folate_ug, calcium_mg, iron_mg, magnesium_mg, potassium_mg, sodium_mg, zinc_mg
+- 不明な値は0を返す（nullや省略は不可）
 
 ## 回答形式（JSONのみ、他のテキスト不要）
-{"items":[{"name":"料理名（入力のまま）","amount":"1人前（約Xg）","grams":500,"kcal":450,"protein":17,"fat":12,"carbs":68}],"comment":"一言コメント"}`,
+{"items":[{"name":"料理名（入力のまま）","amount":"1人前（約Xg）","grams":500,"kcal":450,"protein":17,"fat":12,"carbs":68,"vitaminA_ug":120,"vitaminD_ug":0.5,"vitaminE_mg":1.2,"vitaminK_ug":15,"vitaminB1_mg":0.2,"vitaminB2_mg":0.15,"vitaminB6_mg":0.3,"vitaminB12_ug":0.8,"vitaminC_mg":5,"niacin_mg":3.5,"folate_ug":40,"calcium_mg":80,"iron_mg":1.5,"magnesium_mg":35,"potassium_mg":280,"sodium_mg":850,"zinc_mg":1.8}],"comment":"一言コメント"}`,
       })
     } else {
       // ===== 写真解析プロンプト =====
@@ -135,8 +137,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 - 写真がある場合は見た目から量を正確に推定
 - commentは食事全体のわかりやすい説明
 
+### 栄養素（必須）
+- 各品目に kcal, protein, fat, carbs および 微量栄養素17項目を返す
+- 単位は固定: kcal, protein(g), fat(g), carbs(g), vitaminA_ug, vitaminD_ug, vitaminE_mg, vitaminK_ug, vitaminB1_mg, vitaminB2_mg, vitaminB6_mg, vitaminB12_ug, vitaminC_mg, niacin_mg, folate_ug, calcium_mg, iron_mg, magnesium_mg, potassium_mg, sodium_mg, zinc_mg
+- 値は日本食品標準成分表（八訂）に基づくこと
+- 不明な値は0を返す（nullや省略は不可）
+
 ## 回答形式（JSONのみ、他のテキスト不要）
-{"items":[{"name":"丁寧な料理名","amount":"わかりやすい量の説明","grams":200}],"comment":"食事全体の一言説明"}`,
+{"items":[{"name":"丁寧な料理名","amount":"わかりやすい量の説明","grams":200,"kcal":300,"protein":15,"fat":8,"carbs":40,"vitaminA_ug":100,"vitaminD_ug":0.3,"vitaminE_mg":1.0,"vitaminK_ug":10,"vitaminB1_mg":0.15,"vitaminB2_mg":0.12,"vitaminB6_mg":0.25,"vitaminB12_ug":0.6,"vitaminC_mg":4,"niacin_mg":3,"folate_ug":35,"calcium_mg":60,"iron_mg":1.2,"magnesium_mg":30,"potassium_mg":250,"sodium_mg":700,"zinc_mg":1.5}],"comment":"食事全体の一言説明"}`,
       })
     }
 
@@ -157,7 +165,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           { role: 'user', content },
         ],
         temperature: 0.2,
-        max_tokens: 1024,
+        max_tokens: 4096,
         response_format: { type: 'json_object' },
       }),
     })
