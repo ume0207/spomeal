@@ -73,42 +73,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       ? 'https://spomeal.jp'
       : reqOrigin
 
-    // ★トライアル期間の計算★
-    // 仕様：profile.created_at（=登録日）から14日間がトライアル。
-    //   - 登録から14日未満 → 残り日数だけトライアル付与
-    //   - 14日以上経過 → トライアル無し（即課金）
-    // userId が無い・profile が無い場合は従来通り 14日固定
-    let trialParams: Record<string, string> = { 'subscription_data[trial_period_days]': '14' }
-    if (userId && env.NEXT_PUBLIC_SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY) {
-      try {
-        const profRes = await fetch(
-          `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=created_at`,
-          {
-            headers: {
-              'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
-              'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-            },
-          }
-        )
-        if (profRes.ok) {
-          const rows = await profRes.json() as Array<{ created_at?: string }>
-          const createdAt = rows[0]?.created_at
-          if (createdAt) {
-            const signupMs = new Date(createdAt).getTime()
-            const trialEndMs = signupMs + 14 * 24 * 60 * 60 * 1000
-            const nowMs = Date.now()
-            if (trialEndMs > nowMs) {
-              // 残りトライアル日数を unix秒 で渡す（最低でも +60秒未来であることを保証）
-              const trialEndSec = Math.floor(Math.max(trialEndMs, nowMs + 60 * 1000) / 1000)
-              trialParams = { 'subscription_data[trial_end]': String(trialEndSec) }
-            } else {
-              // 14日経過済み → トライアル無しで即課金
-              trialParams = {}
-            }
-          }
-        }
-      } catch { /* fallback to default 14 days */ }
-    }
+    // ★トライアル期間★
+    // 常に14日固定。Stripe が「now + 14日」を自動計算するため、
+    // checkout UI は確実に「14日間無料」と表示される。
+    // （以前は profile.created_at + 14日 を trial_end に渡していたが、
+    //   登録〜チェックアウトに数分でも経つと Stripe UI が切り捨てで「13日」と表示される
+    //   off-by-one バグがあったため、シンプルな trial_period_days 方式に戻した）
+    const trialParams: Record<string, string> = { 'subscription_data[trial_period_days]': '14' }
 
     const stripeRes = await fetch('https://api.stripe.com/v1/checkout/sessions', {
       method: 'POST',
