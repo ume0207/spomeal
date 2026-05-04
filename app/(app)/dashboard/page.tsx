@@ -2,17 +2,22 @@
 
 import Link from 'next/link'
 import { useState, useEffect, useCallback } from 'react'
+import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { apiFetch } from '@/lib/api'
 import { getRarityColor, getRarityLabel } from '@/lib/points'
 import { toJSTDateStr } from '@/lib/date-utils'
 import type { LotteryResult } from '@/lib/points'
-import { SpotlightTutorial, UsageGuide } from '@/components/Tutorial'
+
+// Tutorial は使う時だけ読み込む（初期バンドルから除外）
+const SpotlightTutorial = dynamic(() => import('@/components/Tutorial').then(m => ({ default: m.SpotlightTutorial })), { ssr: false })
+const UsageGuide = dynamic(() => import('@/components/Tutorial').then(m => ({ default: m.UsageGuide })), { ssr: false })
 import {
   MICRONUTRIENT_KEYS, MICRONUTRIENT_LABELS, MICRO_RDA, MICRO_PRIMARY,
   getMicroBarColor, sumMicros,
   type MicronutrientKey, type Micronutrients,
 } from '@/lib/micronutrients'
+import { readStaleCache, writeCache } from '@/lib/swr-cache'
 
 // 食事記録の型定義
 interface MealRecord {
@@ -135,38 +140,64 @@ export default function DashboardPage() {
     }
 
     if (currentUserId) {
-      // 管理栄養士コメントをAPIから取得
+      // ★ stale-while-revalidate: localStorageキャッシュを先に表示してから fetch で更新
+      const today = toJSTDateStr()
+
+      // --- 管理栄養士コメント ---
+      const cmKey = `dash_comments_${currentUserId}`
+      const cachedComments = readStaleCache<any[]>(cmKey)
+      if (cachedComments) {
+        setNutritionistComments(cachedComments)
+      }
       apiFetch(`/api/admin/comments?memberId=${currentUserId}`)
         .then(r => r.ok ? r.json() : [])
         .then((data: any[]) => {
-          setNutritionistComments(data.map(c => ({
+          const mapped = (data || []).map(c => ({
             id: c.id,
             date: new Date(c.created_at).toLocaleString('sv-SE', { timeZone: 'Asia/Tokyo' }).slice(0, 16),
             staffName: c.staff_name,
             category: c.category,
             comment: c.comment,
-          })))
+          }))
+          setNutritionistComments(mapped)
+          writeCache(cmKey, mapped)
         })
         .catch(() => {})
-    }
 
-    if (currentUserId) {
-      // 目標データをAPIから取得
+      // --- 目標データ ---
+      const gKey = `dash_goal_${currentUserId}`
+      const cachedGoal = readStaleCache<{ cal: number; protein: number; fat: number; carbs: number }>(gKey)
+      if (cachedGoal) {
+        setGoal(cachedGoal)
+      }
       apiFetch(`/api/user-goals?userId=${currentUserId}`)
         .then(r => r.ok ? r.json() : null)
         .then(gData => {
           if (gData) {
-            setGoal({
+            const g = {
               cal: gData.cal || 2000,
               protein: gData.protein || 150,
               fat: gData.fat || 55,
               carbs: gData.carbs || 220,
-            })
+            }
+            setGoal(g)
+            writeCache(gKey, g)
           }
         }).catch(() => {})
 
-      // 食事記録データをAPIから取得（今日分）
-      const today = toJSTDateStr()
+      // --- 食事記録（今日分） ---
+      const mKey = `dash_meals_${currentUserId}_${today}`
+      const cachedMeals = readStaleCache<MealRecord[]>(mKey)
+      if (cachedMeals) {
+        setTodayMealRecords(cachedMeals)
+        const totals = cachedMeals.reduce((acc, r) => ({
+          calories: acc.calories + (r.caloriesKcal || 0),
+          protein: acc.protein + (r.proteinG || 0),
+          fat: acc.fat + (r.fatG || 0),
+          carbs: acc.carbs + (r.carbsG || 0),
+        }), { calories: 0, protein: 0, fat: 0, carbs: 0 })
+        setTodayNutrition(totals)
+      }
       apiFetch(`/api/meals?userId=${currentUserId}&from=${today}&to=${today}`)
         .then(r => r.ok ? r.json() : [])
         .then((data: any[]) => {
@@ -190,34 +221,44 @@ export default function DashboardPage() {
             carbs: acc.carbs + (r.carbsG || 0),
           }), { calories: 0, protein: 0, fat: 0, carbs: 0 })
           setTodayNutrition(totals)
+          writeCache(mKey, todayRecs)
         }).catch(() => {
-          setTodayMealRecords([])
-          setTodayNutrition({ calories: 0, protein: 0, fat: 0, carbs: 0 })
+          if (!cachedMeals) {
+            setTodayMealRecords([])
+            setTodayNutrition({ calories: 0, protein: 0, fat: 0, carbs: 0 })
+          }
         })
 
-      // 体組成データをAPIから取得
+      // --- 体組成データ ---
+      const bKey = `dash_body_${currentUserId}`
+      type BodyState = { weight: string; bodyFat: string; muscle: string; weightChange: string; fatChange: string; muscleChange: string } | null
+      const cachedBody = readStaleCache<BodyState>(bKey)
+      if (cachedBody) {
+        setLatestBody(cachedBody)
+      }
       apiFetch(`/api/body-records?userId=${currentUserId}`)
         .then(r => r.ok ? r.json() : [])
         .then((data: any[]) => {
           const sorted = (data || []).sort((a: any, b: any) => b.date.localeCompare(a.date))
+          let bodyState: BodyState = null
           if (sorted.length > 0) {
             const latest = sorted[0]
             const prev = sorted.length > 1 ? sorted[1] : null
             const wChange = prev ? (latest.weight - prev.weight).toFixed(1) : '—'
             const fChange = prev ? (latest.body_fat - prev.body_fat).toFixed(1) : '—'
             const mChange = prev ? (latest.muscle - prev.muscle).toFixed(1) : '—'
-            setLatestBody({
+            bodyState = {
               weight: latest.weight != null ? String(Number(latest.weight).toFixed(1)) : '—',
               bodyFat: latest.body_fat != null ? String(Number(latest.body_fat).toFixed(1)) : '—',
               muscle: latest.muscle != null ? String(Number(latest.muscle).toFixed(1)) : '—',
               weightChange: wChange !== '—' ? (Number(wChange) >= 0 ? '+' + wChange : wChange) : '—',
               fatChange: fChange !== '—' ? (Number(fChange) >= 0 ? '+' + fChange : fChange) : '—',
               muscleChange: mChange !== '—' ? (Number(mChange) >= 0 ? '+' + mChange : mChange) : '—',
-            })
-          } else {
-            setLatestBody(null)
+            }
           }
-        }).catch(() => setLatestBody(null))
+          setLatestBody(bodyState)
+          writeCache(bKey, bodyState)
+        }).catch(() => { if (!cachedBody) setLatestBody(null) })
 
       // ポイントデータをAPIから取得
       apiFetch(`/api/user-points?userId=${currentUserId}`)
