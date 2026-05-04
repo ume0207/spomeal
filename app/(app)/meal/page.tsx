@@ -2,9 +2,25 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { apiFetch } from '@/lib/api'
-import { FOOD_DB, searchFoodDB } from '@/lib/food-db'
 import { toJSTDateStr, toJSTDateTimeStr } from '@/lib/date-utils'
 import { createClient } from '@/lib/supabase/client'
+
+// food-db.ts は ~395KB あり、初期ロードを軽くするため動的import化
+// 初回マウント直後にバックグラウンド取得し、AI解析や検索に間に合わせる
+type FoodDbModule = typeof import('@/lib/food-db')
+let foodDbCache: FoodDbModule | null = null
+let foodDbPromise: Promise<FoodDbModule> | null = null
+function loadFoodDb(): Promise<FoodDbModule> {
+  if (foodDbCache) return Promise.resolve(foodDbCache)
+  if (!foodDbPromise) {
+    foodDbPromise = import('@/lib/food-db').then(m => { foodDbCache = m; return m })
+  }
+  return foodDbPromise
+}
+function searchFoodDBSync(q: string): Array<{ name: string; kcal: number; p: number; f: number; c: number; g: number }> {
+  if (!foodDbCache) return []
+  return foodDbCache.searchFoodDB(q)
+}
 
 // 旧FOOD_DB互換用（lib/food-db.tsからインポート）
 const FOOD_DB_COMPAT: Record<string, { kcal: number; p: number; f: number; c: number }> = {
@@ -272,6 +288,8 @@ export default function MealPage() {
   const [showAllMicros, setShowAllMicros] = useState(false)
   // 各保存レコードのビタミン・ミネラル展開状態
   const [openRecordMicros, setOpenRecordMicros] = useState<Record<string, boolean>>({})
+  // food-db.ts のロード完了フラグ（再描画トリガー用）
+  const [, setFoodDbReady] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [mealDate, setMealDate] = useState('')
 
@@ -398,6 +416,8 @@ export default function MealPage() {
   // 日付初期化（hydration安全）
   useEffect(() => {
     setCurrentDate(new Date())
+    // 食品DB(395KB)をバックグラウンドで先読み（AI解析や検索が早く反応するように）
+    loadFoodDb().then(() => setFoodDbReady(true)).catch(() => {})
   }, [])
 
   // userId取得＆Supabase読み込み
@@ -2160,10 +2180,13 @@ export default function MealPage() {
 
                       const data = await callAI(2) // 最大2回リトライ
 
+                      // food-db.ts が未ロードならここで完了を待つ（バックグラウンドロード中の保険）
+                      await loadFoodDb()
+
                       // 各itemにDB栄養値を補完＋base値を保存（AIは食品名+グラム数のみ返す）
                       const itemsWithBase = ((data?.items) || []).map((item: any) => {
                         // DBから栄養値を検索（食品名で照合）
-                        const dbResults = searchFoodDB(item.name)
+                        const dbResults = searchFoodDBSync(item.name)
                         const dbMatch = dbResults.length > 0 ? dbResults[0] : null
 
                         let kcal = item.kcal || 0, protein = item.protein || 0, fat = item.fat || 0, carbs = item.carbs || 0
@@ -2375,7 +2398,7 @@ export default function MealPage() {
                       {searchQuery.trim() ? (
                         <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
                           {(() => {
-                            const results = searchFoodDB(searchQuery).slice(0, 20)
+                            const results = searchFoodDBSync(searchQuery).slice(0, 20)
                             if (results.length === 0) {
                               return <p style={{ fontSize: '14px', color: '#9ca3af', textAlign: 'center', padding: '20px 0' }}>該当する食品がありません</p>
                             }
@@ -2430,7 +2453,7 @@ export default function MealPage() {
                     <div>
                       {favorites.length > 0 ? (
                         favorites.map((name) => {
-                          const results = searchFoodDB(name)
+                          const results = searchFoodDBSync(name)
                           const info = results.length > 0 ? results[0] : null
                           return (
                             <div key={name} style={{
