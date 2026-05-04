@@ -5,9 +5,10 @@ import { apiFetch } from '@/lib/api'
 import { toJSTDateStr, toJSTDateTimeStr } from '@/lib/date-utils'
 import { createClient } from '@/lib/supabase/client'
 
-// food-db.ts は ~395KB あり、初期ロードを軽くするため動的import化
+// food-db.ts は微量栄養素17項目込みで非常に大きい(~1MB)ため動的import化
 // 初回マウント直後にバックグラウンド取得し、AI解析や検索に間に合わせる
 type FoodDbModule = typeof import('@/lib/food-db')
+type FoodDbEntry = import('@/lib/food-db').FoodDbEntry
 let foodDbCache: FoodDbModule | null = null
 let foodDbPromise: Promise<FoodDbModule> | null = null
 function loadFoodDb(): Promise<FoodDbModule> {
@@ -17,7 +18,7 @@ function loadFoodDb(): Promise<FoodDbModule> {
   }
   return foodDbPromise
 }
-function searchFoodDBSync(q: string): Array<{ name: string; kcal: number; p: number; f: number; c: number; g: number }> {
+function searchFoodDBSync(q: string): FoodDbEntry[] {
   if (!foodDbCache) return []
   return foodDbCache.searchFoodDB(q)
 }
@@ -318,10 +319,10 @@ export default function MealPage() {
     })
   }, [])
   // 検索で選択した食品リスト（複数選択・PFC合計計算用）
-  const [selectedSearchFoods, setSelectedSearchFoods] = useState<Array<{name: string; kcal: number; p: number; f: number; c: number; g: number}>>([])
+  const [selectedSearchFoods, setSelectedSearchFoods] = useState<FoodDbEntry[]>([])
 
   // 検索から食品を追加し、手動入力欄の合計を更新するヘルパー
-  const addSearchFood = (item: {name: string; kcal: number; p: number; f: number; c: number; g: number}) => {
+  const addSearchFood = (item: FoodDbEntry) => {
     setSelectedSearchFoods(prev => {
       const next = [...prev, item]
       const totalKcal = next.reduce((s, x) => s + x.kcal, 0)
@@ -867,7 +868,7 @@ export default function MealPage() {
       } catch { /* ignore */ }
     }
 
-    // AI分析結果のアイテムがあればそれを使う（微量栄養素も保持）
+    // 微量栄養素をオブジェクトから抽出するヘルパー
     const extractMicros = (src: any): Partial<Record<MicronutrientKey, number>> => {
       const out: Partial<Record<MicronutrientKey, number>> = {}
       for (const k of MICRONUTRIENT_KEYS) {
@@ -876,6 +877,7 @@ export default function MealPage() {
       }
       return out
     }
+    // 優先度: AI解析結果 > 検索選択（DB由来でビタミン込み） > 手入力単一行
     const recordItems: MealItem[] = (aiResult && aiResult.items && aiResult.items.length > 0)
       ? aiResult.items.map((it: any) => ({
           foodName: it.name || foodName,
@@ -885,6 +887,16 @@ export default function MealPage() {
           fatG: it.fat || 0,
           carbsG: it.carbs || 0,
           ...extractMicros(it),
+        }))
+      : selectedSearchFoods.length > 0
+      ? selectedSearchFoods.map(f => ({
+          foodName: f.name,
+          grams: f.g || undefined,
+          caloriesKcal: f.kcal,
+          proteinG: f.p,
+          fatG: f.f,
+          carbsG: f.c,
+          ...extractMicros(f),  // food-db.ts に格納された17項目
         }))
       : [{
           foodName: foodName,
