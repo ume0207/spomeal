@@ -50,57 +50,100 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 
   try {
-    // Stripe: サブスクリプション一覧取得
-    const [activeSubs, trialSubs, cancelledSubs, charges] = await Promise.all([
-      stripeGet('subscriptions?status=active&limit=100&expand[]=data.items.data.price', env.STRIPE_SECRET_KEY),
-      stripeGet('subscriptions?status=trialing&limit=100&expand[]=data.items.data.price', env.STRIPE_SECRET_KEY),
+    // ★Supabase profiles を主データソースに
+    // Stripe側はキャンセル・売上集計だけ使う（趣旨: Spomealのユーザー状態は profiles が正本）
+    const supabaseHeaders = {
+      'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+    }
+    const thisMonthStartDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+    const thisMonthStartIso = thisMonthStartDate.toISOString()
+    const thisMonthStartUnix = Math.floor(thisMonthStartDate.getTime() / 1000)
+
+    // 並列取得: profiles 全件 + auth users 総数 + Stripe 補助データ
+    const [profilesRes, authRes, cancelledSubs, charges] = await Promise.all([
+      // profiles 全件（subscription_status・subscription_plan・is_free_account・created_at だけ）
+      fetch(
+        `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?select=subscription_status,subscription_plan,is_free_account,created_at&limit=10000`,
+        { headers: supabaseHeaders }
+      ),
+      // 総会員数（auth.users）
+      fetch(
+        `${env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users?page=1&per_page=1`,
+        { headers: supabaseHeaders }
+      ),
+      // Stripe: 直近30日の解約数（解約率算出用）
       stripeGet('subscriptions?status=canceled&limit=100&created[gte]=' + Math.floor(Date.now() / 1000 - 30 * 86400), env.STRIPE_SECRET_KEY),
-      stripeGet('charges?limit=100&created[gte]=' + Math.floor(new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime() / 1000), env.STRIPE_SECRET_KEY),
+      // Stripe: 今月の支払い（売上算出用）
+      stripeGet('charges?limit=100&created[gte]=' + thisMonthStartUnix, env.STRIPE_SECRET_KEY),
     ]) as [
-      { data: StripeSubscription[] },
-      { data: StripeSubscription[] },
+      Response,
+      Response,
       { data: StripeSubscription[] },
       { data: StripeCharge[] },
     ]
 
-    // プラン別カウント（アクティブ）
+    type Profile = {
+      subscription_status?: string | null
+      subscription_plan?: string | null
+      is_free_account?: boolean | null
+      created_at?: string | null
+    }
+    const profiles = (profilesRes.ok ? await profilesRes.json() : []) as Profile[]
+    const authData = (authRes.ok ? await authRes.json() : { total: 0 }) as { total?: number }
+    const totalMembers = authData.total || 0
+
+    // ★profilesベースの集計
+    let trialing = 0
+    let active = 0
+    let pastDue = 0
+    let unsubscribed = 0      // 未契約（status null/空 or no_customer 等）
+    let freeAccount = 0       // is_free_account=true
+    let newThisMonth = 0      // 今月の新規プロフィール作成数
     const planCount: Record<string, number> = { light: 0, standard: 0, premium: 0 }
-    for (const sub of activeSubs.data || []) {
-      const nickname = sub.items?.data?.[0]?.price?.nickname?.toLowerCase() || ''
-      if (nickname.includes('light') || nickname.includes('ライト')) planCount.light++
-      else if (nickname.includes('standard') || nickname.includes('スタンダード')) planCount.standard++
-      else if (nickname.includes('premium') || nickname.includes('プレミアム')) planCount.premium++
-      else planCount.light++ // デフォルト
+
+    for (const p of profiles) {
+      const status = (p.subscription_status || '').toLowerCase()
+      const plan = (p.subscription_plan || '').toLowerCase()
+
+      if (p.is_free_account) freeAccount++
+
+      if (status === 'trialing') trialing++
+      else if (status === 'active') {
+        active++
+        if (plan === 'light') planCount.light++
+        else if (plan === 'standard') planCount.standard++
+        else if (plan === 'premium') planCount.premium++
+      }
+      else if (status === 'past_due') pastDue++
+      else unsubscribed++  // null・''・no_customer・unpaid・canceled・deleted など
+
+      if (p.created_at && p.created_at >= thisMonthStartIso) {
+        newThisMonth++
+      }
     }
 
-    // 今月の新規契約数
-    const thisMonthStart = Math.floor(new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime() / 1000)
-    const newThisMonth = [...(activeSubs.data || []), ...(trialSubs.data || [])].filter(
-      (s) => s.created >= thisMonthStart
-    ).length
+    // ※ 「auth.usersにいるが profiles にまだ無い」ユーザーは unsubscribed としてカウントされない
+    //   → 差分を取って unsubscribed に追加（より正確な未契約数を出す）
+    const unsubscribedTotal = Math.max(unsubscribed, totalMembers - profiles.length)
 
     // 売上（今月の成功した支払い合計）
     const monthlyRevenue = (charges.data || [])
       .filter((c) => c.status === 'succeeded')
       .reduce((sum, c) => sum + c.amount, 0)
 
-    // 解約率・継続率（直近30日）
-    const totalLast30 = (activeSubs.data?.length || 0) + (cancelledSubs.data?.length || 0)
+    // 解約率・継続率（直近30日 = active + 解約 のうち解約割合）
+    const totalLast30 = active + (cancelledSubs.data?.length || 0)
     const churnRate = totalLast30 > 0 ? Math.round((cancelledSubs.data?.length || 0) / totalLast30 * 100) : 0
     const retentionRate = 100 - churnRate
 
-    // Supabase: 会員数
-    const supaRes = await fetch(
-      `${env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users?page=1&per_page=1`,
-      { headers: { 'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`, 'apikey': env.SUPABASE_SERVICE_ROLE_KEY } }
-    )
-    const supaData = await supaRes.json() as { total?: number }
-    const totalMembers = supaData.total || 0
-
     const body = JSON.stringify({
       totalMembers,
-      trialing: trialSubs.data?.length || 0,
-      active: activeSubs.data?.length || 0,
+      trialing,
+      active,
+      pastDue,
+      unsubscribed: unsubscribedTotal,
+      freeAccount,
       cancelled30d: cancelledSubs.data?.length || 0,
       planCount,
       newThisMonth,

@@ -8,6 +8,9 @@ interface Stats {
   totalMembers: number
   trialing: number
   active: number
+  pastDue?: number
+  unsubscribed?: number
+  freeAccount?: number
   cancelled30d: number
   planCount: { light: number; standard: number; premium: number }
   newThisMonth: number
@@ -604,12 +607,19 @@ export default function AdminDashboardPage() {
         </p>
       </div>
 
-      {/* 会員数サマリー */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '16px' }}>
+      {/* 会員数サマリー（profilesベースの実数） */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '10px' }}>
         {card('👥', '総会員数', fmt(stats?.totalMembers), '#2563eb')}
-        {card('🆓', '無料トライアル', fmt(stats?.trialing), '#f59e0b')}
+        {card('📅', `${monthLabel}新規登録`, fmt(stats?.newThisMonth), '#8b5cf6')}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '10px' }}>
+        {card('🆓', 'トライアル中', fmt(stats?.trialing), '#f59e0b')}
         {card('✅', 'アクティブ会員', fmt(stats?.active), '#16a34a')}
-        {card('📅', `${monthLabel}新規契約`, fmt(stats?.newThisMonth), '#8b5cf6')}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '16px' }}>
+        {card('⚠️', '決済失敗中', fmt(stats?.pastDue), '#ef4444')}
+        {card('🚫', '未契約', fmt(stats?.unsubscribed), '#9ca3af')}
+        {card('🎟️', '無料アカウント', fmt(stats?.freeAccount), '#a855f7')}
       </div>
 
       {/* プラン別内訳 */}
