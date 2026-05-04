@@ -82,15 +82,41 @@ export default function PlansPage() {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        // 未ログインの場合はログインページへリダイレクト（決済後に戻ってくる）
-        window.location.href = '/login?redirect=/plans'
-        return
+    let cancelled = false
+
+    // セッション確認（直後の signUp 由来で localStorage 同期が
+    // 間に合わない事があるため、最大 3 秒・100ms 間隔でリトライ）
+    const checkSession = async () => {
+      const start = Date.now()
+      while (!cancelled && Date.now() - start < 3000) {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) {
+          if (!cancelled) {
+            setUserEmail(session.user.email ?? null)
+            setUserId(session.user.id ?? null)
+          }
+          return
+        }
+        await new Promise(r => setTimeout(r, 100))
       }
-      setUserEmail(session.user.email ?? null)
-      setUserId(session.user.id ?? null)
+      // 3秒待ってもセッションが無ければ未ログイン扱い
+      if (!cancelled) {
+        window.location.href = '/login?redirect=/plans'
+      }
+    }
+    checkSession()
+
+    // セッション確立イベントも監視（より早く検知できる）
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session && !cancelled) {
+        setUserEmail(session.user.email ?? null)
+        setUserId(session.user.id ?? null)
+      }
     })
+    return () => {
+      cancelled = true
+      subscription.unsubscribe()
+    }
   }, [])
 
   const periodKey: Record<Period, string> = {
