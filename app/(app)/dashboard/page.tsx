@@ -8,6 +8,11 @@ import { getRarityColor, getRarityLabel } from '@/lib/points'
 import { toJSTDateStr } from '@/lib/date-utils'
 import type { LotteryResult } from '@/lib/points'
 import { SpotlightTutorial, UsageGuide } from '@/components/Tutorial'
+import {
+  MICRONUTRIENT_KEYS, MICRONUTRIENT_LABELS, MICRO_RDA, MICRO_PRIMARY,
+  getMicroBarColor, sumMicros,
+  type MicronutrientKey, type Micronutrients,
+} from '@/lib/micronutrients'
 
 // 食事記録の型定義
 interface MealRecord {
@@ -66,6 +71,7 @@ export default function DashboardPage() {
   const [nextReservation, setNextReservation] = useState<Reservation | null>(null)
   const [todayNutrition, setTodayNutrition] = useState({ calories: 0, protein: 0, fat: 0, carbs: 0 })
   const [todayMealRecords, setTodayMealRecords] = useState<MealRecord[]>([])
+  const [showAllMicrosDash, setShowAllMicrosDash] = useState(false)
   const [latestBody, setLatestBody] = useState<{ weight: string; bodyFat: string; muscle: string; weightChange: string; fatChange: string; muscleChange: string } | null>(null)
 
   // 管理栄養士コメント
@@ -663,6 +669,59 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
+                {/* ビタミン・ミネラル（1日合計） */}
+                {(() => {
+                  const allItems = todayMealRecords.flatMap(r => (r.items || []) as Array<Micronutrients & Record<string, unknown>>)
+                  const microTotals = sumMicros(allItems)
+                  const hasAny = Object.keys(microTotals).length > 0
+                  return (
+                    <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #f3f4f6' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280' }}>ビタミン・ミネラル</span>
+                        {hasAny && (
+                          <button
+                            type="button"
+                            onClick={() => setShowAllMicrosDash(s => !s)}
+                            style={{
+                              fontSize: '10px', fontWeight: 700, color: '#7C3AED',
+                              background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 4px',
+                            }}
+                          >
+                            {showAllMicrosDash ? '主要だけ ▲' : '全17項目 ▼'}
+                          </button>
+                        )}
+                      </div>
+                      {!hasAny ? (
+                        <p style={{ fontSize: '10px', color: '#9ca3af', margin: 0 }}>
+                          AIで食事を記録するとビタミン・ミネラルも表示されます
+                        </p>
+                      ) : (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                          {(showAllMicrosDash ? MICRONUTRIENT_KEYS : MICRO_PRIMARY).map((k) => {
+                            const meta = MICRONUTRIENT_LABELS[k as MicronutrientKey]
+                            const value = (microTotals as Record<string, number>)[k] || 0
+                            const target = MICRO_RDA[k as MicronutrientKey] || 1
+                            const pct = Math.min((value / target) * 100, 100)
+                            const color = getMicroBarColor(k as MicronutrientKey)
+                            const display = value < 10 ? value.toFixed(1) : Math.round(value).toString()
+                            return (
+                              <div key={k} style={{ background: '#f9fafb', borderRadius: '6px', padding: '6px' }}>
+                                <p style={{ fontSize: '9px', color: '#9ca3af', marginBottom: '1px' }}>{meta.name}</p>
+                                <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
+                                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#374151' }}>{display}</span>
+                                  <span style={{ fontSize: '9px', color: '#9ca3af' }}>{meta.unit}</span>
+                                </div>
+                                <div style={{ width: '100%', height: '3px', background: '#e5e7eb', borderRadius: '4px', marginTop: '3px', overflow: 'hidden' }}>
+                                  <div style={{ height: '100%', borderRadius: '4px', width: `${pct}%`, background: color, transition: 'width 0.5s' }} />
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
                 {/* 今日の食事一覧 */}
                 {todayMealRecords.length > 0 && (
                   <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #f3f4f6' }}>

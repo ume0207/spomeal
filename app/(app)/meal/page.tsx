@@ -270,6 +270,8 @@ export default function MealPage() {
   const [openMicroIdx, setOpenMicroIdx] = useState<Record<number, boolean>>({})
   // 栄養サマリーで全17項目を表示するかどうか
   const [showAllMicros, setShowAllMicros] = useState(false)
+  // 各保存レコードのビタミン・ミネラル展開状態
+  const [openRecordMicros, setOpenRecordMicros] = useState<Record<string, boolean>>({})
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [mealDate, setMealDate] = useState('')
 
@@ -1426,6 +1428,62 @@ export default function MealPage() {
                               style={{ fontSize: '11px', color: '#22c55e', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 0', fontWeight: 700, fontFamily: 'inherit' }}
                             >＋ 食材を追加</button>
                           )}
+
+                          {/* レコード単位のビタミン・ミネラル合計（非編集モード時のみ） */}
+                          {!isEditing && (() => {
+                            const recMicros: Partial<Record<MicronutrientKey, number>> = {}
+                            for (const k of MICRONUTRIENT_KEYS) {
+                              let sum = 0
+                              let any = false
+                              for (const it of (record.items || [])) {
+                                const v = (it as Micronutrients)[k]
+                                if (typeof v === 'number') { sum += v; any = true }
+                              }
+                              if (any) recMicros[k] = Math.round(sum * 100) / 100
+                            }
+                            const hasAny = Object.keys(recMicros).length > 0
+                            if (!hasAny) return null
+                            const isOpen = !!openRecordMicros[record.id]
+                            return (
+                              <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed #e5e7eb' }}>
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); setOpenRecordMicros({ ...openRecordMicros, [record.id]: !isOpen }) }}
+                                  style={{
+                                    fontSize: '11px', color: '#6b7280', background: 'transparent', border: 'none',
+                                    cursor: 'pointer', padding: '2px 0', fontWeight: 600, display: 'flex',
+                                    alignItems: 'center', gap: '4px', fontFamily: 'inherit',
+                                  }}
+                                >
+                                  <span>{isOpen ? '▼' : '▶'}</span>
+                                  <span>ビタミン・ミネラル</span>
+                                </button>
+                                {isOpen && (
+                                  <div style={{
+                                    marginTop: '6px', display: 'grid',
+                                    gridTemplateColumns: 'repeat(auto-fill, minmax(105px, 1fr))', gap: '4px',
+                                  }}>
+                                    {MICRONUTRIENT_KEYS.map((k) => {
+                                      const v = recMicros[k]
+                                      if (typeof v !== 'number') return null
+                                      const meta = MICRONUTRIENT_LABELS[k]
+                                      return (
+                                        <div key={k} style={{
+                                          display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+                                          background: '#f9fafb', borderRadius: '6px', padding: '3px 6px',
+                                        }}>
+                                          <span style={{ fontSize: '10px', color: '#4b5563' }}>{meta.name}</span>
+                                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#111827' }}>
+                                            {v % 1 === 0 ? v : v.toFixed(2)}<span style={{ fontSize: '9px', color: '#9ca3af', marginLeft: '2px' }}>{meta.unit}</span>
+                                          </span>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })()}
 
                           {/* 操作ボタン */}
                           <div style={{ display: 'flex', gap: '8px', marginTop: '8px', justifyContent: 'flex-end' }}>
