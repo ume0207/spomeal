@@ -21,6 +21,7 @@ interface Env {
  */
 const VALID_COUPONS: Record<string, 'light' | 'standard' | 'premium'> = {
   YASERU: 'premium',
+  BODYNATE: 'premium',
 }
 
 function parseEnvCoupons(env: Env): Record<string, 'light' | 'standard' | 'premium'> {
