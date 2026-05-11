@@ -414,6 +414,9 @@ export default function MealPage() {
   // カテゴリ別アドバイス（朝食/昼食/夕食/間食ごと）
   const [categoryAdvice, setCategoryAdvice] = useState<Record<string, string>>({})
   const [advisingCategory, setAdvisingCategory] = useState<string | null>(null)
+  // 1日まとめAIアドバイス（朝昼夜全部の記録からまとめてフィードバック）
+  const [dailyAdvice, setDailyAdvice] = useState<string>('')
+  const [advisingDaily, setAdvisingDaily] = useState(false)
 
   // AI分析はCloudflare Pages Function経由（OpenAI GPT-4o）
   const AI_ANALYZE_URL = '/api/ai/analyze-meal'
@@ -817,6 +820,55 @@ export default function MealPage() {
       console.warn('カテゴリアドバイス取得失敗:', e)
     } finally {
       setAdvisingCategory(null)
+    }
+  }
+
+  // 1日まとめAIアドバイス（朝・昼・夕・間食すべての記録からフィードバック）
+  const fetchDailyAdvice = async () => {
+    if (advisingDaily || todayRecords.length === 0) return
+    setAdvisingDaily(true)
+    try {
+      const allItems: { name: string; grams: number; kcal: number; protein: number; fat: number; carbs: number }[] = []
+      for (const record of todayRecords) {
+        if (record.items && record.items.length > 0) {
+          for (const item of record.items) {
+            allItems.push({
+              name: item.foodName, grams: item.grams || 100,
+              kcal: item.caloriesKcal || 0, protein: item.proteinG || 0,
+              fat: item.fatG || 0, carbs: item.carbsG || 0,
+            })
+          }
+        } else {
+          allItems.push({
+            name: record.foodName, grams: 100,
+            kcal: record.caloriesKcal || 0, protein: record.proteinG || 0,
+            fat: record.fatG || 0, carbs: record.carbsG || 0,
+          })
+        }
+      }
+      const dayTotals = {
+        kcal: totals.calories,
+        protein: totals.protein,
+        fat: totals.fat,
+        carbs: totals.carbs,
+      }
+      const res = await apiFetch('/api/ai/advice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: allItems,
+          totals: dayTotals,
+          goal: goal ? { kcal: goal.cal, protein: goal.protein, fat: goal.fat, carbs: goal.carbs } : undefined,
+        }),
+      })
+      const data = await res.json() as { advice?: string }
+      if (data.advice) {
+        setDailyAdvice(data.advice)
+      }
+    } catch (e) {
+      console.warn('1日まとめアドバイス取得失敗:', e)
+    } finally {
+      setAdvisingDaily(false)
     }
   }
 
@@ -1344,6 +1396,67 @@ export default function MealPage() {
               })}
             </div>
           </div>
+
+          {/* 1日まとめAIアドバイスボタン */}
+          {todayRecords.length > 0 && (
+            <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #f3f4f6' }}>
+              <button
+                onClick={fetchDailyAdvice}
+                disabled={advisingDaily}
+                style={{
+                  width: '100%', padding: '12px 16px',
+                  fontSize: '14px', fontWeight: 700, fontFamily: 'inherit',
+                  border: 'none', borderRadius: '12px', cursor: advisingDaily ? 'not-allowed' : 'pointer',
+                  background: advisingDaily
+                    ? '#f3f4f6'
+                    : dailyAdvice
+                      ? 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)'
+                      : 'linear-gradient(135deg, #22C55E 0%, #16a34a 100%)',
+                  color: advisingDaily ? '#6b7280' : dailyAdvice ? '#065f46' : 'white',
+                  boxShadow: advisingDaily || dailyAdvice ? 'none' : '0 4px 12px rgba(34,197,94,0.25)',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {advisingDaily
+                  ? '🤖 AIアドバイス生成中...'
+                  : dailyAdvice
+                    ? '🤖 再生成する'
+                    : `🤖 今日1日の食事からAIアドバイスをもらう（${todayRecords.length}件）`}
+              </button>
+              {dailyAdvice && (
+                <div
+                  style={{
+                    marginTop: '12px', padding: '14px 16px',
+                    background: '#f0fdf4', border: '1px solid #bbf7d0',
+                    borderRadius: '12px', position: 'relative',
+                  }}
+                >
+                  <button
+                    onClick={() => setDailyAdvice('')}
+                    style={{
+                      position: 'absolute', top: '6px', right: '8px',
+                      background: 'transparent', border: 'none',
+                      fontSize: '14px', color: '#6b7280', cursor: 'pointer',
+                      padding: '2px 6px', fontFamily: 'inherit',
+                    }}
+                    aria-label="閉じる"
+                  >✕</button>
+                  <p style={{
+                    fontSize: '11px', fontWeight: 700, color: '#16a34a',
+                    margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: '4px',
+                  }}>
+                    💡 今日1日の食事からのアドバイス
+                  </p>
+                  <p style={{
+                    fontSize: '13px', color: '#374151', lineHeight: 1.7,
+                    margin: 0, whiteSpace: 'pre-wrap',
+                  }}>
+                    {dailyAdvice}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* ===== 食事タイムライン ===== */}
