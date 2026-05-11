@@ -1405,7 +1405,7 @@ export default function MealPage() {
                 disabled={advisingDaily}
                 style={{
                   width: '100%', padding: '12px 16px',
-                  fontSize: '14px', fontWeight: 700, fontFamily: 'inherit',
+                  fontSize: '13px', fontWeight: 700, fontFamily: 'inherit',
                   border: 'none', borderRadius: '12px', cursor: advisingDaily ? 'not-allowed' : 'pointer',
                   background: advisingDaily
                     ? '#f3f4f6'
@@ -1415,13 +1415,16 @@ export default function MealPage() {
                   color: advisingDaily ? '#6b7280' : dailyAdvice ? '#065f46' : 'white',
                   boxShadow: advisingDaily || dailyAdvice ? 'none' : '0 4px 12px rgba(34,197,94,0.25)',
                   transition: 'all 0.2s',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
                 }}
               >
                 {advisingDaily
-                  ? '🤖 AIアドバイス生成中...'
+                  ? '🤖 生成中…'
                   : dailyAdvice
-                    ? '🤖 再生成する'
-                    : `🤖 今日1日の食事からAIアドバイスをもらう（${todayRecords.length}件）`}
+                    ? '🔄 再生成する'
+                    : '🤖 1日まとめてAIアドバイス'}
               </button>
               {dailyAdvice && (
                 <div
