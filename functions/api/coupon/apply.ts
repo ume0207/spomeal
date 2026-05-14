@@ -97,14 +97,20 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return new Response(JSON.stringify({ ok: false, error: 'ユーザーが見つかりません' }), { status: 404, headers: cors })
   }
 
-  // profiles に upsert（無料利用権を付与）
-  // - subscription_status='active'：プラン制限を通過させる
-  // - subscription_plan=grantedPlan：YASERU の場合は premium 相当
-  // - is_free_account=true：管理者画面で識別できるようにフラグ立て
-  // - free_coupon_code：どのコードで付与されたか記録
-  // - free_granted_at：付与日時
+  // profiles に upsert（無料利用権を付与）— 3段階フォールバック
+  // 1) フル: 全フィールド一括 upsert
+  // 2) ミニマル upsert: id + subscription_status + subscription_plan のみ
+  //    （email/updated_at/is_free_account 等のカラム存在に依存しない）
+  // 3) PATCH 更新: upsert が NG なら既存行を update（行が無ければスキップ）
+  // 4) ベストエフォート: is_free_account / free_coupon_code / free_granted_at は
+  //    個別 PATCH で試行し失敗しても無視（実害なし）
+  const tried: string[] = []
+  let upsertOk = false
+  let lastErr = ''
+
   try {
-    const upsertRes = await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles`, {
+    // 1) フル upsert
+    const fullRes = await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles`, {
       method: 'POST',
       headers: { ...supaHeaders, 'Prefer': 'resolution=merge-duplicates,return=representation' },
       body: JSON.stringify({
@@ -118,29 +124,85 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         updated_at: new Date().toISOString(),
       }),
     })
+    tried.push(`full=${fullRes.status}`)
+    if (fullRes.ok) {
+      upsertOk = true
+    } else {
+      lastErr = await fullRes.text()
+    }
 
-    if (!upsertRes.ok) {
-      const errTxt = await upsertRes.text()
-      // is_free_account / free_coupon_code / free_granted_at カラムが無い場合のフォールバック
-      // （マイグレーション未適用でも最低限の機能だけは動かす）
-      const fallbackRes = await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles`, {
+    // 2) ミニマル upsert（id + subscription_status + subscription_plan のみ）
+    if (!upsertOk) {
+      const minRes = await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles`, {
         method: 'POST',
         headers: { ...supaHeaders, 'Prefer': 'resolution=merge-duplicates' },
         body: JSON.stringify({
           id: userId,
-          email: body.email || null,
           subscription_status: 'active',
           subscription_plan: grantedPlan,
-          updated_at: new Date().toISOString(),
         }),
       })
-      if (!fallbackRes.ok) {
-        return new Response(
-          JSON.stringify({ ok: false, error: 'プロフィール更新失敗', detail: errTxt }),
-          { status: 500, headers: cors }
-        )
+      tried.push(`min=${minRes.status}`)
+      if (minRes.ok) {
+        upsertOk = true
+      } else {
+        lastErr = await minRes.text()
       }
     }
+
+    // 3) PATCH 更新（既存行のみ）
+    if (!upsertOk) {
+      const patchRes = await fetch(
+        `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
+        {
+          method: 'PATCH',
+          headers: { ...supaHeaders, 'Prefer': 'return=representation' },
+          body: JSON.stringify({
+            subscription_status: 'active',
+            subscription_plan: grantedPlan,
+          }),
+        }
+      )
+      tried.push(`patch=${patchRes.status}`)
+      if (patchRes.ok) {
+        // PATCH の場合、行が無いと 0件更新（200 だが body=[]）になるので確認
+        const patched = await patchRes.json().catch(() => []) as unknown[]
+        if (Array.isArray(patched) && patched.length > 0) {
+          upsertOk = true
+        } else {
+          lastErr = `PATCH applied but no rows updated (profile row may not exist yet)`
+        }
+      } else {
+        lastErr = await patchRes.text()
+      }
+    }
+
+    if (!upsertOk) {
+      console.error('coupon apply failed:', { tried, lastErr, userId, code })
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          error: 'プロフィール更新失敗',
+          detail: lastErr.slice(0, 500),
+          tried,
+        }),
+        { status: 500, headers: cors }
+      )
+    }
+
+    // 4) ベストエフォートで管理用フラグを追加（失敗しても無視）
+    fetch(
+      `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
+      {
+        method: 'PATCH',
+        headers: supaHeaders,
+        body: JSON.stringify({
+          is_free_account: true,
+          free_coupon_code: code,
+          free_granted_at: new Date().toISOString(),
+        }),
+      }
+    ).catch(() => { /* schema未対応カラムは無視 */ })
 
     return new Response(
       JSON.stringify({
@@ -152,7 +214,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     )
   } catch (e) {
     return new Response(
-      JSON.stringify({ ok: false, error: String(e) }),
+      JSON.stringify({ ok: false, error: String(e), tried }),
       { status: 500, headers: cors }
     )
   }
